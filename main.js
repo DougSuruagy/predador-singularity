@@ -202,15 +202,16 @@ function updateUI(data) {
         DOM.flowBar.style.background = imb > 0 ? 'var(--neon-green)' : 'var(--neon-pink)';
     }
 
-    // Status e Automação de Repasse
+    // Status e Escudo APEX V16.0
     if (DOM.statusPill) {
         const lockIcon = data.is_locked ? ' 🔒' : '';
         const huntIcon = data.is_hunting ? ' 🎯' : '';
-        const repasseTag = data.is_locked ? ' [REPASSE PAUSADO]' : ' [REPASSE ATIVO]';
+        const whaleIcon = data.whale ? ' 🐋 W-ALERT' : '';
+        const trapText = data.trap_detected ? ' <span style="color:var(--neon-pink)">[TRAP DETECTED]</span>' : ' [SHIELD ACTIVE]';
 
         DOM.statusPill.innerHTML = `
             <div class="dot" style="background:${data.is_locked ? 'var(--neon-pink)' : 'var(--neon-green)'}"></div> 
-            CLOUD: ${data.regime || 'ACTIVE'}${lockIcon}${huntIcon} <small style="opacity:0.7">${repasseTag}</small>
+            APEX: ${data.regime || 'ACTIVE'}${lockIcon}${huntIcon}${whaleIcon}${trapText}
         `;
     }
 

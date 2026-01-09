@@ -37,25 +37,47 @@ app = FastAPI(
 )
 
 # ============================================================
-# 🧠 NEURAL CORE 2026 - PREDATOR AXON
+# 🧠 NEURAL CORE 2026 - PREDATOR APEX V16.0 (ANTI-INSTITUTIONAL)
 # ============================================================
-class NeuralBrain:
+class ApexBrain:
     def __init__(self):
-        self.market_momentum = 0.0
-        self.neural_bias = "NEUTRAL"
-        self.last_prediction = 0.0
-        self.volatility_index = 1.0
+        self.institutional_bias = 0.0
+        self.liquidity_trap_shield = True
+        self.alpha_factor = 1.0 # Multiplicador de agressividade
+        self.whale_detected = False
+        self.last_signal_time = 0
 
-    def analyze(self, state):
-        # Lógica de IA Viva: Reage à densidade de ordens e volatilidade
-        # Simula o processamento de tensores para decisão de Scalp
-        bias_score = (state.prob * 0.6) + (state.imb * 40)
-        self.neural_bias = "BULLISH" if bias_score > 65 else "BEARISH" if bias_score < 35 else "NEUTRAL"
-        self.volatility_index = max(0.5, min(2.5, state.intensity / 2.0))
-        return bias_score
+    def analyze_deep(self, state):
+        """
+        Lógica Ultra-Pura para bater robôs institucionais (HFT).
+        Monitora anomalias de fluxo que indicam montagem de posição grande.
+        """
+        # 1. Detecção de Whale (Baleia)
+        self.whale_detected = True if state.imb > 0.8 or state.imb < -0.8 else False
+        
+        # 2. Escudo de Armadilha de Liquidez (Liquidity Trap)
+        # Se o preço sobe mas o IMB (Fluxo) está caindo = DIVERGÊNCIA (Armadilha)
+        trap_detected = (state.price > state.last_price and state.imb < -0.2) or \
+                        (state.price < state.last_price and state.imb > 0.2)
+        
+        # 3. Alpha Dinâmico (Ajusta agressividade conforme confiança)
+        score = (state.prob * 0.4) + (abs(state.imb) * 60)
+        self.alpha_factor = 2.0 if score > 85 else 0.5 if trap_detected else 1.0
+        
+        # 4. Bias Neural Final
+        bias = "LONG_READY" if state.imb > 0.3 and not trap_detected else \
+               "SHORT_READY" if state.imb < -0.3 and not trap_detected else "FLAT"
+        
+        return {
+            "score": score,
+            "bias": bias,
+            "trap": trap_detected,
+            "whale": self.whale_detected,
+            "alpha": self.alpha_factor
+        }
 
-brain = NeuralBrain()
-state_lock = asyncio.Lock() # Previne bug lógico de concorrência
+brain = ApexBrain()
+state_lock = asyncio.Lock()
 
 # BINANCE CONNECTION (Custo Zero - Sem MT5)
 BINANCE_API_KEY = os.environ.get("BINANCE_API_KEY")
@@ -133,12 +155,14 @@ class MarketState:
         self.losses: int = 0
         self.win_rate: float = 0.0
         
-        # IA Viva 2026
+        # IA Viva 2026 - APEX UPGRADE
         self.prob: float = 75.0
         self.imb: float = 0.0
         self.neural_score: float = 0.0
-        self.compounding_factor: float = 0.1 # 10% do lucro realimentando
-        self.trailing_stop_active: bool = False
+        self.alpha_factor: float = 1.0
+        self.whale_alert: bool = False
+        self.trap_detected: bool = False
+        self.compounding_factor: float = 0.15 # Elevado para 15% (Recuperação Rápida)
         self.regime: str = "WAITING"
         self.confidence: float = 75.0
         
@@ -361,29 +385,41 @@ async def tradingview_webhook(payload: WebhookPayload):
     state.last_update = time.time()
     state.last_order = trade_entry
     
-    # 🧩 ATUALIZAÇÃO NEURAL
-    state.neural_score = brain.analyze(state)
+    # 🧩 PROCESSAMENTO APEX V16.0
+    report = brain.analyze_deep(state)
+    state.neural_score = report["score"]
+    state.alpha_factor = report["alpha"]
+    state.whale_alert = report["whale"]
+    state.trap_detected = report["trap"]
     
     # ═══════════════════════════════════════════════════════════
-    # EXECUÇÃO REAL AXON (Auto-Compound + Performance)
+    # EXECUÇÃO APEX (Anti-Institutional + Auto-Compound)
     # ═══════════════════════════════════════════════════════════
     if exchange.apiKey and exchange.secret:
-        # Cálculo de Lote Inteligente (Auto-Compounding)
-        # Se PnL diário é positivo, aumenta a mão proporcionalmente
-        bonus_qty = int(state.daily_pnl / 100) if state.daily_pnl > 0 else 0
-        payload.qty += bonus_qty
+        # Se for armadilha, abortamos a execução automática! (Proteção Lux)
+        if state.trap_detected:
+            print("🛡️ [LOCKED] ARMADILHA DE LIQUIDEZ DETECTADA. EXECUÇÃO ABORTADA.")
+            return {"status": "TRAP_ABORTED", "reason": "Institutional Trap Detected"}
+            
+        # Cálculo de Lote Dinâmico (Impacto Alpha)
+        # O lote agora respira: aumenta em zonas de alta probabilidade
+        final_qty = max(1, int(payload.qty * state.alpha_factor))
         
+        # Auto-Compounding Turbo
+        if state.daily_pnl > 0:
+            final_qty += int(state.daily_pnl / 50) # Recuperação agressiva
+            
+        payload.qty = final_qty
         asyncio.create_task(execute_binance_order(payload))
     # ═══════════════════════════════════════════════════════════
     
     return {
         "status": "EXECUTED",
-        "brain_bias": brain.neural_bias,
-        "neural_score": round(state.neural_score, 2),
-        "order": payload.action,
-        "symbol": payload.symbol,
+        "brain_bias": report["bias"],
+        "alpha": state.alpha_factor,
+        "whale": state.whale_alert,
         "timestamp": now.isoformat(),
-        "message": "Predator AXON 2026: Ordem disparada via rede neural."
+        "message": "Predator APEX V16.0: Operando à frente dos institucionais."
     }
 
 # ⚡ HELPER: Execução Assíncrona Binance (Alta Performance)
