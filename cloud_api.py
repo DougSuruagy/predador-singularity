@@ -43,37 +43,50 @@ class ApexBrain:
     def __init__(self):
         self.institutional_bias = 0.0
         self.liquidity_trap_shield = True
-        self.alpha_factor = 1.0 # Multiplicador de agressividade
+        self.alpha_factor = 1.0 
         self.whale_detected = False
-        self.last_signal_time = 0
+        self.correlation_factor = 1.0 # Correlação com BTC
+        self.btc_last_price = 0.0
+
+    async def fetch_btc_correlation(self):
+        """Busca o preço do BTC para calcular correlação em tempo real."""
+        try:
+            ticker = await exchange.fetch_ticker('BTC/USDT')
+            current_btc = ticker['last']
+            if self.btc_last_price > 0:
+                # Se BTC sobe, o fator de correlação aumenta para Altcoins
+                change = (current_btc - self.btc_last_price) / self.btc_last_price
+                self.correlation_factor = 1.0 + (change * 100) # Sensibilidade 100x
+            self.btc_last_price = current_btc
+        except:
+            pass
 
     def analyze_deep(self, state):
-        """
-        Lógica Ultra-Pura para bater robôs institucionais (HFT).
-        Monitora anomalias de fluxo que indicam montagem de posição grande.
-        """
-        # 1. Detecção de Whale (Baleia)
+        # 1. Detecção de Whale
         self.whale_detected = True if state.imb > 0.8 or state.imb < -0.8 else False
         
-        # 2. Escudo de Armadilha de Liquidez (Liquidity Trap)
-        # Se o preço sobe mas o IMB (Fluxo) está caindo = DIVERGÊNCIA (Armadilha)
+        # 2. Escudo de Armadilha (Preço vs Fluxo vs Correlação)
+        # Se Altcoin sobe mas BTC (Líder) cai = Armadilha GIGANTE
+        anchor_trap = (state.price > state.last_price and self.correlation_factor < 0.98)
+        
         trap_detected = (state.price > state.last_price and state.imb < -0.2) or \
-                        (state.price < state.last_price and state.imb > 0.2)
+                        (state.price < state.last_price and state.imb > 0.2) or anchor_trap
         
-        # 3. Alpha Dinâmico (Ajusta agressividade conforme confiança)
+        # 3. Alpha Dinâmico + Bônus de Correlação
+        # Se BTC e Ativo estão na mesma direção, o Alpha é máximo
         score = (state.prob * 0.4) + (abs(state.imb) * 60)
-        self.alpha_factor = 2.0 if score > 85 else 0.5 if trap_detected else 1.0
+        self.alpha_factor = 2.5 if score > 85 and self.correlation_factor > 1.01 else 1.0
         
-        # 4. Bias Neural Final
-        bias = "LONG_READY" if state.imb > 0.3 and not trap_detected else \
-               "SHORT_READY" if state.imb < -0.3 and not trap_detected else "FLAT"
+        bias = "LONG_READY" if state.imb > 0.2 and self.correlation_factor > 1.0 else \
+               "SHORT_READY" if state.imb < -0.2 and self.correlation_factor < 1.0 else "FLAT"
         
         return {
             "score": score,
             "bias": bias,
             "trap": trap_detected,
             "whale": self.whale_detected,
-            "alpha": self.alpha_factor
+            "alpha": self.alpha_factor,
+            "corr": self.correlation_factor
         }
 
 brain = ApexBrain()
@@ -160,9 +173,10 @@ class MarketState:
         self.imb: float = 0.0
         self.neural_score: float = 0.0
         self.alpha_factor: float = 1.0
+        self.btc_correlation: float = 1.0
         self.whale_alert: bool = False
         self.trap_detected: bool = False
-        self.compounding_factor: float = 0.15 # Elevado para 15% (Recuperação Rápida)
+        self.compounding_factor: float = 0.15 
         self.regime: str = "WAITING"
         self.confidence: float = 75.0
         
@@ -385,29 +399,29 @@ async def tradingview_webhook(payload: WebhookPayload):
     state.last_update = time.time()
     state.last_order = trade_entry
     
-    # 🧩 PROCESSAMENTO APEX V16.0
+    # 🧩 PROCESSAMENTO APEX V16.0 + CORRELAÇÃO ADAPTATIVA
+    await brain.fetch_btc_correlation() # Garante que temos o pulso do Bitcoin
+    
     report = brain.analyze_deep(state)
     state.neural_score = report["score"]
     state.alpha_factor = report["alpha"]
     state.whale_alert = report["whale"]
     state.trap_detected = report["trap"]
+    state.btc_correlation = report["corr"]
     
     # ═══════════════════════════════════════════════════════════
-    # EXECUÇÃO APEX (Anti-Institutional + Auto-Compound)
+    # EXECUÇÃO APEX (Bitcoin Master Correlation)
     # ═══════════════════════════════════════════════════════════
     if exchange.apiKey and exchange.secret:
-        # Se for armadilha, abortamos a execução automática! (Proteção Lux)
+        # Se for armadilha ou descorrelação crítica com o Bitcoin, abortamos
         if state.trap_detected:
-            print("🛡️ [LOCKED] ARMADILHA DE LIQUIDEZ DETECTADA. EXECUÇÃO ABORTADA.")
-            return {"status": "TRAP_ABORTED", "reason": "Institutional Trap Detected"}
+            print(f"🛡️ [LOCKED] ARMADILHA OU DESCORRELAÇÃO BTC. SYNC: {state.btc_correlation:.2f}")
+            return {"status": "TRAP_ABORTED", "reason": "Institutional Trap / BTC Divergence"}
             
-        # Cálculo de Lote Dinâmico (Impacto Alpha)
-        # O lote agora respira: aumenta em zonas de alta probabilidade
         final_qty = max(1, int(payload.qty * state.alpha_factor))
         
-        # Auto-Compounding Turbo
         if state.daily_pnl > 0:
-            final_qty += int(state.daily_pnl / 50) # Recuperação agressiva
+            final_qty += int(state.daily_pnl / 50)
             
         payload.qty = final_qty
         asyncio.create_task(execute_binance_order(payload))
@@ -416,10 +430,10 @@ async def tradingview_webhook(payload: WebhookPayload):
     return {
         "status": "EXECUTED",
         "brain_bias": report["bias"],
+        "btc_sync": round(state.btc_correlation, 4),
         "alpha": state.alpha_factor,
-        "whale": state.whale_alert,
         "timestamp": now.isoformat(),
-        "message": "Predator APEX V16.0: Operando à frente dos institucionais."
+        "message": "Predator APEX V16.0: Sincronizado com o fluxo do Bitcoin."
     }
 
 # ⚡ HELPER: Execução Assíncrona Binance (Alta Performance)
