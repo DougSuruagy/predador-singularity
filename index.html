@@ -4,17 +4,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PREDATOR v8.0 | SKYNET HUB</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&family=JetBrains+Mono&display=swap"
+    <meta name="description" content="PREDATOR v13.0 SINGULARITY - Dashboard de Trading HFT com IA">
+    <title>PREDATOR v13.0 | SINGULARITY HUB</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&family=JetBrains+Mono:wght@400;700&display=swap"
         rel="stylesheet">
     <style>
         :root {
             --bg-deep: #020408;
-            --bg-card: rgba(13, 17, 26, 0.7);
+            --bg-card: rgba(13, 17, 26, 0.85);
             --neon-blue: #00f2ff;
             --neon-green: #00ff9d;
             --neon-pink: #ff0055;
             --neon-purple: #bc00ff;
+            --neon-yellow: #ffcc00;
             --text-dim: #8b949e;
             --glass-border: rgba(255, 255, 255, 0.1);
         }
@@ -32,60 +37,82 @@
             overflow: hidden;
             display: flex;
             height: 100vh;
-            background-image: radial-gradient(circle at 50% 50%, #0a1122 0%, #020408 100%);
+            background-image:
+                radial-gradient(ellipse at 20% 80%, rgba(0, 242, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(188, 0, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, #0a1122 0%, #020408 100%);
         }
 
         /* Sidebar Glassmorphism */
         nav {
-            width: 280px;
+            width: 260px;
             background: var(--bg-card);
             backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border-right: 1px solid var(--glass-border);
             display: flex;
             flex-direction: column;
-            padding: 30px;
+            padding: 25px;
             z-index: 10;
         }
 
         .logo {
             font-weight: 900;
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             letter-spacing: -1px;
-            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 50px;
+            background-clip: text;
+            margin-bottom: 40px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
+        .logo svg {
+            filter: drop-shadow(0 0 10px var(--neon-blue));
+        }
+
         .nav-item {
-            padding: 15px 0;
+            padding: 14px 0;
             color: var(--text-dim);
             font-weight: 500;
             cursor: pointer;
-            transition: 0.3s;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
         }
 
         .nav-item:hover,
         .nav-item.active {
             color: white;
-            text-shadow: 0 0 10px var(--neon-blue);
+            text-shadow: 0 0 15px var(--neon-blue);
+            padding-left: 8px;
+        }
+
+        .nav-item.active::before {
+            content: '';
+            width: 3px;
+            height: 20px;
+            background: var(--neon-blue);
+            border-radius: 2px;
+            margin-left: -11px;
+            margin-right: 8px;
+            box-shadow: 0 0 10px var(--neon-blue);
         }
 
         /* Main Content */
         main {
             flex: 1;
-            padding: 40px;
+            padding: 30px;
             display: grid;
             grid-template-columns: 1fr 320px;
             grid-template-rows: auto 1fr auto;
-            gap: 25px;
+            gap: 20px;
             overflow-y: auto;
         }
 
@@ -102,33 +129,46 @@
         }
 
         #big-price {
-            font-size: 5rem;
+            font-size: 4.5rem;
             font-weight: 900;
             line-height: 1;
             font-family: 'JetBrains Mono', monospace;
+            background: linear-gradient(180deg, #fff 0%, #aaa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
         }
 
         .symbol-badge {
             background: rgba(0, 242, 255, 0.1);
             color: var(--neon-blue);
-            padding: 5px 15px;
+            padding: 6px 16px;
             border-radius: 20px;
             font-weight: 700;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             width: fit-content;
             border: 1px solid var(--neon-blue);
-            margin-bottom: 15px;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
         }
 
         /* Dash Cards */
         .card {
             background: var(--bg-card);
             backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 25px;
+            border-radius: 20px;
+            padding: 22px;
             position: relative;
             overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0, 242, 255, 0.1);
         }
 
         .card::before {
@@ -138,17 +178,17 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: radial-gradient(circle at top right, rgba(0, 242, 255, 0.05), transparent);
+            background: radial-gradient(circle at top right, rgba(0, 242, 255, 0.03), transparent);
             pointer-events: none;
         }
 
         .card-label {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--text-dim);
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 15px;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
             display: block;
         }
 
@@ -162,10 +202,16 @@
 
         #main-chart {
             flex: 1;
-            border-radius: 20px;
-            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            background: rgba(0, 0, 0, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.05);
             position: relative;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 0.8rem;
         }
 
         /* AI Gauge */
@@ -174,39 +220,56 @@
             grid-row: 2;
             display: flex;
             flex-direction: column;
-            gap: 25px;
+            gap: 20px;
         }
 
         .gauge-wrap {
-            height: 200px;
+            height: 160px;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             position: relative;
         }
 
         .prob-value {
-            font-size: 2.5rem;
+            font-size: 3rem;
             font-weight: 900;
             color: var(--neon-green);
-            text-shadow: 0 0 20px rgba(0, 255, 157, 0.4);
+            text-shadow: 0 0 30px rgba(0, 255, 157, 0.5);
+            font-family: 'JetBrains Mono', monospace;
+            transition: color 0.3s ease;
+        }
+
+        .regime-label {
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--neon-yellow);
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
         /* Stats Grid */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
+            gap: 15px;
+        }
+
+        .stat-box {
+            text-align: center;
         }
 
         .stat-box h3 {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         /* Flow Indicator */
         .flow-strip {
-            height: 60px;
+            height: 55px;
             background: rgba(0, 0, 0, 0.5);
             border-radius: 12px;
             display: flex;
@@ -219,8 +282,9 @@
             height: 6px;
             background: var(--neon-green);
             border-radius: 3px;
-            box-shadow: 0 0 15px var(--neon-green);
-            transition: 0.1s;
+            box-shadow: 0 0 20px var(--neon-green);
+            transition: all 0.2s ease;
+            min-width: 5%;
         }
 
         /* Status Pills */
@@ -231,6 +295,7 @@
             font-size: 0.7rem;
             color: var(--neon-green);
             font-weight: 800;
+            letter-spacing: 1px;
         }
 
         .dot {
@@ -238,44 +303,112 @@
             height: 8px;
             background: var(--neon-green);
             border-radius: 50%;
-            box-shadow: 0 0 10px var(--neon-green);
-            animation: pulse 2s infinite;
+            box-shadow: 0 0 15px var(--neon-green);
+            animation: pulse 2s infinite ease-in-out;
         }
 
         @keyframes pulse {
-            0% {
+
+            0%,
+            100% {
                 opacity: 1;
                 transform: scale(1);
             }
 
             50% {
-                opacity: 0.5;
-                transform: scale(1.5);
-            }
-
-            100% {
-                opacity: 1;
-                transform: scale(1);
+                opacity: 0.6;
+                transform: scale(1.4);
             }
         }
 
+        /* Panic Button */
         .btn-panic {
-            background: var(--neon-pink);
+            background: linear-gradient(135deg, var(--neon-pink), #cc0044);
             color: white;
             border: none;
-            padding: 15px;
+            padding: 14px;
             border-radius: 12px;
             font-weight: 700;
             cursor: pointer;
             margin-top: auto;
             text-transform: uppercase;
-            box-shadow: 0 0 20px rgba(255, 0, 85, 0.3);
-            transition: 0.3s;
+            box-shadow: 0 0 25px rgba(255, 0, 85, 0.3);
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
         }
 
         .btn-panic:hover {
-            transform: scale(1.02);
-            box-shadow: 0 0 30px rgba(255, 0, 85, 0.5);
+            transform: scale(1.03);
+            box-shadow: 0 0 40px rgba(255, 0, 85, 0.5);
+        }
+
+        /* Feed Log */
+        #feed {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            line-height: 2;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        #feed::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #feed::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #feed::-webkit-scrollbar-thumb {
+            background: var(--glass-border);
+            border-radius: 2px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            nav {
+                width: 220px;
+                padding: 20px;
+            }
+
+            main {
+                padding: 20px;
+                gap: 15px;
+            }
+
+            #big-price {
+                font-size: 3.5rem;
+            }
+        }
+
+        @media (max-width: 900px) {
+            body {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+
+            nav {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            main {
+                grid-template-columns: 1fr;
+            }
+
+            .ai-panel {
+                grid-column: 1;
+                grid-row: auto;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
         }
     </style>
 </head>
@@ -283,11 +416,17 @@
 <body>
     <nav>
         <div class="logo">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#gradient)" stroke-width="2.5"
                 stroke-linecap="round" stroke-linejoin="round">
+                <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#00f2ff" />
+                        <stop offset="100%" style="stop-color:#bc00ff" />
+                    </linearGradient>
+                </defs>
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
             </svg>
-            PREDATOR v8.0
+            PREDATOR v13.0
         </div>
 
         <div class="nav-item active">TERMINAL HUB</div>
@@ -295,19 +434,19 @@
         <div class="nav-item">ASSET SCANNER</div>
         <div class="nav-item">PORTFOLIO</div>
 
-        <button class="btn-panic">TERMINATE ALL</button>
+        <button class="btn-panic" onclick="terminateAll()">⚠ TERMINATE ALL</button>
     </nav>
 
     <main>
         <header>
             <div class="price-hero">
-                <div class="symbol-badge">WING26 INDEX</div>
-                <div id="big-price">128,450</div>
+                <div class="symbol-badge">WING26 • B3 INDEX FUTURES</div>
+                <div id="big-price">---</div>
             </div>
 
             <div class="status-pill">
                 <div class="dot"></div>
-                SKYNET LINK: ACTIVE
+                INITIALIZING...
             </div>
         </header>
 
@@ -315,26 +454,25 @@
             <div class="card" style="flex: 1; display: flex; flex-direction: column;">
                 <span class="card-label">Master Neural Velocity</span>
                 <div id="main-chart">
-                    <!-- Canvas de Gráfico virá aqui -->
+                    📊 Chart Widget Loading...
                 </div>
             </div>
 
             <div class="card flow-strip">
                 <span class="card-label"
-                    style="position: absolute; top: -10px; left: 15px; background: var(--bg-deep); padding: 0 10px;">Market
-                    Flow Imbalance</span>
-                <div id="flow-bar" style="width: 65%;"></div>
+                    style="position: absolute; top: -10px; left: 15px; background: var(--bg-deep); padding: 0 10px;">
+                    Market Flow Imbalance
+                </span>
+                <div id="flow-bar" style="width: 50%;"></div>
             </div>
         </div>
 
         <div class="ai-panel">
             <div class="card">
-                <span class="card-label">AI Prediction Accuracy</span>
+                <span class="card-label">AI Prediction Confidence</span>
                 <div class="gauge-wrap">
-                    <div class="prob-value">78.4%</div>
-                </div>
-                <div style="text-align: center; color: var(--neon-yellow); font-weight: 800; font-size: 0.8rem;">
-                    REGIME: BULLISH PRESSURE
+                    <div class="prob-value">0.0%</div>
+                    <div class="regime-label" data-regime>INITIALIZING</div>
                 </div>
             </div>
 
@@ -343,57 +481,37 @@
                 <div class="stats-grid">
                     <div class="stat-box">
                         <span class="card-label" style="margin-bottom: 5px;">PNL</span>
-                        <h3 style="color: var(--neon-green);">+R$ 1.2k</h3>
+                        <h3 style="color: var(--neon-green);">R$ 0</h3>
                     </div>
                     <div class="stat-box">
-                        <span class="card-label" style="margin-bottom: 5px;">WIN</span>
-                        <h3 style="color: var(--neon-blue);">62%</h3>
+                        <span class="card-label" style="margin-bottom: 5px;">WIN %</span>
+                        <h3 style="color: var(--neon-blue);">0%</h3>
                     </div>
                     <div class="stat-box">
-                        <span class="card-label" style="margin-bottom: 5px;">DRIVE</span>
-                        <h3 style="color: var(--neon-purple);">92%</h3>
+                        <span class="card-label" style="margin-bottom: 5px;">TRADES</span>
+                        <h3 style="color: var(--neon-purple);">0</h3>
                     </div>
                 </div>
             </div>
 
             <div class="card" style="flex: 1;">
                 <span class="card-label">Neural Event Log</span>
-                <div id="feed"
-                    style="font-family: 'JetBrains Mono'; font-size: 0.7rem; color: var(--text-dim); line-height: 1.8;">
-                    [19:02:44] SIGNAL: BUY | WING26 | CONF: 82%<br>
-                    [19:02:15] POS: ENTERED | PRICE: 128,440<br>
-                    [19:01:55] REGIME CHANGE: VOLATILITY SPIKE<br>
+                <div id="feed">
+                    Aguardando conexão com a API...
                 </div>
             </div>
         </div>
     </main>
 
+    <script type="module" src="./main.js"></script>
     <script>
-        const API_URL = "https://seu-predador-api.onrender.com"; // Substituir após o deploy no Render
-
-        async function syncCloud() {
-            try {
-                const response = await fetch(`${API_URL}/state`);
-                const data = await response.json();
-
-                if (data.price > 0) {
-                    document.getElementById('big-price').innerText = data.price.toLocaleString();
-                    document.querySelector('.prob-value').innerText = `${data.prob.toFixed(1)}%`;
-                    document.querySelector('.status-pill').innerHTML = '<div class="dot"></div> SKYNET LINK: ACTIVE';
-
-                    const pnlEl = document.querySelector('.stats-grid .stat-box:nth-child(1) h3');
-                    pnlEl.innerText = `R$ ${data.pnl.toLocaleString()}`;
-                    pnlEl.style.color = data.pnl >= 0 ? 'var(--neon-green)' : 'var(--neon-pink)';
-
-                    document.querySelector('.stat-box:nth-child(2) h3').innerText = `${data.win_rate}%`;
-                    document.getElementById('flow-bar').style.width = `${50 + (data.imb * 50)}%`;
-                }
-            } catch (e) {
-                document.querySelector('.status-pill').innerHTML = '<div style="background:var(--neon-pink)" class="dot"></div> LINK: OFFLINE';
+        function terminateAll() {
+            if (confirm('⚠️ CONFIRMA ENCERRAMENTO DE TODAS AS POSIÇÕES?')) {
+                fetch(window.PREDATOR?.getActiveApi?.() + '/terminate', { method: 'POST' })
+                    .then(() => alert('✅ Comando de encerramento enviado!'))
+                    .catch(() => alert('❌ Erro ao enviar comando.'));
             }
         }
-
-        setInterval(syncCloud, 250); // High frequency polling
     </script>
 </body>
 
