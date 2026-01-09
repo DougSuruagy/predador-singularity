@@ -1,0 +1,11 @@
+cooldown_end
+fibrinogen_level
+glial_cell_support
+kinase_activity
+last_breath_time
+mitochondrial_biogenesis
+natural_selection_pressure
+next_event_name
+vah
+val
+vwap

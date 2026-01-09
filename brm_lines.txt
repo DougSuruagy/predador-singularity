@@ -1,0 +1,9 @@
+
+Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:41:   void             TriggerStressTest() { Sovereign::BioRiskManagement::InjectQuantumStress(m_cortex); }
+Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:914:    Sovereign::BioRiskManagement::GapStopCheck(m_cortex);
+Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:915:    if(Sovereign::BioRiskManagement::is_rehabilitating) {
+Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:921:    if(Sovereign::BioRiskManagement::CheckEmergencyState()) {
+Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:963:      m_ctx.auto_lot = Sovereign::BioRiskManagement::ScaleLotByBiology(raw_lot, m_cortex);
+Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:7257:   Sovereign::BioRiskManagement::SyncBioMetrics(m_cortex); 
+Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:7258:   Sovereign::BioRiskManagement::GapStopCheck(m_cortex); 
+

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.env
+.idea/
+.vscode/
+*.ex5
+*.json
+!package.json
+!package-lock.json
+binary/

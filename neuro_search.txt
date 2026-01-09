@@ -1,0 +1,17 @@
+C:\Users\Douglas\tryd\HUDResponsive.mqh:24:         static void UpdateHUD(NeuroCortex &cortex) {
+C:\Users\Douglas\tryd\HUDResponsive.mqh:52:         static void DrawCinemaPanel(int x, int y, NeuroCortex &cortex) {
+C:\Users\Douglas\tryd\HUDResponsive.mqh:71:         static void DrawNeuralAnalytics(int x, int y, NeuroCortex &cortex) {
+C:\Users\Douglas\tryd\HUDResponsive.mqh:82:         static void DrawQuantumSensors(int x, int y, NeuroCortex &cortex) {
+C:\Users\Douglas\tryd\HUDResponsive.mqh:96:         static void DrawSystemHealth(int x, int y, NeuroCortex &cortex) {
+C:\Users\Douglas\tryd\HUDResponsive.mqh:116:         static void DrawTacticalStream(int x, int y, NeuroCortex &cortex) {
+C:\Users\Douglas\tryd\HUDResponsive.mqh:121:             // Here we assume m_ctx.thought_stream exists but since we only have NeuroCortex, 
+C:\Users\Douglas\tryd\HUDResponsive.mqh:122:             // the EA should update a static or member in NeuroCortex if needed.
+C:\Users\Douglas\tryd\HUDResponsive.mqh:144:         static color GetMoodColor(NeuroCortex &cortex) {
+C:\Users\Douglas\tryd\MLData.mqh:56:     class NeuroCortex {
+C:\Users\Douglas\tryd\MLData.mqh:68:         NeuroCortex() {
+C:\Users\Douglas\tryd\RiskManagement.mqh:17:     class NeuroCortex; // Forward declaration
+C:\Users\Douglas\tryd\RiskManagement.mqh:21:         static void SyncBioMetrics(NeuroCortex &cortex) {
+C:\Users\Douglas\tryd\RiskManagement.mqh:49:         static void GapStopCheck(NeuroCortex &cortex) {
+C:\Users\Douglas\tryd\RiskManagement.mqh:91:         static double ScaleLotByBiology(double base_lot, NeuroCortex &cortex) {
+C:\Users\Douglas\tryd\RiskManagement.mqh:138:         static void InjectQuantumStress(NeuroCortex &cortex) {
+C:\Users\Douglas\tryd\Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:40:    Sovereign::NeuroCortex m_cortex;        // 🧠 NOVO: Córtex Neural 2026
