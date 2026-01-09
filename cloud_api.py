@@ -45,18 +45,29 @@ class ApexBrain:
         self.liquidity_trap_shield = True
         self.alpha_factor = 1.0 
         self.whale_detected = False
-        self.correlation_factor = 1.0 # Correlação com BTC
+        self.correlation_factor = 1.0 
         self.btc_last_price = 0.0
+        self.last_health_check = time.time()
+
+    async def self_heal_connection(self):
+        """Verifica e restaura conexão com a corretora se necessário."""
+        try:
+            if time.time() - self.last_health_check > 60: # A cada minuto
+                await exchange.fetch_balance()
+                self.last_health_check = time.time()
+                print("💎 [SELF-HEAL] Conexão Binance: OK")
+        except Exception as e:
+            print(f"🔄 [SELF-HEAL] Tentando reconectar... {e}")
+            await exchange.load_markets()
 
     async def fetch_btc_correlation(self):
-        """Busca o preço do BTC para calcular correlação em tempo real."""
+        await self_heal_connection(self) # Auto-recuperação antes de cada trade
         try:
             ticker = await exchange.fetch_ticker('BTC/USDT')
             current_btc = ticker['last']
             if self.btc_last_price > 0:
-                # Se BTC sobe, o fator de correlação aumenta para Altcoins
                 change = (current_btc - self.btc_last_price) / self.btc_last_price
-                self.correlation_factor = 1.0 + (change * 100) # Sensibilidade 100x
+                self.correlation_factor = 1.0 + (change * 100) 
             self.btc_last_price = current_btc
         except:
             pass
@@ -500,18 +511,26 @@ async def register_trade_result(result: TradeResult):
     state.win_rate = round((state.wins / total) * 100, 1) if total > 0 else 0.0
     state.last_update = time.time()
     
-    # 💾 PERSISTÊNCIA SUPABASE
-    if supabase:
-        try:
-            supabase.table("trades").insert({
-                "symbol": "WING26", # Idealmente viria do payload
-                "action": "CLOSE",
-                "result": result.result,
-                "pnl": result.pnl,
-                "price": state.price
-            }).execute()
-        except Exception as e:
-            print(f"⚠️ ERRO AO SALVAR NO DB: {e}")
+        # 💾 PERSISTÊNCIA SUPABASE (Memória Viva)
+        if supabase:
+            try:
+                # Salva o estado atual do sistema como um snapshot de log
+                supabase.table("logs").insert({
+                    "event": "TRADE_RESULT",
+                    "details": f"{result.result} | PnL: {result.pnl} | PnL Total: {state.pnl}",
+                    "level": "INFO" if result.result == "WIN" else "WARNING"
+                }).execute()
+                
+                # Salva o trade em si
+                supabase.table("trades").insert({
+                    "symbol": "BTC/USDT", 
+                    "action": "CLOSE",
+                    "result": result.result,
+                    "pnl": result.pnl,
+                    "price": state.price
+                }).execute()
+            except Exception as e:
+                print(f"⚠️ ERRO AO SALVAR NO DB: {e}")
     
     return {"status": "OK", "win_rate": state.win_rate, "pnl": state.pnl}
 
