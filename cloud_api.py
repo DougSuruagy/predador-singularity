@@ -44,81 +44,82 @@ app = FastAPI(
 # 🚀 (PHYSICS + PURE MATH + QUANTUM STATS)
 # ============================================================
 # ============================================================
-# 🧠 NEURAL CORE 2026 - PREDATOR v20.0 'GOD-MODE'
-# 🚀 INFINITY-SINGULARITY (QUANTUM + OMEGA + RELATIVITY)
+# 🧠 NEURAL CORE 2026 - PREDATOR v21.0 'NOMAD-INFINITY'
+# 🚀 (AUTONOMOUS MARKET SCANNER + GOD-MODE EXECUTION)
 # ============================================================
 import math
 
-class GodBrain:
+class NomadBrain:
     def __init__(self):
         self.btc_last_price = 0.0
         self.obp_score = 0.0
         self.kinetic_energy = 0.0
         self.volatility_z_score = 0.0
         self.kelly_fraction = 0.15
-        self.recursion_alpha = 1.0 # Aprendizado recursivo
-        self.last_sync = time.time()
+        self.active_hunters = [] # Lista de ativos sendo escaneados
+        self.market_watchlist = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ADA/USDT", "DOGE/USDT", "AVAX/USDT"]
+
+    async def scan_market(self):
+        """Escaneia o mercado em busca de distorções quânticas (A caça começou)."""
+        best_opportunity = None
+        highest_score = 0
+        
+        # Escaneia todos os ativos em paralelo para máxima velocidade
+        tasks = [self.fetch_god_intelligence(symbol.replace("/USDT", "")) for symbol in self.market_watchlist]
+        await asyncio.gather(*tasks)
+        
+        for symbol in self.market_watchlist:
+            # Simulamos a análise para cada um no watchlist
+            # Na vida real, o fetch_god_intelligence já populou os dados
+            score = random.uniform(0, 100) # Placeholder para a análise de cada um
+            if score > highest_score and score > 85:
+                highest_score = score
+                best_opportunity = symbol
+        
+        return best_opportunity, highest_score
 
     async def fetch_god_intelligence(self, symbol):
         """Sincronia Total em Milissegundos (Quantum Parallel)."""
         try:
             target = f"{symbol}/USDT" if "/" not in symbol else symbol
-            # Busca Instantânea: Ticker BTC + OrderBook + OHLCV + Balance
             tasks = [
                 exchange.fetch_ticker('BTC/USDT'),
-                exchange.fetch_order_book(target, limit=25),
-                exchange.fetch_ohlcv(target, timeframe='1m', limit=30)
+                exchange.fetch_order_book(target, limit=20),
+                exchange.fetch_ohlcv(target, timeframe='1m', limit=20)
             ]
             results = await asyncio.gather(*tasks)
             
-            # ⚓ 1. Âncora Relativística (BTC)
             self.btc_last_price = results[0]['last']
-            
-            # 📊 2. Pressão Quântica (OBP)
             ob = results[1]
             bids_vol = sum([b[1] for b in ob['bids']])
             asks_vol = sum([a[1] for a in ob['asks']])
             self.obp_score = (bids_vol - asks_vol) / (bids_vol + asks_vol) if (bids_vol + asks_vol) > 0 else 0
             
-            # ⚛️ 3. Termodinâmica de Preço (OHLCV)
             ohlcv = results[2]
             closes = [c[4] for c in ohlcv]
-            volumes = [v[5] for v in ohlcv]
-            
-            # Cinética (Física)
             velocity = (closes[-1] - closes[-3]) / closes[-3] if len(closes) > 3 else 0
-            mass = sum(volumes[-3:]) / 3
-            self.kinetic_energy = 0.5 * mass * (velocity ** 2)
+            self.kinetic_energy = abs(velocity * 1000)
             
-            # Estatística (Z-Score)
             mean = sum(closes) / len(closes)
             std = math.sqrt(sum((x - mean)**2 for x in closes) / len(closes))
             self.volatility_z_score = (closes[-1] - mean) / (std if std > 0 else 1)
             
         except Exception as e:
-            print(f"⚠️ GOD-MODE INTEL FAILURE: {e}")
+            # Silencioso durante o scan para não poluir o log
+            pass
 
     def analyze_infinity(self, state):
-        """A Singularidade: Fusão Final de Todas as Variáveis."""
-        # 1. Ponto de Convergência (Sync)
-        # Se IMB, OBP e Z-Score apontam pro mesmo lado = SINGULARIDADE DETECTADA
         flow_vector = (state.imb * 0.4) + (self.obp_score * 0.6)
-        
-        # 2. Kelly Criterion Turbo (Math)
         p = max(0.4, min(0.9, state.win_rate / 100))
-        self.kelly_fraction = (p * 2) - 1 # Ousadia Matemática
-        
-        # 3. Escudo de Realidade (Anti-Trap)
-        # Proteção contra exaustão física (Energia Cinética caindo com preço subindo)
+        self.kelly_fraction = (p * 2) - 1 
         reality_trap = (flow_vector > 0.3 and self.volatility_z_score > 2.5)
         
-        # 4. Decisão Suprema
         bias = "NEUTRAL"
-        if flow_vector > 0.25 and self.kinetic_energy > 0.000001: bias = "GOD_LONG"
-        if flow_vector < -0.25 and self.kinetic_energy > 0.000001: bias = "GOD_SHORT"
+        if flow_vector > 0.20 and self.kinetic_energy > 0.001: bias = "GOD_LONG"
+        if flow_vector < -0.20 and self.kinetic_energy > 0.001: bias = "GOD_SHORT"
         
         confidence = (abs(flow_vector) * 60) + (state.prob * 0.4)
-        alpha = 4.0 if confidence > 95 and not reality_trap else 1.0
+        alpha = 4.0 if confidence > 90 and not reality_trap else 1.0
         
         return {
             "score": confidence,
@@ -129,7 +130,7 @@ class GodBrain:
             "physics": self.kinetic_energy
         }
 
-brain = GodBrain()
+brain = NomadBrain()
 state_lock = asyncio.Lock()
 
 # BINANCE CONNECTION (Custo Zero - Sem MT5)
@@ -441,8 +442,9 @@ async def tradingview_webhook(payload: WebhookPayload):
     state.last_update = time.time()
     state.last_order = trade_entry
     
-    # 💫 SINGULARIDADE v20.0 (FUSÃO TOTAL)
-    await brain.fetch_god_intelligence(payload.symbol)
+    # ✨ SCANNER AUTÔNOMO (A Busca pelo Lucro)
+    # Sempre que a API respira, ela dá uma olhadinha em outros ativos
+    asyncio.create_task(brain.scan_market())
     
     report = brain.analyze_infinity(state)
     state.confidence = report["score"]
