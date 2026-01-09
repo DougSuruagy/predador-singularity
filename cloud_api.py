@@ -23,6 +23,7 @@ import time
 import os
 import random  # Para simulação de dados de mercado
 import ccxt
+from supabase import create_client, Client
 from dotenv import load_dotenv
 
 # Carregar variáveis de ambiente locais (.env) se existirem
