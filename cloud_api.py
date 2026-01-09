@@ -22,12 +22,36 @@ from datetime import datetime
 import time
 import os
 import random  # Para simulação de dados de mercado
+from supabase import create_client, Client
+from dotenv import load_dotenv
+
+# Carregar variáveis de ambiente locais (.env) se existirem
+load_dotenv()
 
 app = FastAPI(
     title="PREDATOR API",
     version="13.0.0",
     description="100% Cloud Trading API - Zero Local Dependency"
 )
+
+# ============================================================
+# SUPABASE CLIENT (Persistência Opcional)
+# ============================================================
+# Defina SUPABASE_URL e SUPABASE_KEY nas Variáveis de Ambiente do Render
+# Se não definir, o sistema roda apenas em RAM (volátil)
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+supabase: Optional[Client] = None
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print("✅ SUPABASE CONECTADO! Histórico será salvo.")
+    except Exception as e:
+        print(f"⚠️ ERRO AO CONECTAR SUPABASE: {e}")
+else:
+    print("⚠️ SUPABASE OFF: Rodando em modo RAM Volátil (histórico perde-se ao reiniciar).")
+
 
 # CORS para Vercel e qualquer frontend
 app.add_middleware(
@@ -41,8 +65,8 @@ app.add_middleware(
 # VARIÁVEIS DE CONFIGURAÇÃO (Ajuste conforme necessário)
 # ============================================================
 MAX_CONSECUTIVE_LOSSES = 3      # 3-Strikes Rule
-ESTOQUE_ZERO_HOUR = 17          # Hora limite para novas ordens
-ESTOQUE_ZERO_MIN = 30           # Minuto limite
+POSICAO_ZERO_HOUR = 17          # Hora limite (Day Trade Only)
+POSICAO_ZERO_MIN = 30           # Minuto limite
 STALE_TIMEOUT_SEC = 120         # Tempo sem update = offline
 INITIAL_PRICE = 128000          # Preço inicial simulado (WING26)
 
@@ -84,6 +108,44 @@ class MarketState:
         
         # COMANDOS REMOTOS (Cloud -> MQL5)
         self.pending_command: str = ""
+        
+        # TENTAR RECUPERAR ESTADO DO SUPABASE
+        self.recover_daily_stats()
+
+    def recover_daily_stats(self):
+        """Recupera PnL do dia do Supabase se disponível."""
+        if not supabase: return
+        
+        try:
+            # Pega trades de hoje (UTC)
+            today = datetime.now().strftime("%Y-%m-%d")
+            response = supabase.table("trades").select("*").gte("created_at", today).execute()
+            
+            data = response.data
+            if data:
+                print(f"🔄 RECUPERANDO HISTÓRICO: {len(data)} trades encontrados hoje.")
+                self.trades = len(data)
+                self.pnl = sum(row['pnl'] for row in data)
+                self.daily_pnl = self.pnl
+                self.wins = sum(1 for row in data if row['pnl'] > 0)
+                self.losses = sum(1 for row in data if row['pnl'] <= 0)
+                
+                # Recalcula Win Rate
+                total = self.wins + self.losses
+                self.win_rate = round((self.wins / total) * 100, 1) if total > 0 else 0.0
+                
+                # Popula log recente
+                for t in reversed(data[-10:]):
+                    self.trade_log.append({
+                        "time": t['created_at'].split('T')[1][:8], # Extrai HH:MM:SS
+                        "action": t['action'],
+                        "symbol": t['symbol'],
+                        "price": t['price'],
+                        "confidence": 0, # Historico nao salva confiancia por padrao p/ economizar
+                        "pnl": t['pnl']
+                    })
+        except Exception as e:
+            print(f"⚠️ FALHA NA RECUPERAÇÃO DO SUPABASE: {e}")
 
 state = MarketState()
 
@@ -194,12 +256,12 @@ async def tradingview_webhook(payload: WebhookPayload):
     """
     now = datetime.now()
     
-    # [SEGURANÇA] Validação de ESTOQUE ZERO
-    if now.hour > ESTOQUE_ZERO_HOUR or (now.hour == ESTOQUE_ZERO_HOUR and now.minute >= ESTOQUE_ZERO_MIN):
+    # [SEGURANÇA] Validação de POSIÇÃO ZERO (Zero Overnight)
+    if now.hour > POSICAO_ZERO_HOUR or (now.hour == POSICAO_ZERO_HOUR and now.minute >= POSICAO_ZERO_MIN):
         return {
             "status": "REJECTED",
-            "reason": "ESTOQUE_ZERO_PROTOCOL",
-            "message": f"Mercado fecha às {ESTOQUE_ZERO_HOUR}:{ESTOQUE_ZERO_MIN:02d}. Novas ordens bloqueadas.",
+            "reason": "POSICAO_ZERO_PROTOCOL",
+            "message": f"Fim de Pregão ({POSICAO_ZERO_HOUR}:{POSICAO_ZERO_MIN:02d}). Posições Fechadas.",
             "time": now.strftime("%H:%M:%S")
         }
     
@@ -295,6 +357,19 @@ async def register_trade_result(result: TradeResult):
     total = state.wins + state.losses
     state.win_rate = round((state.wins / total) * 100, 1) if total > 0 else 0.0
     state.last_update = time.time()
+    
+    # 💾 PERSISTÊNCIA SUPABASE
+    if supabase:
+        try:
+            supabase.table("trades").insert({
+                "symbol": "WING26", # Idealmente viria do payload
+                "action": "CLOSE",
+                "result": result.result,
+                "pnl": result.pnl,
+                "price": state.price
+            }).execute()
+        except Exception as e:
+            print(f"⚠️ ERRO AO SALVAR NO DB: {e}")
     
     return {"status": "OK", "win_rate": state.win_rate, "pnl": state.pnl}
 

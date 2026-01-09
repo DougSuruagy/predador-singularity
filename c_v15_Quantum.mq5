@@ -774,34 +774,34 @@ public:
                  }
             }
 
-            // --- SKYNET CLOUD SYNC (v8.0) ---
-            string url = "https://seu-predador-api.onrender.com/update"; 
-            string json = "{\"last_price\":" + DoubleToString(send_price, _Digits) + 
-                          ",\"bid\":" + DoubleToString(m_current_tick.bid, _Digits) + 
-                          ",\"ask\":" + DoubleToString(m_current_tick.ask, _Digits) + 
+            // --- CLOUD SYNC: META-SYNC (CUSTO ZERO) ---
+            // Substitua pela URL da sua API no Render (ex: https://xxx.onrender.com/update)
+            string cloud_url = "http://127.0.0.1:8000/update"; // Padrão Local (Troque IP se usar VPS)
+            
+            // JSON Otimizado (Menos bytes = Menos latência)
+            string json = "{\"last_price\":" + DoubleToString(send_price, 2) + 
+                          ",\"bid\":" + DoubleToString(m_current_tick.bid, 2) + 
+                          ",\"ask\":" + DoubleToString(m_current_tick.ask, 2) + 
                           ",\"pnl\":" + DoubleToString(m_acc_profit, 2) + 
                           ",\"win_rate\":" + DoubleToString(m_scalp_win_rate * 100.0, 1) + 
-                          ",\"prob\":" + DoubleToString(0.0, 1) + 
-                          ",\"imb\":" + DoubleToString(0.0, 2) + 
+                          ",\"prob\":" + DoubleToString(m_current_drive * 100.0, 1) + 
+                          ",\"imb\":" + DoubleToString(m_cortex.bid_press - m_cortex.ask_press, 2) + 
                           ",\"intensity\":" + DoubleToString((double)m_last_intensity, 1) + 
                           ",\"symbol\":\"" + _Symbol + "\"}";
 
-            
             char post[], result[];
-            string headers;
-            StringToCharArray(json, post);
-            int res = WebRequest("POST", url, NULL, NULL, 50, post, ArraySize(post), result, headers);
+            string headers = "Content-Type: application/json\r\n";
+            StringToCharArray(json, post, 0, WHOLE_ARRAY, CP_UTF8); // UTF8 Standard
             
-            if(res == -1) {
-                Print("⚠️ SKYNET: Erro de Conexão Nuvem. Verifique a URL.");
-            } else {
-                // --- 2026 REMOTE COMMAND EXECUTION ---
+            // Timeout curto (200ms) para não travar o robô se a nuvem engasgar
+            int res = WebRequest("POST", cloud_url, headers, 200, post, result, headers);
+            
+            if(res == 200) {
+                // --- COMANDOS REMOTOS (CLOUD -> MQL5) ---
                 string response_str = CharArrayToString(result);
-                if(StringFind(response_str, "\"command\":\"PANIC\"") >= 0) {
-                     SupremeLog("🚨 COMANDO REMOTO DE PÂNICO RECEBIDO! ENCERRANDO TUDO.");
-                     m_cortex.active_thought = "🚨 PÂNICO REMOTO ATIVADO";
-                     m_auto_mode = false; // Desativa novas entradas
-                     ManualCloseAll();
+                if(StringFind(response_str, "PANIC") >= 0) {
+                    SupremeLog("🚨 COMANDO REMOTO: PÂNICO DETECTADO!");
+                    ManualCloseAll();
                 }
             }
             

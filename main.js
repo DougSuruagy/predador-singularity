@@ -9,9 +9,11 @@
 // CONFIGURAÇÃO CLOUD (Substitua pela URL real do Render)
 // ============================================================
 const CONFIG = {
-    // URL da API no Render (SUBSTITUA PELA SUA URL REAL APÓS O DEPLOY DO PASSO 1)
-    // Exemplo: "https://predator-api-x9z.onrender.com"
-    API_URL: "https://predator-api-SEU-ID.onrender.com",
+    // Detecta se está rodando localmente (127.0.0.1 ou localhost)
+    // Se sim, usa a API local. Se não, usa a API de Produção (Render)
+    API_URL: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? "http://127.0.0.1:8000"
+        : "https://predator-api-SEU-ID.onrender.com", // <--- EDITE AQUI PARA PRODUÇÃO
 
     // Frequência de atualização do dashboard (ms)
     SYNC_INTERVAL_MS: 500,
@@ -34,6 +36,51 @@ const DOM = {};
 // ============================================================
 // INICIALIZAÇÃO
 // ============================================================
+// ============================================================
+// chart.js integration
+// ============================================================
+let chart;
+let candleSeries;
+let areaSeries; // Usar area para um visual mais "tech" se preferir, ou candle
+
+function initChart() {
+    const chartContainer = document.getElementById('main-chart');
+    chartContainer.innerHTML = ''; // Limpar placeholder
+
+    chart = LightweightCharts.createChart(chartContainer, {
+        width: chartContainer.clientWidth,
+        height: chartContainer.clientHeight,
+        layout: {
+            background: { type: 'solid', color: 'transparent' },
+            textColor: '#8b949e',
+        },
+        grid: {
+            vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
+            horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
+        },
+        timeScale: {
+            timeVisible: true,
+            secondsVisible: true,
+        },
+    });
+
+    // Criar uma série de área (Area Series) para um visual mais fluido/moderno
+    areaSeries = chart.addAreaSeries({
+        lineColor: '#00f2ff',
+        topColor: 'rgba(0, 242, 255, 0.4)',
+        bottomColor: 'rgba(0, 242, 255, 0.0)',
+        lineWidth: 2,
+    });
+
+    // Responsividade
+    window.addEventListener('resize', () => {
+        chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
+    });
+}
+
+// ============================================================
+// INICIALIZAÇÃO DOM
+// ============================================================
 function initDOM() {
     DOM.bigPrice = document.getElementById('big-price');
     DOM.probValue = document.querySelector('.prob-value');
@@ -44,6 +91,9 @@ function initDOM() {
     DOM.statusPill = document.querySelector('.status-pill');
     DOM.feedLog = document.getElementById('feed');
     DOM.regimeLabel = document.querySelector('.regime-label');
+
+    // Iniciar Gráfico
+    initChart();
 }
 
 // ============================================================
@@ -94,8 +144,22 @@ async function syncDashboard() {
 function updateUI(data) {
     // Preço
     const price = data.price || data.last_price || 0;
-    if (price > 0 && DOM.bigPrice) {
-        DOM.bigPrice.innerText = price.toLocaleString('pt-BR');
+    if (price > 0) {
+        if (DOM.bigPrice) DOM.bigPrice.innerText = price.toLocaleString('pt-BR');
+
+        // Atualizar Gráfico
+        if (areaSeries) {
+            // Usar o timestamp do servidor ou local se falhar
+            const time = data.last_update ? Math.floor(data.last_update) : Math.floor(Date.now() / 1000);
+
+            // Pequeno hack para garantir timestamps únicos se o update for muito rápido
+            // (Lightweight charts requer timestamps crescentes)
+            const lastTime = areaSeries.data().length > 0 ? areaSeries.data()[areaSeries.data().length - 1].time : 0;
+
+            if (time > lastTime) {
+                areaSeries.update({ time: time, value: price });
+            }
+        }
     }
 
     // Confiança da IA

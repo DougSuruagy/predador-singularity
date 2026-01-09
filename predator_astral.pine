@@ -29,8 +29,8 @@ rsiOverbought = input.int(70, "RSI Sobrecomprado", minval=50, maxval=90)
 rsiOversold = input.int(30, "RSI Sobrevendido", minval=10, maxval=50)
 takeProfitPts = input.int(40, "Take Profit (pontos)", minval=5)
 stopLossPts = input.int(20, "Stop Loss (pontos)", minval=5)
-estoqueZeroHour = input.int(17, "Hora Estoque Zero", minval=0, maxval=23)
-estoqueZeroMin = input.int(30, "Minuto Estoque Zero", minval=0, maxval=59)
+posicaoZeroHour = input.int(17, "Hora Posição Zero", minval=0, maxval=23)
+posicaoZeroMin = input.int(30, "Minuto Posição Zero", minval=0, maxval=59)
 
 // ═══════════════════════════════════════════════════════════════
 // INDICADORES
@@ -50,18 +50,18 @@ longCondition = bullishCross and rsi < rsiOverbought
 shortCondition = bearishCross and rsi > rsiOversold
 
 // ═══════════════════════════════════════════════════════════════
-// ESTOQUE ZERO - Fechar posições antes do limite
+// POSIÇÃO ZERO - Fechar posições antes do limite
 // ═══════════════════════════════════════════════════════════════
 currentHour = hour(time, "America/Sao_Paulo")
 currentMinute = minute(time, "America/Sao_Paulo")
-isEstoqueZero = (currentHour > estoqueZeroHour) or (currentHour == estoqueZeroHour and currentMinute >= estoqueZeroMin)
+isPosicaoZero = (currentHour > posicaoZeroHour) or (currentHour == posicaoZeroHour and currentMinute >= posicaoZeroMin)
 
 // Fechar todas as posições no horário limite
-if isEstoqueZero and strategy.position_size != 0
-    strategy.close_all(comment="ESTOQUE_ZERO")
+if isPosicaoZero and strategy.position_size != 0
+    strategy.close_all(comment="POSICAO_ZERO")
 
 // Bloquear novas entradas após o horário limite
-canTrade = not isEstoqueZero
+canTrade = not isPosicaoZero
 
 // ═══════════════════════════════════════════════════════════════
 // EXECUÇÃO DE ORDENS
@@ -99,8 +99,8 @@ plotshape(longCondition and canTrade, title="Buy Signal", location=location.belo
 plotshape(shortCondition and canTrade, title="Sell Signal", location=location.abovebar, 
           color=color.red, style=shape.triangledown, size=size.small)
 
-// Fundo vermelho durante Estoque Zero
-bgcolor(isEstoqueZero ? color.new(color.red, 90) : na, title="Estoque Zero Zone")
+// Fundo vermelho durante Posição Zero
+bgcolor(isPosicaoZero ? color.new(color.red, 90) : na, title="Posição Zero Zone")
 
 // ═══════════════════════════════════════════════════════════════
 // WEBHOOK JSON (Copie isso na mensagem do Alert):
