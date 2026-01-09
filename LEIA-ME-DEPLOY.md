@@ -1,7 +1,18 @@
 # 🦅 GUIA DE DEPLOY - PREDATOR v13.0 SINGULARITY
 **Arquitetura 100% Cloud | Zero Custo Inicial | Alta Performance**
 
-Este guia descreve o passo a passo exato para colocar seu sistema HFT no ar usando serviços gratuitos.
+## 🚀 PREDATOR v14.0 - CRYPTO CLOUD EDITION
+Esta versão permite rodar 100% na Nuvem (Render) sem precisar do MetaTrader 5 aberto.
+
+### 📋 Pré-requisitos
+1.  **Binance**: Crie uma chave de API (com permissão de Futuros se for operar alavancado).
+2.  **Render**: Adicione `BINANCE_API_KEY` e `BINANCE_API_SECRET` nas Variáveis de Ambiente.
+3.  **Supabase**: Configure `SUPABASE_URL` e `SUPABASE_KEY` para salvar o histórico.
+
+### 🛠️ Como Funciona
+-   Sua API no Render agora é o **Cérebro e o Músculo**.
+-   Ela recebe sinais (via Webhook ou Dashboard) e envia ordens direto para a Binance.
+-   **PC Local pode ficar desligado.**
 
 ---
 

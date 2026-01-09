@@ -1,0 +1,32 @@
+🚀 GUIA RÁPIDO: INSTALAÇÃO NA VPS
+
+1. COPIAR O ROBÔ:
+   - Copie o arquivo "c_v15_Quantum.mq5" do seu computador.
+   - Cole na área de trabalho da VPS.
+
+2. ABRIR META TRADER 5 (NA VPS):
+   - Abra o MT5.
+   - Vá em "Arquivo" > "Abrir Pasta de Dados".
+   - Entre em "MQL5" > "Experts".
+   - Cole o arquivo do robô aqui dentro.
+
+3. COMPILAR:
+   - Volte ao MT5.
+   - Na janela "Navegador" (lateral esquerda), clique com botão direito em "Experts" e escolha "Atualizar".
+   - O robô "c_v15_Quantum" vai aparecer.
+   - Dê dois cliques nele (ou botão direito > Modificar) para abrir o MetaEditor.
+   - Clique em "Compilar" (botão com ícone de pasta/seta na barra superior).
+   - Verifique se deu "0 errors".
+
+4. CONFIGURAR WEB REQUEST (IMPORTANTE!!):
+   - No MT5, vá em "Ferramentas" > "Opções" > aba "Expert Advisors".
+   - Marque "Permitir WebRequest para as URLs listadas".
+   - Adicione esta URL exata (copie e cole):
+     https://predador-api-odpt.onrender.com
+
+5. RODAR:
+   - Arraste o robô para o gráfico (Recomendado: WING26 ou WDO, M1).
+   - Verifique se o ícone do chapéu (canto superior direito) está azul (sorrindo).
+   - Olhe a aba "Experts" no rodapé para ver os logs de conexão ("SKYNET CONNECTED").
+
+Mantenha a VPS ligada e feche apenas a conexão remota (não dê Shut Down no Windows da VPS!).

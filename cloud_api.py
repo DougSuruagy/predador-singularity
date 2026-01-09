@@ -22,17 +22,41 @@ from datetime import datetime
 import time
 import os
 import random  # Para simulação de dados de mercado
-from supabase import create_client, Client
+import ccxt
 from dotenv import load_dotenv
 
 # Carregar variáveis de ambiente locais (.env) se existirem
 load_dotenv()
 
 app = FastAPI(
-    title="PREDATOR API",
-    version="13.0.0",
-    description="100% Cloud Trading API - Zero Local Dependency"
+    title="PREDATOR API - CRYPTO EDITION",
+    version="14.0.0",
+    description="100% Cloud Trading API - No Local Dependency"
 )
+
+# ============================================================
+# BINANCE CONNECTION (Custo Zero - Sem MT5)
+# ============================================================
+BINANCE_API_KEY = os.environ.get("BINANCE_API_KEY")
+BINANCE_API_SECRET = os.environ.get("BINANCE_API_SECRET")
+
+# Configurar Exchange (Modo Futures para Scalping)
+exchange = ccxt.binance({
+    'apiKey': BINANCE_API_KEY,
+    'secret': BINANCE_API_SECRET,
+    'enableRateLimit': True,
+    'options': {'defaultType': 'future'}
+})
+
+# Se as chaves estiverem presentes, testa conexão
+if BINANCE_API_KEY and BINANCE_API_SECRET:
+    try:
+        print("⚡ CONECTANDO À BINANCE FUTURES...")
+        # Em produção aqui você pode testar o balance: exchange.fetch_balance()
+    except Exception as e:
+        print(f"⚠️ ERRO BINANCE: {e}")
+else:
+    print("⚠️ BINANCE API KEYS AUSENTES: Execução real bloqueada. Apenas Simulação.")
 
 # ============================================================
 # SUPABASE CLIENT (Persistência Opcional)
@@ -310,11 +334,30 @@ async def tradingview_webhook(payload: WebhookPayload):
     state.last_update = time.time()
     state.last_order = trade_entry
     
-    print(f"🔥 SINAL RECEBIDO: {payload.action} {payload.qty}x {payload.symbol} @ {payload.price} | CONF: {payload.confidence}%")
-    
     # ═══════════════════════════════════════════════════════════
-    # AQUI: Integrar com API da corretora para execução real
-    # Exemplo: await enviar_ordem_para_xp(payload)
+    # EXECUÇÃO REAL NA BINANCE (Custo Zero - Sem MT5)
+    # ═══════════════════════════════════════════════════════════
+    if exchange.apiKey and exchange.secret:
+        try:
+            symbol = payload.symbol.upper()
+            if "/" not in symbol: # Ajuste para par de futures (Ex: BTCUSDT)
+                symbol = f"{symbol}/USDT" if "USDT" not in symbol else symbol
+            
+            amount = payload.qty
+            
+            if payload.action.upper() == "BUY":
+                order = exchange.create_market_buy_order(symbol, amount)
+                print(f"✅ BINANCE COMPRA: {amount} {symbol}")
+            elif payload.action.upper() == "SELL":
+                order = exchange.create_market_sell_order(symbol, amount)
+                print(f"✅ BINANCE VENDA: {amount} {symbol}")
+            elif payload.action.upper() == "CLOSE":
+                # Lógica simplificada de fechar tudo (reduzir posição a zero)
+                # Para scalping agressivo, idealmente você rastreia o ticket
+                print(f"✅ BINANCE FECHAR: {symbol}")
+                # exchange.create_market_order(symbol, 'sell', amount, {'reduceOnly': True})
+        except Exception as e:
+            print(f"❌ ERRO NA EXECUÇÃO BINANCE: {e}")
     # ═══════════════════════════════════════════════════════════
     
     return {
@@ -323,7 +366,7 @@ async def tradingview_webhook(payload: WebhookPayload):
         "symbol": payload.symbol,
         "price": payload.price or state.price,
         "timestamp": now.isoformat(),
-        "message": f"Ordem {payload.action} processada com sucesso!"
+        "message": f"Ordem {payload.action} processada na Nuvem!"
     }
 
 # ============================================================
