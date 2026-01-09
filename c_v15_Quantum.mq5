@@ -775,8 +775,8 @@ public:
             }
 
             // --- CLOUD SYNC: META-SYNC (CUSTO ZERO) ---
-            // Substitua pela URL da sua API no Render (ex: https://xxx.onrender.com/update)
-            string cloud_url = "http://127.0.0.1:8000/update"; // Padrão Local (Troque IP se usar VPS)
+            // URL Oficial do Render (Produção)
+            string cloud_url = "https://predador-api-odpt.onrender.com/update";
             
             // JSON Otimizado (Menos bytes = Menos latência)
             string json = "{\"last_price\":" + DoubleToString(send_price, 2) + 
