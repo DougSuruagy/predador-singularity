@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: predador-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn cloud_api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+    plan: free
