@@ -504,15 +504,6 @@
     </main>
 
     <script type="module" src="./main.js"></script>
-    <script>
-        function terminateAll() {
-            if (confirm('⚠️ CONFIRMA ENCERRAMENTO DE TODAS AS POSIÇÕES?')) {
-                fetch(window.PREDATOR?.getActiveApi?.() + '/terminate', { method: 'POST' })
-                    .then(() => alert('✅ Comando de encerramento enviado!'))
-                    .catch(() => alert('❌ Erro ao enviar comando.'));
-            }
-        }
-    </script>
 </body>
 
 </html>

@@ -9,8 +9,9 @@
 // CONFIGURAÇÃO CLOUD (Substitua pela URL real do Render)
 // ============================================================
 const CONFIG = {
-    // URL da API no Render (atualizar após deploy)
-    API_URL: "https://predador-api.onrender.com",
+    // URL da API no Render (SUBSTITUA PELA SUA URL REAL APÓS O DEPLOY DO PASSO 1)
+    // Exemplo: "https://predator-api-x9z.onrender.com"
+    API_URL: "https://predator-api-SEU-ID.onrender.com",
 
     // Frequência de atualização do dashboard (ms)
     SYNC_INTERVAL_MS: 500,
@@ -182,11 +183,40 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================
-// API PÚBLICA
+// API PÚBLICA & ACTIONS
 // ============================================================
 window.PREDATOR = {
     getConfig: () => CONFIG,
     isOnline: () => isOnline,
     forceSync: syncDashboard,
     getLastSync: () => lastSyncTime
+};
+
+// Expor função de Pânico para o HTML
+window.terminateAll = async function () {
+    if (!confirm('⚠️ PERIGO: ISSO VAI FECHAR TODAS AS POSIÇÕES E PARAR O ROBÔ.\n\nDeseja continuar?')) return;
+
+    const btn = document.querySelector('.btn-panic');
+    const originalText = btn.innerText;
+    btn.innerText = "ENVIANDO...";
+    btn.style.background = "#555";
+
+    try {
+        const response = await fetch(`${CONFIG.API_URL}/command/panic`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            alert('🚨 COMANDO ENVIADO COM SUCESSO!\n\nO robô irá encerrar tudo na próxima sincronia (máx 1 seg).');
+            btn.innerText = "ATIVA PÂNICO (ATIVADO)";
+            btn.style.background = "var(--bg-deep)";
+            btn.style.border = "2px solid var(--neon-pink)";
+        } else {
+            throw new Error('Falha no envio');
+        }
+    } catch (e) {
+        alert('❌ ERRO AO ENVIAR COMANDO DE PÂNICO!\nVerifique sua internet ou a API.');
+        btn.innerText = originalText;
+        btn.style.background = ""; // Reset
+    }
 };

@@ -1,69 +1,70 @@
-# 🦅 PREDATOR v9.5 | SKYNET OMNISCIENCE 👑
+# 🦅 PREDATOR v13.0 | SINGULARITY 🌌
 
 ![Status](https://img.shields.io/badge/Status-ONLINE-00ff9d?style=for-the-badge)
-![Evolution](https://img.shields.io/badge/Edition-2026_SUPREME-00f2ff?style=for-the-badge)
-![Cloud](https://img.shields.io/badge/Infrastructure-ZERO_LOCAL-bc00ff?style=for-the-badge)
+![Edition](https://img.shields.io/badge/Edition-2026_SINGULARITY-00f2ff?style=for-the-badge)
+![Infrastructure](https://img.shields.io/badge/Infrastructure-HYBRID_CLOUD-bc00ff?style=for-the-badge)
 
-> **Sistema HFT de Alta Performance para Scalping Intraday (XP/MT5).**
-> Foco em Rendimento Imediato, Latência Zero e Automação de Repasse Regional.
-
----
-
-## 💎 A Filosofia "ESTOQUE ZERO"
-Diferente de sistemas comuns, o **PREDATOR v9.5** opera sob o protocolo de **Estoque Zero**. 
-- **100% Intraday**: Nenhuma posição é carregada para o dia seguinte.
-- **Liquidez Instantânea**: Todas as ordens são zeradas compulsoriamente às 17:45.
-- **Risco Controlado**: Você acorda todos os dias com 100% de caixa e lucro no bolso.
-
-## 🛠️ Arquitetura Cloudburst (Custo Zero)
-O sistema foi desenhado para rodar sem depender do seu hardware local:
-1.  **Vercel Cockpit**: Interface Web Premium para monitoramento global.
-2.  **Render Engine**: Cérebro Neural em Python (FastAPI) que governa a lógica.
-3.  **Oracle/AWS VPS**: Executor oficial MetaTrader 5 (Link direto XP).
-4.  **TradingView Cloud**: Gerador de sinais via algoritmos proprietários.
+> **Sistema HFT Híbrido: Python AI + MQL5 Quantum Execution.**
+> Arquitetura distribuída "Estoque Zero" com Custo Operacional Inicial Zero.
 
 ---
 
-## 🚀 Guia de Implementação (Passo a Passo)
+## 📐 Arquitetura do Sistema (Tríade Cloud)
 
-### 1️⃣ Preparação das Contas (Custo Inicial R$ 0,00)
-- **GitHub**: Crie sua conta para hospedar e versionar o código.
-- **XP Investimentos**: Ative o **MetaTrader 5 (MT5)** no seu portal (Gratuito).
-- **Vercel**: Conecte seu GitHub para hospedar o Dashboard Web.
-- **Render**: Conecte seu GitHub para hospedar a API de Inteligência.
-- **AWS/Oracle Cloud**: Crie uma conta para obter sua **VPS Windows Gratuita**.
+Este projeto opera uma arquitetura moderna de **Nuvem Híbrida**, separando a inteligência (Python), a visão (Web) e a execução (MetaTrader).
 
-### 2️⃣ Configuração do Cérebro (Render)
-1. Crie um novo **Web Service** no Render apontando para este repositório.
-2. No campo *Start Command*, use: `uvicorn cloud_api:app --host 0.0.0.0 --port $PORT`
-3. Copie a URL gerada (ex: `https://seu-predador.onrender.com`).
-
-### 3️⃣ Configuração do Cockpit (Vercel)
-1. No seu `index.html`, atualize a constante `API_URL` com o endereço do seu Render.
-2. Dê `git commit` e `git push`. A Vercel atualizará seu site em segundos.
-
-### 4️⃣ Ativação na VPS (Repasse XP)
-1. Instale o MT5 da XP na sua VPS.
-2. Vá em `Ferramentas > Opções > Expert Advisors`. 
-3. Marque "Permitir WebRequest" e adicione a URL do seu Render na lista.
-4. Arraste o Expert Advisor `c_v15_Quantum.mq5` para o gráfico do **WING26** (1 Minuto).
-
-### 5️⃣ Conexão TradingView (Gatilho)
-1. Cole o script `predator_astral.pine` no Pine Editor do TradingView.
-2. Crie um Alerta e, na aba **Notifications**, selecione **Webhook URL**.
-3. Use a URL: `https://seu-predador.onrender.com/webhook`.
+| Componente | Função | Hospedagem | Custo |
+| :--- | :--- | :--- | :--- |
+| **🧠 CÉREBRO** | API de Inteligência e Webhooks | **Render** (Python FastApi) | Grátis |
+| **👁️ VISÃO** | Dashboard de Monitoramento Mobile | **Vercel** (Static Web) | Grátis |
+| **⚡ MUSCULO** | Execução de Ordens HFT | **VPS** (MetaTrader 5 Windows) | Grátis (Google/AWS) |
 
 ---
 
-## 📊 Painel de Comandos
-- **BUY/SELL**: Execução via fluxo de ordens (Tape Reading + AI).
-- **TERMINATE ALL**: Botão de pânico para zerar todas as posições via Web.
-- **BIO-BOOST**: Calibragem da agressividade do robô via nuvem.
+## 📂 Estrutura de Arquivos
+
+*   `cloud_api.py`: **O Cérebro.** Servidor Python que recebe sinais do TradingView e comanda o robô.
+*   `render.yaml`: Blueprint para deploy automático "Zero Config" no Render.
+*   `index.html` / `main.js`: **A Visão.** Dashboard PWA responsivo para celular.
+*   `c_v15_Quantum.mq5`: **O Músculo.** Expert Advisor que roda no MT5 e obedece à API.
+*   `GUIA_CLOUD_GRATUITA.md`: Tutorial completo de como colocar tudo no ar sem gastar nada.
 
 ---
 
-## ⚖️ Aviso Legal
-Este software é uma ferramenta tecnológica de automação. Operações em renda variável envolvem riscos. O desenvolvedor não se responsabiliza por resultados financeiros. **Teste sempre em conta simulada antes de ir para o real.**
+## 🚀 Como Iniciar (Deploy Rápido)
+
+Para detalhes completos, leia o arquivo **[GUIA_CLOUD_GRATUITA.md](./GUIA_CLOUD_GRATUITA.md)**. Resumo rápido:
+
+### 1️⃣ CÉREBRO (API Python)
+1.  Crie conta no **[Render.com](https://render.com)**.
+2.  Conecte este repositório (New Web Service).
+3.  O Render detectará o arquivo `render.yaml` e instalará tudo automaticamente.
+4.  **Copie a URL gerada** (ex: `https://predator-api-xyz.onrender.com`).
+
+### 2️⃣ VISÃO (Dashboard)
+1.  Edite o arquivo `main.js`: Atualize `CONFIG.API_URL` com a URL do Render.
+2.  Crie conta na **[Vercel.com](https://vercel.com)**.
+3.  Importe este repositório. O deploy é instantâneo.
+
+### 3️⃣ EXECUÇÃO (MetaTrader 5)
+1.  Na sua VPS, abra o MT5 (XP/Genial/BTG).
+2.  Vá em `Ferramentas > Opções > Expert Advisors`.
+3.  **Adicione a URL do Render** na lista "Permitir WebRequest".
+4.  Compile e inicie o `c_v15_Quantum.mq5`.
 
 ---
-*Desenvolvido pela Antigravity AI para Douglas - Elite Trading 2026*
+
+## 💎 Filosofia "Estoque Zero"
+*   **Intraday Puro:** Zero posições abertas overnight.
+*   **Liquidez Forçada:** Fechamento compulsório às 17h45.
+*   **Caixa Livre:** Todo dia começa com 100% de margem disponível.
+
+---
+
+## ⚠️ Segurança & Comandos
+*   **Panic Button:** No Dashboard Web, você pode encerrar todas as posições remotamente caso a VPS trave.
+*   **3-Strikes Rule:** O sistema bloqueia automaticamente após 3 perdas consecutivas para preservação de capital.
+
+---
+
+*Desenvolvido pela Antigravity AI - Advanced Agentic Coding 2026*

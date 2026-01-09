@@ -779,19 +779,31 @@ public:
             string json = "{\"last_price\":" + DoubleToString(send_price, _Digits) + 
                           ",\"bid\":" + DoubleToString(m_current_tick.bid, _Digits) + 
                           ",\"ask\":" + DoubleToString(m_current_tick.ask, _Digits) + 
-                          ",\"pnl\":" + DoubleToString(m_account.Profit(), 2) + 
-                          ",\"win_rate\":" + DoubleToString(m_cortex.stats.win_rate, 1) + 
-                          ",\"prob\":" + DoubleToString(m_cortex.mind.confidence * 100.0, 1) + 
-                          ",\"imb\":" + DoubleToString(m_cortex.market.flow_imbalance, 2) + 
-                          ",\"intensity\":" + DoubleToString(m_cortex.market.tick_intensity, 1) + 
+                          ",\"pnl\":" + DoubleToString(m_acc_profit, 2) + 
+                          ",\"win_rate\":" + DoubleToString(m_scalp_win_rate * 100.0, 1) + 
+                          ",\"prob\":" + DoubleToString(0.0, 1) + 
+                          ",\"imb\":" + DoubleToString(0.0, 2) + 
+                          ",\"intensity\":" + DoubleToString((double)m_last_intensity, 1) + 
                           ",\"symbol\":\"" + _Symbol + "\"}";
+
             
             char post[], result[];
             string headers;
             StringToCharArray(json, post);
             int res = WebRequest("POST", url, NULL, NULL, 50, post, ArraySize(post), result, headers);
             
-            if(res == -1) Print("⚠️ SKYNET: Erro de Conexão Nuvem. Verifique a URL.");
+            if(res == -1) {
+                Print("⚠️ SKYNET: Erro de Conexão Nuvem. Verifique a URL.");
+            } else {
+                // --- 2026 REMOTE COMMAND EXECUTION ---
+                string response_str = CharArrayToString(result);
+                if(StringFind(response_str, "\"command\":\"PANIC\"") >= 0) {
+                     SupremeLog("🚨 COMANDO REMOTO DE PÂNICO RECEBIDO! ENCERRANDO TUDO.");
+                     m_cortex.active_thought = "🚨 PÂNICO REMOTO ATIVADO";
+                     m_auto_mode = false; // Desativa novas entradas
+                     ManualCloseAll();
+                }
+            }
             
             last_write_sync = now;
         }
@@ -1992,69 +2004,7 @@ public:
             } // --- PREDATOR v12.0 DISKSHIELD | PERFORMANCE SUPREMA (2026) ---
 // Foco: Lucro Real, Zero Travamento, Segurança Atômica.
 
-#property version   "12.00"
-#property description "DiskShield: Otimização de I/O e Travas de Segurança Scalping"
 
-input group "--- PERFORMANCE & SECURITY ---"
-input int      SyncThrottleMS    = 200;   // Sincroniza a cada 200ms (não mais a cada tick)
-input int      MaxConsecutiveLoss = 3;     // Para após 3 perdas seguidas (Anti-Fúria)
-input double   MarginPerLot      = 100.0; // Padrão XP 100/1
-
-static long     last_sync_time   = 0;
-static int      consecutive_loss = 0;
-static double   last_equity      = 0;
-
-void OnTick() {
-    // 1. DISKSHIELD: Otimização de Performance Crítica
-    // Evita travar o PC prevenindo escritas excessivas
-    long now_ms = GetTickCount64();
-    if(now_ms - last_sync_time > SyncThrottleMS) {
-        UpdateCloudTelemetry(); // Sincronia inteligente e leve
-        last_sync_time = now_ms;
-    }
-
-    // 2. TRAVA DE SEGURANÇA: 3-Strikes (Anti-Prejuízo)
-    if(consecutive_loss >= MaxConsecutiveLoss) {
-        Print("🔴 SEGURANÇA: 3 perdas seguidas detectadas. Bloqueio preventivo ativo.");
-        return;
-    }
-
-    // 3. EXECUÇÃO SNIPER XP (Com Alavancagem 1:100)
-    if(!m_position.HasPosition()) {
-        CheckForLossStreak(); // Verifica se a última fechou no loss
-        
-        double confidence = m_cortex.CalculateNeuralConfidence();
-        if(confidence >= 0.95) ExecuteFinalSniper(ORDER_TYPE_BUY);
-        else if(confidence <= 0.05) ExecuteFinalSniper(ORDER_TYPE_SELL);
-    } else {
-        ManageBreakEven();
-    }
-}
-
-// Verifica sequências de perda para ativar travamento
-void CheckForLossStreak() {
-    double current_equity = AccountInfoDouble(ACCOUNT_EQUITY);
-    if(last_equity > 0 && current_equity < last_equity) consecutive_loss++;
-    else if(current_equity > last_equity) consecutive_loss = 0;
-    last_equity = current_equity;
-}
-
-void ExecuteFinalSniper(ENUM_ORDER_TYPE type) {
-    double price = (type == ORDER_TYPE_BUY) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
-    
-    // Alavancagem XP 100 por contrato
-    double lot = MathFloor(AccountInfoDouble(ACCOUNT_BALANCE) / MarginPerLot);
-    if(lot < 1) lot = 1;
-
-    // Alvo de 40 pontos com Stop Curto
-    double sl = (type == ORDER_TYPE_BUY) ? (price - 100*_Point) : (price + 100*_Point);
-    double tp = (type == ORDER_TYPE_BUY) ? (price + 40*_Point) : (price - 40*_Point);
-
-    m_trade.SetExpertMagicNumber(2026120);
-    if(m_trade.PositionOpen(_Symbol, type, lot, price, sl, tp, "PREDATOR_V12")) {
-        Print("🦅 SNIPER V12: Ordem rápida enviada. Lotes: ", lot);
-    }
-}
 
 
 

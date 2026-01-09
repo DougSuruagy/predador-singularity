@@ -81,8 +81,32 @@ class MarketState:
         
         # Última ordem
         self.last_order: dict = {}
+        
+        # COMANDOS REMOTOS (Cloud -> MQL5)
+        self.pending_command: str = ""
 
 state = MarketState()
+
+# ============================================================
+# ENDPOINT: COMANDOS REMOTOS (PANIC BUTTON)
+# ============================================================
+@app.post("/command/panic")
+async def trigger_panic():
+    """Aciona o modo PÂNICO: Fecha tudo e trava o sistema."""
+    state.pending_command = "PANIC"
+    state.is_locked = True
+    state.regime = "PANIC_MODE"
+    print("🚨 PÂNICO ACIONADO VIA DASHBOARD!")
+    return {"status": "PANIC_TRIGGERED"}
+
+@app.post("/command/clear")
+async def clear_command():
+    """Limpa comandos pendentes."""
+    state.pending_command = ""
+    state.is_locked = False
+    state.regime = "ACTIVE"
+    return {"status": "COMMAND_CLEARED"}
+
 
 # ============================================================
 # MODELO DE DADOS
@@ -101,6 +125,55 @@ class TradeResult(BaseModel):
     result: str              # "WIN" ou "LOSS"
     pnl: float = 0.0
     points: Optional[float] = 0.0
+
+# ============================================================
+# MODELO MQL5 (Telemetry)
+# ============================================================
+class MQL5Update(BaseModel):
+    last_price: float
+    bid: float
+    ask: float
+    pnl: float
+    win_rate: float
+    prob: float
+    imb: float
+    intensity: float
+    symbol: str
+
+# ============================================================
+# ENDPOINT: Receber Telemetria do MQL5
+# ============================================================
+@app.post("/update")
+async def mql5_update(data: MQL5Update):
+    """
+    Recebe atualização de estado em tempo real do EA MQL5.
+    Substitui a necessidade do TradingView em modo Híbrido.
+    """
+    state.price = data.last_price
+    state.last_price = data.last_price
+    state.pnl = data.pnl
+    state.win_rate = data.win_rate
+    state.prob = data.prob
+    state.imb = data.imb
+    state.confidence = data.prob # Mapeando prob para confidence
+    state.last_update = time.time()
+    state.regime = "ACTIVE"
+    
+    # Se intensity for alta, marca como 'HUNTING'
+    if data.intensity > 3.0:
+        state.is_hunting = True
+    
+    # Resposta inclui comando pendente (se houver)
+    response = {"status": "OK", "timestamp": time.time(), "command": state.pending_command}
+    
+    # Limpa comando após envio (One-shot)
+    if state.pending_command == "PANIC":
+        # Não limpa PANIC automaticamente, exige reset manual
+        pass
+    else:
+        state.pending_command = ""
+        
+    return response
 
 # ============================================================
 # ENDPOINT: Webhook do TradingView (Automação de Repasse)
