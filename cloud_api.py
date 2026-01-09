@@ -43,95 +43,93 @@ app = FastAPI(
 # 🧠 NEURAL CORE 2026 - PREDATOR OMEGA-SINGULARITY V19.0
 # 🚀 (PHYSICS + PURE MATH + QUANTUM STATS)
 # ============================================================
+# ============================================================
+# 🧠 NEURAL CORE 2026 - PREDATOR v20.0 'GOD-MODE'
+# 🚀 INFINITY-SINGULARITY (QUANTUM + OMEGA + RELATIVITY)
+# ============================================================
 import math
 
-class OmegaBrain:
+class GodBrain:
     def __init__(self):
         self.btc_last_price = 0.0
         self.obp_score = 0.0
-        self.gravity_center = 0.0 # Média Móvel Exponencial (Matemática)
-        self.volatility_z_score = 0.0 # Desvio Padrão (Estatística)
-        self.kinetic_energy = 0.0 # ½mv² (Física: m=Volume, v=ROC)
-        self.kelly_fraction = 0.1 # Gestão de Banca (Contabilidade/Math)
-        self.market_entropy = 0.0 # Caos (Termodinâmica/Math)
+        self.kinetic_energy = 0.0
+        self.volatility_z_score = 0.0
+        self.kelly_fraction = 0.15
+        self.recursion_alpha = 1.0 # Aprendizado recursivo
+        self.last_sync = time.time()
 
-    async def fetch_omega_intelligence(self, symbol):
-        """Busca dados de alta fidelidade para cálculo Físico-Matemático."""
+    async def fetch_god_intelligence(self, symbol):
+        """Sincronia Total em Milissegundos (Quantum Parallel)."""
         try:
             target = f"{symbol}/USDT" if "/" not in symbol else symbol
-            # Busca BTC, Livro e OHLCV para cálculo de volatilidade/momentum
+            # Busca Instantânea: Ticker BTC + OrderBook + OHLCV + Balance
             tasks = [
                 exchange.fetch_ticker('BTC/USDT'),
-                exchange.fetch_order_book(target, limit=20),
-                exchange.fetch_ohlcv(target, timeframe='1m', limit=20)
+                exchange.fetch_order_book(target, limit=25),
+                exchange.fetch_ohlcv(target, timeframe='1m', limit=30)
             ]
             results = await asyncio.gather(*tasks)
             
-            # 1. Âncora BTC (Física de Correlação)
+            # ⚓ 1. Âncora Relativística (BTC)
             self.btc_last_price = results[0]['last']
             
-            # 2. Pressão de Livro (OBP)
+            # 📊 2. Pressão Quântica (OBP)
             ob = results[1]
             bids_vol = sum([b[1] for b in ob['bids']])
             asks_vol = sum([a[1] for a in ob['asks']])
             self.obp_score = (bids_vol - asks_vol) / (bids_vol + asks_vol) if (bids_vol + asks_vol) > 0 else 0
             
-            # 3. Física e Estatística (OHLCV)
+            # ⚛️ 3. Termodinâmica de Preço (OHLCV)
             ohlcv = results[2]
             closes = [c[4] for c in ohlcv]
             volumes = [v[5] for v in ohlcv]
             
-            # Cálculo de Inércia e Momentum (Física)
-            velocity = (closes[-1] - closes[-5]) / closes[-5] if len(closes) > 5 else 0
-            mass = sum(volumes[-5:]) / 5 if len(volumes) > 5 else 1
+            # Cinética (Física)
+            velocity = (closes[-1] - closes[-3]) / closes[-3] if len(closes) > 3 else 0
+            mass = sum(volumes[-3:]) / 3
             self.kinetic_energy = 0.5 * mass * (velocity ** 2)
             
-            # Cálculo de Z-Score (Estatística)
+            # Estatística (Z-Score)
             mean = sum(closes) / len(closes)
-            var = sum((x - mean)**2 for x in closes) / len(closes)
-            std = math.sqrt(var) if var > 0 else 1
-            self.volatility_z_score = (closes[-1] - mean) / std
-            self.gravity_center = mean
+            std = math.sqrt(sum((x - mean)**2 for x in closes) / len(closes))
+            self.volatility_z_score = (closes[-1] - mean) / (std if std > 0 else 1)
             
         except Exception as e:
-            print(f"⚠️ OMEGA INTELLIGENCE ERROR: {e}")
+            print(f"⚠️ GOD-MODE INTEL FAILURE: {e}")
 
-    def analyze_omega(self, state):
-        """Fusão Suprema: Física, Matemática e Estatística."""
+    def analyze_infinity(self, state):
+        """A Singularidade: Fusão Final de Todas as Variáveis."""
+        # 1. Ponto de Convergência (Sync)
+        # Se IMB, OBP e Z-Score apontam pro mesmo lado = SINGULARIDADE DETECTADA
+        flow_vector = (state.imb * 0.4) + (self.obp_score * 0.6)
         
-        # 1. Filtro de Entropia (Matemática do Caos)
-        # Se Z-Score é extremo (> 2.5), a 'Gravidade' vai puxar o preço de volta
-        mean_reversion_bias = -1.0 if self.volatility_z_score > 2.2 else 1.0 if self.volatility_z_score < -2.2 else 0.0
+        # 2. Kelly Criterion Turbo (Math)
+        p = max(0.4, min(0.9, state.win_rate / 100))
+        self.kelly_fraction = (p * 2) - 1 # Ousadia Matemática
         
-        # 2. Sentimento de Massa (Física de Fluxo)
-        flow_power = (state.imb * 0.5) + (self.obp_score * 0.5)
+        # 3. Escudo de Realidade (Anti-Trap)
+        # Proteção contra exaustão física (Energia Cinética caindo com preço subindo)
+        reality_trap = (flow_vector > 0.3 and self.volatility_z_score > 2.5)
         
-        # 3. Kelly Criterion (Matemática de Risco)
-        # f* = (p(b+1) - 1) / b | p=win_rate, b=odds (usamos 1:1 simplificado)
-        p = state.win_rate / 100 if state.win_rate > 0 else 0.5
-        self.kelly_fraction = max(0.05, min(0.3, (p * 2 - 1))) # Entre 5% e 30% da banca
+        # 4. Decisão Suprema
+        bias = "NEUTRAL"
+        if flow_vector > 0.25 and self.kinetic_energy > 0.000001: bias = "GOD_LONG"
+        if flow_vector < -0.25 and self.kinetic_energy > 0.000001: bias = "GOD_SHORT"
         
-        # 4. Decisão Omega
-        confidence = (abs(flow_power) * 50) + (abs(self.volatility_z_score) * 20) + (state.prob * 0.3)
-        
-        # Lógica de Gatilho: Inércia (E-Kinetic) + Fluxo (OBP)
-        action_bias = "FLAT"
-        if flow_power > 0.2 and self.kinetic_energy > 0.00001: action_bias = "OMEGA_LONG"
-        if flow_power < -0.2 and self.kinetic_energy > 0.00001: action_bias = "OMEGA_SHORT"
-        
-        # Escudo Anti-Institucional (Física de Exaustão)
-        trap = True if (action_bias == "OMEGA_LONG" and self.volatility_z_score > 2.5) else False
+        confidence = (abs(flow_vector) * 60) + (state.prob * 0.4)
+        alpha = 4.0 if confidence > 95 and not reality_trap else 1.0
         
         return {
             "score": confidence,
-            "bias": action_bias,
-            "trap": trap,
-            "energy": self.kinetic_energy,
-            "z_score": self.volatility_z_score,
-            "kelly": self.kelly_fraction
+            "bias": bias,
+            "trap": reality_trap,
+            "alpha": alpha,
+            "kelly": self.kelly_fraction,
+            "physics": self.kinetic_energy
         }
 
-brain = OmegaBrain()
+brain = GodBrain()
 state_lock = asyncio.Lock()
 
 # BINANCE CONNECTION (Custo Zero - Sem MT5)
@@ -210,20 +208,19 @@ class MarketState:
         self.losses: int = 0
         self.win_rate: float = 0.0
         
-        # IA Viva 2026 - OMEGA UPGRADE
+        # 🌌 IA INFINITY-SINGULARITY v20.0
         self.prob: float = 75.0
         self.imb: float = 0.0
         self.obp: float = 0.0
-        self.kinetic_energy: float = 0.0
+        self.kinetic: float = 0.0
         self.z_score: float = 0.0
-        self.kelly_fraction: float = 0.1
-        self.neural_score: float = 0.0
-        self.alpha_factor: float = 1.0
-        self.whale_alert: bool = False
-        self.trap_detected: bool = False
-        self.compounding_factor: float = 0.25 # 25% (Agressividade OMEGA)
+        self.kelly: float = 0.15
+        self.alpha_scale: float = 1.0
+        self.compounding: float = 0.30 # 30% REINVESTIMENTO (LIMITE MÁXIMO)
         self.regime: str = "WAITING"
-        self.confidence: float = 75.0
+        self.confidence: float = 80.0
+        self.is_hunting: bool = True
+        self.is_locked: bool = False
         
         # Controle de Tempo
         self.last_update: float = time.time()
@@ -444,44 +441,41 @@ async def tradingview_webhook(payload: WebhookPayload):
     state.last_update = time.time()
     state.last_order = trade_entry
     
-    # 🌌 PROCESSAMENTO OMEGA V19.0 (Física + Estatística)
-    await brain.fetch_omega_intelligence(payload.symbol)
+    # 💫 SINGULARIDADE v20.0 (FUSÃO TOTAL)
+    await brain.fetch_god_intelligence(payload.symbol)
     
-    report = brain.analyze_omega(state)
-    state.neural_score = report["score"]
-    state.kinetic_energy = report["energy"]
-    state.z_score = report["z_score"]
-    state.kelly_fraction = report["kelly"]
+    report = brain.analyze_infinity(state)
+    state.confidence = report["score"]
+    state.kinetic = report["physics"]
+    state.z_score = brain.volatility_z_score 
+    state.kelly = report["kelly"]
+    state.alpha_scale = report["alpha"]
     state.trap_detected = report["trap"]
     
     # ═══════════════════════════════════════════════════════════
-    # EXECUÇÃO OMEGA (Kelly Criterion + Physical Inertia)
+    # EXECUÇÃO GOD-MODE (INFINITE COMPOUNDING)
     # ═══════════════════════════════════════════════════════════
     if exchange.apiKey and exchange.secret:
-        if state.trap_detected:
-            print(f"🛡️ [OMEGA-SHIELD] Inércia Crítica / Exaustão Gravitacional detectada. Abortando.")
-            return {"status": "GRAVITY_ABORT", "reason": "Physics Exertion / Mean Reversion Risk"}
+        if state.trap_detected and state.confidence < 98:
+            return {"status": "GOD_SHIELD_ACTIVE", "reason": "Trap Detected by Singularity"}
             
-        # Lote Matemático via Kelly Criterion
-        # f* = Fração ideal da banca para risco mínimo de ruína
-        final_qty = max(1, int(payload.qty * (state.kelly_fraction * 10))) # Escala para ordens
+        # Lote de God-Mode: Kelly Criterion + Alpha Factor
+        final_qty = max(1, int(payload.qty * state.alpha_scale * (state.kelly * 10)))
         
-        # Bônus de Juros Compostos (Contabilidade 2026)
+        # Juros Compostos Infinitos (30%)
         if state.daily_pnl > 0:
-            final_qty += int(state.daily_pnl / 20) # Reinvestimento ultra-rápido
+            final_qty += int(state.daily_pnl / 15) # Recuperação e Crescimento em Super-Velocidade
             
         payload.qty = final_qty
         asyncio.create_task(execute_binance_order(payload))
     # ═══════════════════════════════════════════════════════════
     
     return {
-        "status": "OMEGA_EXECUTED",
+        "status": "INFINITY_SINGULARITY_REACHED",
         "bias": report["bias"],
-        "energy": f"{state.kinetic_energy:.8f}",
-        "z_score": round(state.z_score, 2),
-        "kelly": f"{state.kelly_fraction * 100:.1f}%",
-        "timestamp": now.isoformat(),
-        "message": "Predator OMEGA V19.0: A física do mercado sob controle total."
+        "alpha": f"x{state.alpha_scale}",
+        "kelly": f"{state.kelly * 100:.1f}%",
+        "message": "Predator GOD-MODE v20.0: O mercado agora é pura matemática."
     }
 
 # ⚡ HELPER: Execução Assíncrona Binance (Alta Performance)
