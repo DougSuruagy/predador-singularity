@@ -147,18 +147,17 @@ function updateUI(data) {
     if (price > 0) {
         if (DOM.bigPrice) DOM.bigPrice.innerText = price.toLocaleString('pt-BR');
 
-        // Atualizar Gráfico
+        // Atualizar Gráfico (Performance e Ordem de Tempo)
         if (areaSeries) {
-            // Usar o timestamp do servidor ou local se falhar
-            const time = data.last_update ? Math.floor(data.last_update) : Math.floor(Date.now() / 1000);
+            // Garante que o timestamp seja sempre crescente (exigência do Lightweight Charts)
+            const serverTime = data.last_update ? Math.floor(data.last_update) : Math.floor(Date.now() / 1000);
+            const lastData = areaSeries.data();
+            const lastTime = lastData.length > 0 ? lastData[lastData.length - 1].time : 0;
 
-            // Pequeno hack para garantir timestamps únicos se o update for muito rápido
-            // (Lightweight charts requer timestamps crescentes)
-            const lastTime = areaSeries.data().length > 0 ? areaSeries.data()[areaSeries.data().length - 1].time : 0;
+            // Incremento mínimo de 1 segundo se colidir, ou usa o tempo do servidor
+            const chartTime = Math.max(lastTime + 1, serverTime);
 
-            if (time > lastTime) {
-                areaSeries.update({ time: time, value: price });
-            }
+            areaSeries.update({ time: chartTime, value: price });
         }
     }
 
@@ -203,13 +202,15 @@ function updateUI(data) {
         DOM.flowBar.style.background = imb > 0 ? 'var(--neon-green)' : 'var(--neon-pink)';
     }
 
-    // Status
+    // Status e Automação de Repasse
     if (DOM.statusPill) {
         const lockIcon = data.is_locked ? ' 🔒' : '';
         const huntIcon = data.is_hunting ? ' 🎯' : '';
+        const repasseTag = data.is_locked ? ' [REPASSE PAUSADO]' : ' [REPASSE ATIVO]';
+
         DOM.statusPill.innerHTML = `
-            <div class="dot"></div> 
-            CLOUD: ${data.regime || 'ACTIVE'}${lockIcon}${huntIcon}
+            <div class="dot" style="background:${data.is_locked ? 'var(--neon-pink)' : 'var(--neon-green)'}"></div> 
+            CLOUD: ${data.regime || 'ACTIVE'}${lockIcon}${huntIcon} <small style="opacity:0.7">${repasseTag}</small>
         `;
     }
 

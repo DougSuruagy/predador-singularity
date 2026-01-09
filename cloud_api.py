@@ -22,9 +22,10 @@ from datetime import datetime
 import time
 import os
 import random  # Para simulação de dados de mercado
-import ccxt
+import ccxt.async_support as ccxt  # Alta Performance (Não bloqueia o loop)
 from supabase import create_client, Client
 from dotenv import load_dotenv
+import asyncio
 
 # Carregar variáveis de ambiente locais (.env) se existirem
 load_dotenv()
@@ -142,8 +143,8 @@ class MarketState:
         if not supabase: return
         
         try:
-            # Pega trades de hoje (UTC)
-            today = datetime.now().strftime("%Y-%m-%d")
+            # Pega trades de hoje (UTC - Padrão Supabase/Bolsa)
+            today = datetime.utcnow().strftime("%Y-%m-%d")
             response = supabase.table("trades").select("*").gte("created_at", today).execute()
             
             data = response.data
@@ -339,26 +340,8 @@ async def tradingview_webhook(payload: WebhookPayload):
     # EXECUÇÃO REAL NA BINANCE (Custo Zero - Sem MT5)
     # ═══════════════════════════════════════════════════════════
     if exchange.apiKey and exchange.secret:
-        try:
-            symbol = payload.symbol.upper()
-            if "/" not in symbol: # Ajuste para par de futures (Ex: BTCUSDT)
-                symbol = f"{symbol}/USDT" if "USDT" not in symbol else symbol
-            
-            amount = payload.qty
-            
-            if payload.action.upper() == "BUY":
-                order = exchange.create_market_buy_order(symbol, amount)
-                print(f"✅ BINANCE COMPRA: {amount} {symbol}")
-            elif payload.action.upper() == "SELL":
-                order = exchange.create_market_sell_order(symbol, amount)
-                print(f"✅ BINANCE VENDA: {amount} {symbol}")
-            elif payload.action.upper() == "CLOSE":
-                # Lógica simplificada de fechar tudo (reduzir posição a zero)
-                # Para scalping agressivo, idealmente você rastreia o ticket
-                print(f"✅ BINANCE FECHAR: {symbol}")
-                # exchange.create_market_order(symbol, 'sell', amount, {'reduceOnly': True})
-        except Exception as e:
-            print(f"❌ ERRO NA EXECUÇÃO BINANCE: {e}")
+        # Rodar execução em background para não travar a resposta do webhook
+        asyncio.create_task(execute_binance_order(payload))
     # ═══════════════════════════════════════════════════════════
     
     return {
@@ -369,6 +352,38 @@ async def tradingview_webhook(payload: WebhookPayload):
         "timestamp": now.isoformat(),
         "message": f"Ordem {payload.action} processada na Nuvem!"
     }
+
+# ⚡ HELPER: Execução Assíncrona Binance (Alta Performance)
+async def execute_binance_order(payload: WebhookPayload):
+    """Executa a ordem na Binance sem travar o restante da API."""
+    try:
+        symbol = payload.symbol.upper()
+        if "/" not in symbol:
+            symbol = f"{symbol}/USDT" if "USDT" not in symbol else symbol
+        
+        amount = payload.qty
+        action = payload.action.upper()
+        
+        print(f"🚀 [BINANCE] Processando {action} {amount} {symbol}...")
+        
+        if action == "BUY":
+            await exchange.create_market_buy_order(symbol, amount)
+            print(f"✅ [BINANCE] COMPRA EXECUTADA @ {symbol}")
+        elif action == "SELL":
+            await exchange.create_market_sell_order(symbol, amount)
+            print(f"✅ [BINANCE] VENDA EXECUTADA @ {symbol}")
+        elif action == "CLOSE":
+            # Para fechar, buscamos a posição atual
+            positions = await exchange.fetch_positions(symbols=[symbol])
+            for pos in positions:
+                size = float(pos.get('info', {}).get('positionAmt', 0))
+                if size != 0:
+                    side = 'sell' if size > 0 else 'buy'
+                    await exchange.create_market_order(symbol, side, abs(size), params={'reduceOnly': True})
+                    print(f"✅ [BINANCE] POSIÇÃO ZERADA: {abs(size)} {symbol}")
+                    
+    except Exception as e:
+        print(f"❌ [BINANCE ERROR] Falha Crítica na Execução: {e}")
 
 # ============================================================
 # ENDPOINT: Registrar Resultado de Trade
