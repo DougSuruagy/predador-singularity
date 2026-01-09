@@ -1,34 +1,116 @@
 //@version=6
-strategy("PREDATOR v9.0 | ASTRAL CLOUD", overlay=true, margin_long=100, margin_short=100)
+// ═══════════════════════════════════════════════════════════════
+// PREDATOR v13.0 SINGULARITY - Pine Script Strategy
+// 100% CLOUD | ZERO LOCAL | CUSTO ZERO
+//
+// Este script envia sinais via Webhook para a API no Render
+// que alimenta o Dashboard na Vercel.
+//
+// CONFIGURAÇÃO DO WEBHOOK:
+// 1. Clique com botão direito no gráfico
+// 2. Add Alert → Condition: PREDATOR SINGULARITY
+// 3. Marque "Webhook URL" e cole: https://sua-api.onrender.com/webhook
+// 4. Na mensagem, cole o JSON abaixo (sem modificar)
+// ═══════════════════════════════════════════════════════════════
+strategy("PREDATOR v13.0 SINGULARITY", 
+         overlay=true, 
+         initial_capital=1000, 
+         default_qty_type=strategy.fixed, 
+         default_qty_value=1,
+         calc_on_every_tick=true)
 
-// --- INPUTS ---
-src = close
-len = input.int(14, "Neural Sensitivity")
-mult = input.float(2.0, "Volatility Multiplier")
+// ═══════════════════════════════════════════════════════════════
+// INPUTS - Parâmetros Ajustáveis
+// ═══════════════════════════════════════════════════════════════
+emaFastLen = input.int(9, "EMA Rápida", minval=1)
+emaSlowLen = input.int(21, "EMA Lenta", minval=1)
+rsiLen = input.int(14, "RSI Período", minval=1)
+rsiOverbought = input.int(70, "RSI Sobrecomprado", minval=50, maxval=90)
+rsiOversold = input.int(30, "RSI Sobrevendido", minval=10, maxval=50)
+takeProfitPts = input.int(40, "Take Profit (pontos)", minval=5)
+stopLossPts = input.int(20, "Stop Loss (pontos)", minval=5)
+estoqueZeroHour = input.int(17, "Hora Estoque Zero", minval=0, maxval=23)
+estoqueZeroMin = input.int(30, "Minuto Estoque Zero", minval=0, maxval=59)
 
-// --- LÓGICA DE RENDIMENTO (SCALPER) ---
-basis = ta.sma(src, len)
-dev = mult * ta.stdev(src, len)
-upper = basis + dev
-lower = basis - dev
+// ═══════════════════════════════════════════════════════════════
+// INDICADORES
+// ═══════════════════════════════════════════════════════════════
+emaFast = ta.ema(close, emaFastLen)
+emaSlow = ta.ema(close, emaSlowLen)
+rsi = ta.rsi(close, rsiLen)
 
-buy_signal = ta.crossunder(src, lower)
-sell_signal = ta.crossover(src, upper)
+// Cruzamentos
+bullishCross = ta.crossover(emaFast, emaSlow)
+bearishCross = ta.crossunder(emaFast, emaSlow)
 
-// --- ESTOQUE ZERO (Day Trade Puro) ---
-is_market_open = (hour >= 9 and hour < 17) or (hour == 17 and minute < 30)
-can_trade = is_market_open
+// ═══════════════════════════════════════════════════════════════
+// CONDIÇÕES DE ENTRADA
+// ═══════════════════════════════════════════════════════════════
+longCondition = bullishCross and rsi < rsiOverbought
+shortCondition = bearishCross and rsi > rsiOversold
 
-if (buy_signal and can_trade)
-    strategy.entry("Buy", strategy.long, comment="REPASSE_SKYNET")
-    // Enviar para o Render
-    alert("{\"action\": \"BUY\", \"symbol\": \"WING26\", \"price\": " + str.tostring(close) + "}", alert.freq_once_per_bar)
+// ═══════════════════════════════════════════════════════════════
+// ESTOQUE ZERO - Fechar posições antes do limite
+// ═══════════════════════════════════════════════════════════════
+currentHour = hour(time, "America/Sao_Paulo")
+currentMinute = minute(time, "America/Sao_Paulo")
+isEstoqueZero = (currentHour > estoqueZeroHour) or (currentHour == estoqueZeroHour and currentMinute >= estoqueZeroMin)
 
-if (sell_signal and can_trade)
-    strategy.entry("Sell", strategy.short, comment="REPASSE_SKYNET")
-    // Enviar para o Render
-    alert("{\"action\": \"SELL\", \"symbol\": \"WING26\", \"price\": " + str.tostring(close) + "}", alert.freq_once_per_bar)
+// Fechar todas as posições no horário limite
+if isEstoqueZero and strategy.position_size != 0
+    strategy.close_all(comment="ESTOQUE_ZERO")
 
-// Fecha tudo às 17:45 (ESTOQUE ZERO)
-if (hour == 17 and minute == 45)
-    strategy.close_all(comment="FORCE_ZERO_STOCK")
+// Bloquear novas entradas após o horário limite
+canTrade = not isEstoqueZero
+
+// ═══════════════════════════════════════════════════════════════
+// EXECUÇÃO DE ORDENS
+// ═══════════════════════════════════════════════════════════════
+if longCondition and canTrade and strategy.position_size == 0
+    strategy.entry("LONG", strategy.long)
+    // O Webhook será enviado automaticamente pelo TradingView
+
+if shortCondition and canTrade and strategy.position_size == 0
+    strategy.entry("SHORT", strategy.short)
+    // O Webhook será enviado automaticamente pelo TradingView
+
+// ═══════════════════════════════════════════════════════════════
+// TAKE PROFIT E STOP LOSS
+// ═══════════════════════════════════════════════════════════════
+if strategy.position_size > 0
+    strategy.exit("TP/SL Long", "LONG", 
+                  profit=takeProfitPts, 
+                  loss=stopLossPts)
+
+if strategy.position_size < 0
+    strategy.exit("TP/SL Short", "SHORT", 
+                  profit=takeProfitPts, 
+                  loss=stopLossPts)
+
+// ═══════════════════════════════════════════════════════════════
+// VISUALIZAÇÃO
+// ═══════════════════════════════════════════════════════════════
+plot(emaFast, "EMA Fast", color=color.new(color.teal, 0), linewidth=2)
+plot(emaSlow, "EMA Slow", color=color.new(color.orange, 0), linewidth=2)
+
+// Setas de entrada
+plotshape(longCondition and canTrade, title="Buy Signal", location=location.belowbar, 
+          color=color.green, style=shape.triangleup, size=size.small)
+plotshape(shortCondition and canTrade, title="Sell Signal", location=location.abovebar, 
+          color=color.red, style=shape.triangledown, size=size.small)
+
+// Fundo vermelho durante Estoque Zero
+bgcolor(isEstoqueZero ? color.new(color.red, 90) : na, title="Estoque Zero Zone")
+
+// ═══════════════════════════════════════════════════════════════
+// WEBHOOK JSON (Copie isso na mensagem do Alert):
+// ═══════════════════════════════════════════════════════════════
+// {
+//   "action": "{{strategy.order.action}}",
+//   "symbol": "WING26",
+//   "price": {{close}},
+//   "qty": 1,
+//   "confidence": 85,
+//   "message": "{{strategy.order.comment}}"
+// }
+// ═══════════════════════════════════════════════════════════════
