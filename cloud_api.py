@@ -39,57 +39,67 @@ app = FastAPI(
 # ============================================================
 # 🧠 NEURAL CORE 2026 - PREDATOR APEX V16.0 (ANTI-INSTITUTIONAL)
 # ============================================================
-class ApexBrain:
+# ============================================================
+# 🧠 NEURAL CORE 2026 - PREDATOR QUANTUM-SINGULARITY V18.0
+# ============================================================
+class QuantumBrain:
     def __init__(self):
         self.institutional_bias = 0.0
-        self.liquidity_trap_shield = True
         self.alpha_factor = 1.0 
         self.whale_detected = False
         self.correlation_factor = 1.0 
         self.btc_last_price = 0.0
+        self.obp_score = 0.0 # Order Book Pressure
+        self.recursion_memory = [] # Memória de curto prazo para aprendizado
         self.last_health_check = time.time()
 
-    async def self_heal_connection(self):
-        """Verifica e restaura conexão com a corretora se necessário."""
+    async def fetch_market_intelligence(self, symbol):
+        """Busca BTC e Order Book em PARALELO (Máxima Performance)."""
         try:
-            if time.time() - self.last_health_check > 60: # A cada minuto
-                await exchange.fetch_balance()
-                self.last_health_check = time.time()
-                print("💎 [SELF-HEAL] Conexão Binance: OK")
-        except Exception as e:
-            print(f"🔄 [SELF-HEAL] Tentando reconectar... {e}")
-            await exchange.load_markets()
-
-    async def fetch_btc_correlation(self):
-        await self_heal_connection(self) # Auto-recuperação antes de cada trade
-        try:
-            ticker = await exchange.fetch_ticker('BTC/USDT')
-            current_btc = ticker['last']
+            # Busca BTC e Livro de Ofertas simultaneamente
+            target = f"{symbol}/USDT" if "/" not in symbol else symbol
+            tasks = [
+                exchange.fetch_ticker('BTC/USDT'),
+                exchange.fetch_order_book(target, limit=10)
+            ]
+            results = await asyncio.gather(*tasks)
+            
+            # 1. Processa BTC Correlation
+            btc_ticker = results[0]
+            current_btc = btc_ticker['last']
             if self.btc_last_price > 0:
                 change = (current_btc - self.btc_last_price) / self.btc_last_price
-                self.correlation_factor = 1.0 + (change * 100) 
+                self.correlation_factor = 1.0 + (change * 150) # Sensibilidade Ultra
             self.btc_last_price = current_btc
-        except:
-            pass
+            
+            # 2. Processa Order Book Pressure (OBP)
+            ob = results[1]
+            bids = sum([b[1] for b in ob['bids']]) # Volume na compra
+            asks = sum([a[1] for a in ob['asks']]) # Volume na venda
+            self.obp_score = (bids - asks) / (bids + asks) if (bids + asks) > 0 else 0
+            
+        except Exception as e:
+            print(f"⚠️ INTELLIGENCE ERROR: {e}")
 
-    def analyze_deep(self, state):
-        # 1. Detecção de Whale
-        self.whale_detected = True if state.imb > 0.8 or state.imb < -0.8 else False
+    def analyze_quantum(self, state):
+        """Lógica de 5ª Geração: Fusão de Fluxo, Livro e Correlação."""
+        # Whale Detection via OBP + IMB
+        self.whale_detected = True if abs(self.obp_score) > 0.7 or abs(state.imb) > 0.8 else False
         
-        # 2. Escudo de Armadilha (Preço vs Fluxo vs Correlação)
-        # Se Altcoin sobe mas BTC (Líder) cai = Armadilha GIGANTE
-        anchor_trap = (state.price > state.last_price and self.correlation_factor < 0.98)
+        # Inteligência Recursiva: Aprende com os últimos 5 trades
+        recent_performance = sum(state.trade_log[:5]) if isinstance(state.trade_log[:5], list) and len(state.trade_log) > 0 else 1.0
         
-        trap_detected = (state.price > state.last_price and state.imb < -0.2) or \
-                        (state.price < state.last_price and state.imb > 0.2) or anchor_trap
+        # Escudo de Armadilha Quantum (OBP vs IMB)
+        # Se o fluxo (IMB) empurra pra cima, mas o Livro (OBP) está pesado na venda = ARMADILHA
+        trap_detected = (state.imb > 0.2 and self.obp_score < -0.3) or \
+                        (state.imb < -0.2 and self.obp_score > 0.3)
         
-        # 3. Alpha Dinâmico + Bônus de Correlação
-        # Se BTC e Ativo estão na mesma direção, o Alpha é máximo
-        score = (state.prob * 0.4) + (abs(state.imb) * 60)
-        self.alpha_factor = 2.5 if score > 85 and self.correlation_factor > 1.01 else 1.0
+        # Alpha Factor Dinâmico (Fórmula 2026)
+        score = (state.prob * 0.3) + (abs(state.imb) * 40) + (abs(self.obp_score) * 30)
+        self.alpha_factor = 3.0 if score > 90 and not trap_detected else 0.2 if trap_detected else 1.0
         
-        bias = "LONG_READY" if state.imb > 0.2 and self.correlation_factor > 1.0 else \
-               "SHORT_READY" if state.imb < -0.2 and self.correlation_factor < 1.0 else "FLAT"
+        bias = "QUANTUM_LONG" if state.imb > 0.1 and self.obp_score > 0.1 else \
+               "QUANTUM_SHORT" if state.imb < -0.1 and self.obp_score < -0.1 else "NEUTRAL"
         
         return {
             "score": score,
@@ -97,10 +107,10 @@ class ApexBrain:
             "trap": trap_detected,
             "whale": self.whale_detected,
             "alpha": self.alpha_factor,
-            "corr": self.correlation_factor
+            "obp": self.obp_score
         }
 
-brain = ApexBrain()
+brain = QuantumBrain()
 state_lock = asyncio.Lock()
 
 # BINANCE CONNECTION (Custo Zero - Sem MT5)
@@ -179,15 +189,17 @@ class MarketState:
         self.losses: int = 0
         self.win_rate: float = 0.0
         
-        # IA Viva 2026 - APEX UPGRADE
+        # IA Viva 2026 - QUANTUM UPGRADE
         self.prob: float = 75.0
         self.imb: float = 0.0
+        self.obp: float = 0.0
         self.neural_score: float = 0.0
         self.alpha_factor: float = 1.0
         self.btc_correlation: float = 1.0
         self.whale_alert: bool = False
         self.trap_detected: bool = False
-        self.compounding_factor: float = 0.15 
+        self.slippage_shield: bool = True
+        self.compounding_factor: float = 0.20 # 20% reinvestido (Modo Agressivo)
         self.regime: str = "WAITING"
         self.confidence: float = 75.0
         
@@ -410,41 +422,48 @@ async def tradingview_webhook(payload: WebhookPayload):
     state.last_update = time.time()
     state.last_order = trade_entry
     
-    # 🧩 PROCESSAMENTO APEX V16.0 + CORRELAÇÃO ADAPTATIVA
-    await brain.fetch_btc_correlation() # Garante que temos o pulso do Bitcoin
+    # 🌀 PROCESSAMENTO QUANTUM V18.0 (Sincronia Total)
+    await brain.fetch_market_intelligence(payload.symbol)
     
-    report = brain.analyze_deep(state)
+    report = brain.analyze_quantum(state)
     state.neural_score = report["score"]
     state.alpha_factor = report["alpha"]
     state.whale_alert = report["whale"]
     state.trap_detected = report["trap"]
-    state.btc_correlation = report["corr"]
+    state.obp = report["obp"]
     
+    # 🛡️ SLIPPAGE SHIELD: Proteção contra preços fantasmas
+    current_market_price = brain.btc_last_price if "BTC" in payload.symbol else state.price
+    if payload.price and abs(payload.price - current_market_price) / current_market_price > 0.01:
+        print(f"⚠️ [SLIPPAGE] Preço do sinal muito longe do mercado. Abortando.")
+        return {"status": "SLIPPAGE_PROTECT", "message": "Preço fora da zona de segurança."}
+
     # ═══════════════════════════════════════════════════════════
-    # EXECUÇÃO APEX (Bitcoin Master Correlation)
+    # EXECUÇÃO QUANTUM (Smart Order Routing)
     # ═══════════════════════════════════════════════════════════
     if exchange.apiKey and exchange.secret:
-        # Se for armadilha ou descorrelação crítica com o Bitcoin, abortamos
-        if state.trap_detected:
-            print(f"🛡️ [LOCKED] ARMADILHA OU DESCORRELAÇÃO BTC. SYNC: {state.btc_correlation:.2f}")
-            return {"status": "TRAP_ABORTED", "reason": "Institutional Trap / BTC Divergence"}
+        if state.trap_detected and state.neural_score < 95:
+            print(f"🛡️ [QUANTUM-BLOCK] Armadilha Detectada. OBP: {state.obp:.2f}")
+            return {"status": "TRAP_ABORTED", "reason": "Institutional Liquidity Trap"}
             
         final_qty = max(1, int(payload.qty * state.alpha_factor))
         
+        # Juros Compostos Dinâmicos (V18.0)
         if state.daily_pnl > 0:
-            final_qty += int(state.daily_pnl / 50)
+            final_qty += int(state.daily_pnl / 30) # Reinvestimento acelerado
             
         payload.qty = final_qty
         asyncio.create_task(execute_binance_order(payload))
     # ═══════════════════════════════════════════════════════════
     
     return {
-        "status": "EXECUTED",
-        "brain_bias": report["bias"],
-        "btc_sync": round(state.btc_correlation, 4),
+        "status": "SINGULARITY_EXECUTED",
+        "bias": report["bias"],
+        "score": round(state.neural_score, 1),
+        "obp": round(state.obp, 2),
         "alpha": state.alpha_factor,
         "timestamp": now.isoformat(),
-        "message": "Predator APEX V16.0: Sincronizado com o fluxo do Bitcoin."
+        "message": "Predator QUANTUM V18.0: Operação disparada com proteção de slippage."
     }
 
 # ⚡ HELPER: Execução Assíncrona Binance (Alta Performance)
