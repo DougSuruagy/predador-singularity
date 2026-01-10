@@ -86,9 +86,9 @@ class NomadBrain:
         self.kelly_fraction = 0.20
 
     async def scan_market(self):
-        """MULTI-OCULAR VISION: Enxerga onde o lucro está escondido em múltiplos setores."""
         best_opportunity = None
         highest_score = 0
+        best_intel = None
         
         try:
             # Seleciona os ativos mais quentes de cada "Olho" para análise
@@ -117,11 +117,9 @@ class NomadBrain:
                 if score > highest_score:
                     highest_score = score
                     best_opportunity = intel["symbol"]
+                    best_intel = intel
                     
-        except Exception as e:
-            print(f"📡 [OCULAR-ERROR] {e}")
-        
-        return best_opportunity, highest_score
+        return best_opportunity, highest_score, best_intel
 
     def mutate(self, success: bool):
         """MOTOR DE MUTAÇÃO GENÉTICA: Evolui os pesos neurais baseados no lucro."""
@@ -137,9 +135,21 @@ class NomadBrain:
             self.genes["frontal_weight"] -= mutation_rate
             self.genes["occipital_weight"] -= mutation_rate
         
-        # Normalização dos Genes
+        # Normalização dos Genes com Guard (Evita NaN)
+        total = sum(self.genes.values())
+        if total > 0:
+            for k in self.genes: self.genes[k] /= total
+        else:
+            self.genes = {"frontal_weight": 0.35, "occipital_weight": 0.35, "amygdala_weight": 0.15, "parietal_weight": 0.15}
+        
+        # Limita pesos para evitar especialização extrema (Mínimo 5%)
+        for k in self.genes:
+            self.genes[k] = max(0.05, self.genes[k])
+        
+        # Re-normaliza após o clamp
         total = sum(self.genes.values())
         for k in self.genes: self.genes[k] /= total
+        
         print(f"🧬 [MUTATION] Genes Evoluídos: {self.genes}")
 
     async def fetch_god_intelligence(self, symbol):
@@ -398,9 +408,8 @@ class MarketState:
         self.z_score: float = 0.0
         self.kelly: float = 0.15
         self.is_correlated: bool = True
-        self.btc_momentum: float = 0.0
         self.alpha_scale: float = 1.0
-        self.compounding: float = 0.30 # 30% REINVESTIMENTO (LIMITE MÁXIMO)
+        self.compounding: float = 0.30 
         self.regime: str = "WAITING"
         self.confidence: float = 80.0
         self.bias: str = "NEUTRAL"
@@ -422,16 +431,17 @@ class MarketState:
         self.last_update: float = time.time()
         self.session_start: float = time.time()
         
-        # Flags de Segurança
-        self.is_hunting: bool = True
+        # Flags de Segurança e Controle
         self.consecutive_losses: int = 0
-        self.is_locked: bool = False
         
         # Trade Log (últimos 50)
         self.trade_log: List[dict] = []
         
         # Última ordem
         self.last_order: dict = {}
+        
+        # 🧬 GENETIC SYNC
+        self.genes: dict = getattr(brain, 'genes', {})
         
         # COMANDOS REMOTOS (Cloud -> MQL5)
         self.pending_command: str = ""
@@ -657,6 +667,14 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
     state.rsi = report.get("rsi", state.rsi)
     state.trend_aligned = report.get("trend_aligned", state.trend_aligned)
     state.kelly = report.get("kelly", state.kelly)
+    
+    # 🧬 SYNC BIO-QUANTUM LIFE SIGNS (Webhook flow)
+    state.homeostasis = report.get("homeostasis", state.homeostasis)
+    state.adrenaline = report.get("adrenaline", state.adrenaline)
+    state.synaptic_firing = report.get("synaptic_firing", state.synaptic_firing)
+    state.quantum_entropy = report.get("quantum_entropy", state.quantum_entropy)
+    state.metabolism = 1.0 + (state.synaptic_firing / 100.0)
+    state.genes = report.get("genes", state.genes)
     
     # ═══════════════════════════════════════════════════════════
     # EXECUÇÃO GOD-MODE (R$100 - BANK PROTECTION)
@@ -979,23 +997,25 @@ async def autonomous_hunter_loop():
     print("🎯 NOMAD GOD-MODE: CAÇADOR AUTÔNOMO INICIADO.")
     while True:
         try:
-            if state.is_hunting and not state.is_locked:
+                # Garante que os mercados estão carregados antes de caçar (Crucial para precisão de lotes)
+                if not exchange.markets:
+                    print("⏳ [WAIT] Carregando mercados de câmbio...")
+                    await exchange.load_markets()
+                
                 state.regime = "HUNTING"
                 # Executa scan com timeout para não travar o loop
                 try:
-                    symbol, score = await asyncio.wait_for(brain.scan_market(), timeout=15)
+                    symbol, score, intel = await asyncio.wait_for(brain.scan_market(), timeout=15)
                 except asyncio.TimeoutError:
                     print("⌛ [TIMEOUT] Scanner demorou muito. Pulando ciclo.")
                     continue
                 
                 # Sincroniza a "visão" do caçador com o estado global para o dashboard
-                if symbol:
-                    intel = await brain.fetch_god_intelligence(symbol)
-                    if intel:
-                        # SINCRONIZAÇÃO EM TEMPO REAL: Preencha o estado com a internet real
-                        state.price = intel["price"]
-                        state.last_price = intel["price"]
-                        state.last_update = time.time()
+                if symbol and intel:
+                    # SINCRONIZAÇÃO EM TEMPO REAL: Preencha o estado com a internet real
+                    state.price = intel["price"]
+                    state.last_price = intel["price"]
+                    state.last_update = time.time()
                         
                         report = brain.analyze_infinity(state, intel)
                         state.kinetic = report["physics"]
@@ -1015,7 +1035,8 @@ async def autonomous_hunter_loop():
                         state.adrenaline = report["adrenaline"]
                         state.synaptic_firing = report["synaptic_firing"]
                         state.quantum_entropy = report["quantum_entropy"]
-                        state.metabolism = 1.0 + (state.synaptic_firing * 0.5)
+                        state.metabolism = 1.0 + (state.synaptic_firing / 100.0)
+                        state.genes = report["genes"]
                 
                 if symbol and score >= 95:
                     print(f"💎 OPORTUNIDADE GOD-LEVEL: {symbol} (SCORE: {score:.1f})")
