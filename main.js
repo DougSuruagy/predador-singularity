@@ -162,6 +162,12 @@ function updateUI(data) {
             // Incremento mínimo de 1 segundo se colidir, ou usa o tempo do servidor
             const chartTime = Math.max(lastTime + 1, serverTime);
 
+            // Cores dinâmicas para o gráfico baseadas no Bias da IA
+            const bias = data.bias || "NEUTRAL";
+            const lineColor = bias === 'GOD_LONG' ? '#00ff9d' : bias === 'GOD_SHORT' ? '#ff0055' : '#00f2ff';
+            const topColor = bias === 'GOD_LONG' ? 'rgba(0, 255, 157, 0.4)' : bias === 'GOD_SHORT' ? 'rgba(255, 0, 85, 0.4)' : 'rgba(0, 242, 255, 0.4)';
+
+            areaSeries.applyOptions({ lineColor, topColor });
             areaSeries.update({ time: chartTime, value: price });
         }
     }

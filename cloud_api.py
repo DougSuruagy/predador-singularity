@@ -467,18 +467,10 @@ async def mql5_update(data: MQL5Update):
 # ENDPOINT: Webhook do TradingView (Automação de Repasse)
 # ============================================================
 @app.post("/webhook")
-async def tradingview_webhook(payload: WebhookPayload):
+async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None):
     """
     Recebe sinais do TradingView e processa.
-    Configure no TradingView: Alert → Webhook URL → https://sua-api.onrender.com/webhook
-    
-    Payload JSON esperado:
-    {
-        "action": "BUY",
-        "symbol": "WING26",
-        "price": 128500,
-        "confidence": 85.5
-    }
+    O parâmetro intel_cache evita chamadas repetidas à API da Binance.
     """
     now = datetime.now()
     
@@ -536,8 +528,8 @@ async def tradingview_webhook(payload: WebhookPayload):
     state.last_update = time.time()
     state.last_order = trade_entry
     
-    # 💫 SINGULARIDADE v21.0 - Busca Inteligência para o ativo ATUAL
-    intel = await brain.fetch_god_intelligence(payload.symbol)
+    # 💫 SINGULARIDADE v21.1 - Busca Inteligência se não estiver em cache
+    intel = intel_cache if intel_cache else await brain.fetch_god_intelligence(payload.symbol)
     
     report = brain.analyze_infinity(state, intel=intel)
     state.confidence = report["score"]
@@ -601,14 +593,15 @@ async def execute_binance_order(payload: WebhookPayload):
             await exchange.create_market_sell_order(symbol, amount)
             print(f"✅ [BINANCE] VENDA EXECUTADA @ {symbol}")
         elif action == "CLOSE":
-            # Para fechar, buscamos a posição atual
-            positions = await exchange.fetch_positions(symbols=[symbol])
+            # Otimização: Uso de fetch_position_risk para precisão absoluta em futuros
+            positions = await exchange.fetch_position_risk(symbols=[symbol])
             for pos in positions:
-                size = float(pos.get('info', {}).get('positionAmt', 0))
+                size = float(pos.get('positionAmt', 0))
                 if size != 0:
                     side = 'sell' if size > 0 else 'buy'
                     await exchange.create_market_order(symbol, side, abs(size), params={'reduceOnly': True})
                     print(f"✅ [BINANCE] POSIÇÃO ZERADA: {abs(size)} {symbol}")
+                    await log_event_to_db("INFO", "EXECUTION", f"Posição zerada: {symbol}", {"size": size})
                     
     except Exception as e:
         print(f"❌ [BINANCE ERROR] Falha Crítica na Execução: {e}")
@@ -631,9 +624,8 @@ async def log_event_to_db(level: str, module: str, message: str, data: dict = No
 async def update_daily_stats_in_db():
     if not supabase: return
     try:
-        today = datetime.utcnow().strftime("%Y-%m-%d")
-        # Busca trades de hoje
-        trades_response = supabase.table("trades").select("*").gte("created_at", today).execute()
+        # Busca apenas os dados necessários (Agregação no Banco é melhor, mas aqui simplificamos a query)
+        trades_response = supabase.table("trades").select("pnl, result, kinetic_energy, confidence_score, is_correlated").gte("created_at", today).execute()
         trades_data = trades_response.data
         
         if not trades_data: return
@@ -701,12 +693,13 @@ async def register_trade_result(result: TradeResult):
     # 💾 PERSISTÊNCIA SUPABASE (Memória Viva)
     if supabase:
         try:
-            # Salva o estado atual do sistema como um snapshot de log
-            supabase.table("logs").insert({
-                "event": "TRADE_RESULT",
-                "details": f"{result.result} | PnL: {result.pnl} | PnL Total: {state.pnl}",
-                "level": "INFO" if result.result == "WIN" else "WARNING"
-            }).execute()
+            # Salva o estado atual no log de sistema
+            await log_event_to_db(
+                level="INFO" if result.result == "WIN" else "WARNING",
+                module="TRADE",
+                message=f"Resultado Trade: {result.result} | PnL: {result.pnl}",
+                data={"symbol": result.symbol, "pnl_total": state.pnl}
+            )
             
             # Salva o trade em si com as variáveis quânticas
             supabase.table("trades").insert({
@@ -741,12 +734,12 @@ async def get_state():
     """
     now = time.time()
     
-    # Simular variação de preço para demonstração
-    if state.regime == "ACTIVE" or state.regime == "WAITING":
-        # Pequena variação aleatória para parecer vivo
-        variation = random.uniform(-5, 5)
-        state.price = max(100000, state.price + variation)
-        state.imb = random.uniform(-0.3, 0.3)
+    # Simular variação de preço APENAS se estiver offline ou sem dados reais recentes
+    if (now - state.last_update > 10) and (state.regime != "OFFLINE"):
+        # Pequena variação aleatória para manter o dashboard "vivo" em modo standby
+        variation = random.uniform(-2, 2)
+        state.price += variation
+        state.imb = random.uniform(-0.1, 0.1)
     
     # Detectar conexão stale
     if now - state.last_update > STALE_TIMEOUT_SEC:
@@ -874,12 +867,12 @@ async def autonomous_hunter_loop():
                         payload = WebhookPayload(
                             action="BUY" if report["bias"] == "GOD_LONG" else "SELL",
                             symbol=symbol,
-                            price=0.0, # Market price
+                            price=intel["price"], 
                             qty=0.001, # Mínimo inicial p/ escala
-                            confidence=score
+                            confidence=report["score"]
                         )
-                        # Dispara execução
-                        await tradingview_webhook(payload)
+                        # Dispara execução injetando intel em cache
+                        await tradingview_webhook(payload, intel_cache=intel)
             
             # Intervalo de scan (Alta Frequência mas respeitando limites de API)
             await asyncio.sleep(10) 
