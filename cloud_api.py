@@ -62,6 +62,13 @@ class NomadBrain:
         self.active_hunters = [] 
         self.market_watchlist = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ADA/USDT", "DOGE/USDT", "AVAX/USDT"]
         self.restricted_symbols = set()
+        
+        # 🟢 BIO-QUANTUM CORE (V21.1 LIVING ORGANISM)
+        self.metabolism = 1.0           # Taxa de processamento biológico
+        self.adrenaline = 0.0           # Resposta ao estresse de mercado (Volatilidade)
+        self.homeostasis = 100.0        # Saúde do sistema (Integridade da banca de R$ 100)
+        self.quantum_entropy = 0.1      # Desordem quântica no preço
+        self.synaptic_firing = 0.0      # Intensidade de sinais neurais
 
     async def scan_market(self):
         """Busca agressiva na internet pelos melhores ativos para lucro a curto prazo."""
@@ -344,6 +351,13 @@ class MarketState:
         self.entropy: float = 0.0
         self.rsi: float = 50.0
         self.trend_aligned: bool = True
+        
+        # 🧬 BIOMETRICS (LIVING ORGANISM v21.1)
+        self.homeostasis: float = 100.0
+        self.adrenaline: float = 0.0
+        self.synaptic_firing: float = 0.0
+        self.quantum_entropy: float = 0.0
+        self.metabolism: float = 1.0
         
         # Controle de Tempo
         self.last_update: float = time.time()
@@ -827,6 +841,13 @@ async def get_state():
         "is_correlated": state.is_correlated,
         "btc_momentum": round(state.btc_momentum, 6),
         "trap_detected": state.trap_detected,
+        
+        # 🧬 LIFE SIGNS
+        "homeostasis": round(state.homeostasis, 2),
+        "adrenaline": round(state.adrenaline, 3),
+        "synaptic_firing": round(state.synaptic_firing, 3),
+        "quantum_entropy": round(state.quantum_entropy, 4),
+        "metabolism": round(state.metabolism, 2),
         "is_hunting": state.is_hunting,
         "is_locked": state.is_locked,
         "consecutive_losses": state.consecutive_losses,
@@ -925,6 +946,13 @@ async def autonomous_hunter_loop():
                         state.trap_detected = report["trap"]
                         state.rsi = report["rsi"]
                         state.trend_aligned = report["trend_aligned"]
+                        
+                        # 🧬 SYNC BIO-QUANTUM LIFE SIGNS
+                        state.homeostasis = report["homeostasis"]
+                        state.adrenaline = report["adrenaline"]
+                        state.synaptic_firing = report["synaptic_firing"]
+                        state.quantum_entropy = report["quantum_entropy"]
+                        state.metabolism = 1.0 + (state.synaptic_firing * 0.5)
                 
                 if symbol and score >= 95:
                     print(f"💎 OPORTUNIDADE GOD-LEVEL: {symbol} (SCORE: {score:.1f})")
