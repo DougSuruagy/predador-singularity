@@ -41,6 +41,8 @@ Through **Accelerated Compound Interest** algorithms, the engine utilizes every 
 *   The system operates in **Black Box Mode**: no dashboard monitoring required.
 *   Reads your real Binance balance and calculates optimal trade sizes using the **Kelly Fraction** and **15x Leverage**.
 *   Profits are automatically compounded into larger positions.
+*   **Genetic Backtesting Engine**: The system can simulate its current DNA on historical data (`/backtest`) to validate mutations before live execution. "Dreaming of the past to predict the future."
+*   **Visual Command Center**: Real-time Candlestick charts with Buy/Sell markers overlaid directly on the dashboard.
 
 ---
 

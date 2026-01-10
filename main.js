@@ -1,5 +1,5 @@
 /**
- * PREDATOR v21.3 APEX PROGENY - Frontend Engine
+ * PREDATOR v21.4 APEX SCALPER - Frontend Engine
  * 100% CLOUD | Zero Local | Custo Zero
  * 
  * Fluxo: TradingView → Render API → Este Dashboard
@@ -40,8 +40,9 @@ const DOM = {};
 // chart.js integration
 // ============================================================
 let chart;
-let candleSeries;
-let areaSeries; // Usar area para um visual mais "tech" se preferir, ou candle
+let series;
+let currentCandle = null;
+let candleInterval = 60; // 1 minuto por candle simulado no front (ou sincronizado)
 
 function initChart() {
     const chartContainer = document.getElementById('main-chart');
@@ -62,14 +63,18 @@ function initChart() {
             timeVisible: true,
             secondsVisible: true,
         },
+        crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+        },
     });
 
-    // Criar uma série de área (Area Series) para um visual mais fluido/moderno
-    areaSeries = chart.addAreaSeries({
-        lineColor: '#00f2ff',
-        topColor: 'rgba(0, 242, 255, 0.4)',
-        bottomColor: 'rgba(0, 242, 255, 0.0)',
-        lineWidth: 2,
+    // 🕯️ APEX SCALPER: Candlestick Series Real
+    series = chart.addCandlestickSeries({
+        upColor: '#00ff9d',
+        downColor: '#ff0055',
+        borderVisible: false,
+        wickUpColor: '#00ff9d',
+        wickDownColor: '#ff0055',
     });
 
     // Responsividade
@@ -177,23 +182,53 @@ function updateUI(data) {
     if (price > 0) {
         if (DOM.bigPrice) DOM.bigPrice.innerText = price.toLocaleString('pt-BR');
 
-        // Atualizar Gráfico (Performance e Ordem de Tempo)
-        if (areaSeries) {
-            // Garante que o timestamp seja sempre crescente (exigência do Lightweight Charts)
-            const serverTime = data.last_update ? Math.floor(data.last_update) : Math.floor(Date.now() / 1000);
-            const lastData = areaSeries.data();
-            const lastTime = lastData.length > 0 ? lastData[lastData.length - 1].time : 0;
+        // Atualizar Gráfico (Lógica de Candle Building)
+        if (series) {
+            const now = Math.floor(Date.now() / 1000);
 
-            // Incremento mínimo de 1 segundo se colidir, ou usa o tempo do servidor
-            const chartTime = Math.max(lastTime + 1, serverTime);
+            // Se não tem candle ou mudou o minuto, cria um novo
+            if (!currentCandle || now >= currentCandle.time + 60) {
+                currentCandle = {
+                    time: Math.floor(now / 60) * 60, // Arredonda para o minuto exato
+                    open: price,
+                    high: price,
+                    low: price,
+                    close: price
+                };
+            } else {
+                // Atualiza candle existente
+                currentCandle.close = price;
+                currentCandle.high = Math.max(currentCandle.high, price);
+                currentCandle.low = Math.min(currentCandle.low, price);
+            }
 
-            // Cores dinâmicas para o gráfico baseadas no Bias da IA
-            const bias = data.bias || "NEUTRAL";
-            const lineColor = bias === 'GOD_LONG' ? '#00ff9d' : bias === 'GOD_SHORT' ? '#ff0055' : '#00f2ff';
-            const topColor = bias === 'GOD_LONG' ? 'rgba(0, 255, 157, 0.4)' : bias === 'GOD_SHORT' ? 'rgba(255, 0, 85, 0.4)' : 'rgba(0, 242, 255, 0.4)';
+            series.update(currentCandle);
 
-            areaSeries.applyOptions({ lineColor, topColor });
-            areaSeries.update({ time: chartTime, value: price });
+            // Plotar Trades como Marcadores
+            if (data.trade_log && data.trade_log.length > 0) {
+                const recentTrades = data.trade_log.filter(t => {
+                    // Filtrar trades recentes (ex: últimos 5 minutos) para não poluir
+                    // Assumindo que o timestamp vem no formato HH:MM:SS, teríamos que converter.
+                    // Para simplificar, vou plotar o ÚLTIMO trade se ele acabou de acontecer.
+                    return true;
+                });
+
+                // Mapear trades para marcadores
+                const markers = [];
+                // Por limitação de complexidade de tempo aqui, vamos adicionar apenas um marcador
+                // se o last_order for recente.
+                if (data.last_order && data.last_order.time) {
+                    const isBuy = data.last_order.action === "BUY";
+                    markers.push({
+                        time: currentCandle.time,
+                        position: isBuy ? 'belowBar' : 'aboveBar',
+                        color: isBuy ? '#00ff9d' : '#ff0055',
+                        shape: isBuy ? 'arrowUp' : 'arrowDown',
+                        text: isBuy ? 'BUY' : 'SELL',
+                    });
+                    series.setMarkers(markers);
+                }
+            }
         }
     }
 

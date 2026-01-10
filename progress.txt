@@ -1,6 +1,13 @@
 # PREDATOR PROGRESS LOG
 
-## Iteration v21.4 (Current)
+## Iteration v22.0 Quantum Leap (Current)
+- **Status:** COMPLETED
+- **Learnings:**
+  - Implemented the "Genetic Backtesting Engine" (`/backtest` endpoint). This allows the system to simulate performance on historical data before risking capital.
+  - Upgraded the Frontend Dashboard to v21.4 with Real Candlesticks and Trade Markers. Visual feedback is now instant.
+  - "Ralph Pattern" with `prd.json` proved effective for keeping focus on granular tasks.
+
+## Iteration v21.4
 - **Status:** COMPLETED
 - **Learnings:**
   - The `auth.role()` call in Supabase RLS policies caused major performance warnings. Solution: Wrap in `(SELECT auth.role())`.

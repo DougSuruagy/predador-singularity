@@ -1149,6 +1149,141 @@ async def unlock_system():
     return {"status": "UNLOCKED"}
 
 # ============================================================
+# ENDPOINT: Genetic Backtesting Engine (Quantum Sims)
+# ============================================================
+@app.post("/backtest")
+async def run_backtest(data: dict):
+    """
+    Simula a genética atual contra dados históricos (Sonhar com o Passado).
+    Payload: {"symbol": "BTCUSDT", "period": "1d", "dna": {optional_genes}}
+    """
+    symbol = data.get("symbol", "BTCUSDT")
+    period = data.get("period", "1d")
+    
+    print(f"🧪 INICIANDO BACKTEST GENÉTICO: {symbol} ({period})...")
+    
+    # 1. Buscar dados históricos
+    limit = 1440 if period == "1d" else 1000
+    try:
+        ohlcv = await exchange.fetch_ohlcv(symbol, '1m', limit=limit)
+        if not ohlcv:
+            return {"error": "Sem dados históricos."}
+    except Exception as e:
+        return {"error": f"Erro ao buscar dados: {str(e)}"}
+        
+    # 2. Estado Simulado
+    sim_state = MarketState()
+    sim_state.trades = 0
+    sim_state.wins = 0
+    sim_state.losses = 0
+    sim_state.pnl = 0.0
+    
+    # Se DNA fornecido, aplica temporariamente
+    original_genes = brain.genes.copy()
+    if "dna" in data:
+        brain.genes.update(data["dna"])
+    
+    # 3. Loop de Simulação
+    history = []
+    position = None # {entry: float, type: 'long', sl: float, tp: float}
+    
+    for i in range(50, len(ohlcv)):
+        candle = ohlcv[i]
+        timestamp, open_p, high, low, close, vol = candle
+        
+        # Reconstrói intel sintética para o cérebro
+        # Nota: Limitado pois não temos OB histórico profundo, mas usamos Price Action
+        closes = [c[4] for c in ohlcv[i-30:i+1]]
+        
+        # Recalc Basic Metrics
+        mean = sum(closes) / len(closes)
+        std = math.sqrt(sum((x - mean)**2 for x in closes) / len(closes))
+        z_score = (close - mean) / (std if std > 0 else 1)
+        
+        # ATR Simulado
+        tr_sum = 0
+        for j in range(1, 15):
+             tr_sum += max(ohlcv[i-j][2] - ohlcv[i-j][3], abs(ohlcv[i-j][2] - ohlcv[i-j][4]), abs(ohlcv[i-j][3] - ohlcv[i-j][4]))
+        atr = tr_sum / 14
+        
+        # Kinetic Simulado
+        vel = (closes[-1] - closes[-3]) / closes[-3]
+        kinetic = abs(vel * 1000)
+        
+        intel = {
+            "price": close,
+            "obp": 0.0, # Sem dados históricos de OB
+            "kinetic": kinetic,
+            "z_score": z_score,
+            "trend_aligned": True, # Simplificação
+            "rsi": 50, # Recalculo seria pesado, usando neutro
+            "atr": atr,
+            "volume_spike": vol > (mean * 1.5) # Simplificação
+        }
+        
+        # Analisa
+        report = brain.analyze_infinity(sim_state, intel)
+        
+        # Decisão de Trade
+        if not position:
+            if report["bias"] == "GOD_LONG" and report["score"] > 80:
+                sl = close - (atr * 1.5)
+                tp = close + (atr * 2.5)
+                position = {"entry": close, "type": "long", "sl": sl, "tp": tp, "time": timestamp}
+            elif report["bias"] == "GOD_SHORT" and report["score"] > 80:
+                sl = close + (atr * 1.5)
+                tp = close - (atr * 2.5)
+                position = {"entry": close, "type": "short", "sl": sl, "tp": tp, "time": timestamp}
+        else:
+            # Gerencia Posição (Simulação intra-candle simplificada com Low/High)
+            pnl = 0
+            closed = False
+            
+            if position["type"] == "long":
+                if low <= position["sl"]:
+                    pnl = (position["sl"] - position["entry"]) / position["entry"]
+                    closed = True
+                elif high >= position["tp"]:
+                    pnl = (position["tp"] - position["entry"]) / position["entry"]
+                    closed = True
+            elif position["type"] == "short":
+                if high >= position["sl"]:
+                    pnl = (position["entry"] - position["sl"]) / position["entry"]
+                    closed = True
+                elif low <= position["tp"]:
+                    pnl = (position["entry"] - position["tp"]) / position["entry"]
+                    closed = True
+            
+            if closed:
+                # Alavancagem 10x na simulação
+                real_pnl_percent = pnl * 10 
+                sim_state.pnl += (real_pnl_percent * 100) # Base $100
+                sim_state.trades += 1
+                if pnl > 0: sim_state.wins += 1
+                else: sim_state.losses += 1
+                history.append({"t": timestamp, "pnl": real_pnl_percent})
+                position = None
+
+    # Restaura genes originais
+    brain.genes = original_genes
+    
+    # Métricas Finais
+    total = sim_state.wins + sim_state.losses
+    wr = (sim_state.wins / total * 100) if total > 0 else 0
+    
+    result = {
+        "symbol": symbol,
+        "candles_analyzed": len(ohlcv),
+        "total_trades": sim_state.trades,
+        "win_rate": round(wr, 1),
+        "total_pnl_percent": round(sim_state.pnl, 2),
+        "history": history[-10:]
+    }
+    
+    print(f"🧪 BACKTEST RESULT: {wr:.1f}% WR | PnL: {sim_state.pnl:.2f}%")
+    return result
+
+# ============================================================
 # ENDPOINTS DE SISTEMA
 # ============================================================
 # ============================================================
