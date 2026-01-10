@@ -261,8 +261,13 @@ async def maintain_exchange_session():
 if BINANCE_API_KEY and BINANCE_API_SECRET:
     try:
         print("⚡ CONECTANDO À BINANCE FUTURES...")
-        # O sistema operará com alavancagem dinâmica por símbolo para proteção total
-        # Alavancagem padrão agressiva para permitir operar com R$ 100 ($20)
+        async def setup_account():
+            try:
+                await exchange.load_markets()
+                print("✅ MERCADOS CARREGADOS E AMBIENTE BINANCE PRONTO.")
+            except Exception as e:
+                print(f"⚠️ ERRO AO CARREGAR MERCADOS: {e}")
+        asyncio.create_task(setup_account())
     except Exception as e:
         print(f"⚠️ ERRO BINANCE: {e}")
 else:
@@ -576,6 +581,9 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
     state.is_correlated = report["correlation"]
     state.alpha_scale = report["alpha"]
     state.trap_detected = report["trap"]
+    state.rsi = report.get("rsi", state.rsi)
+    state.trend_aligned = report.get("trend_aligned", state.trend_aligned)
+    state.kelly = report.get("kelly", state.kelly)
     
     # ═══════════════════════════════════════════════════════════
     # EXECUÇÃO GOD-MODE (R$100 - BANK PROTECTION)
@@ -625,6 +633,12 @@ async def execute_binance_order(payload: WebhookPayload):
         
         amount = payload.qty
         action = payload.action.upper()
+        
+        # Ajuste de Precisão (Lot Size) para evitar erro da Binance
+        if symbol in exchange.markets:
+            market = exchange.market(symbol)
+            amount = exchange.amount_to_precision(symbol, amount)
+            print(f"🎯 [PRECISION] Lote ajustado: {amount} {symbol}")
         
         print(f"🚀 [BINANCE] Processando {action} {amount} {symbol}...")
         
@@ -883,7 +897,12 @@ async def autonomous_hunter_loop():
         try:
             if state.is_hunting and not state.is_locked:
                 state.regime = "HUNTING"
-                symbol, score = await brain.scan_market()
+                # Executa scan com timeout para não travar o loop
+                try:
+                    symbol, score = await asyncio.wait_for(brain.scan_market(), timeout=15)
+                except asyncio.TimeoutError:
+                    print("⌛ [TIMEOUT] Scanner demorou muito. Pulando ciclo.")
+                    continue
                 
                 # Sincroniza a "visão" do caçador com o estado global para o dashboard
                 if symbol:
