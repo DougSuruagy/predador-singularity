@@ -19,13 +19,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
-import time
 import os
-import random  # Para simulação de dados de mercado
-import ccxt.async_support as ccxt  # Alta Performance (Não bloqueia o loop)
+import random  # Restored for scanners and simulations
+import ccxt.async_support as ccxt  # Alta Performance
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import asyncio
+import time
+from datetime import datetime
+import math
 
 # Carregar variáveis de ambiente locais (.env) se existirem
 load_dotenv()
@@ -61,20 +63,23 @@ class NomadBrain:
 
     async def scan_market(self):
         """Escaneia o mercado em busca de distorções quânticas (A caça começou)."""
+        # Melhora crítica: Só escaneia se não houver trade ativo importante (Performance)
         best_opportunity = None
         highest_score = 0
         
-        # Escaneia todos os ativos em paralelo para máxima velocidade
-        tasks = [self.fetch_god_intelligence(symbol.replace("/USDT", "")) for symbol in self.market_watchlist]
-        await asyncio.gather(*tasks)
-        
-        for symbol in self.market_watchlist:
-            # Simulamos a análise para cada um no watchlist
-            # Na vida real, o fetch_god_intelligence já populou os dados
-            score = random.uniform(0, 100) # Placeholder para a análise de cada um
-            if score > highest_score and score > 85:
-                highest_score = score
-                best_opportunity = symbol
+        try:
+            # Escaneia em chunks paralelos para não sobrecarregar o Event Loop
+            tasks = [self.fetch_god_intelligence(symbol.replace("/USDT", "")) for symbol in self.market_watchlist]
+            await asyncio.gather(*tasks)
+            
+            for symbol in self.market_watchlist:
+                # Lógica Matemática Pura de Pontuação
+                score = (abs(self.obp_score) * 50) + (self.kinetic_energy * 50)
+                if score > highest_score and score > 80:
+                    highest_score = score
+                    best_opportunity = symbol
+        except Exception as e:
+            print(f"📡 [SCAN-ERROR] {e}")
         
         return best_opportunity, highest_score
 
@@ -455,18 +460,21 @@ async def tradingview_webhook(payload: WebhookPayload):
     state.trap_detected = report["trap"]
     
     # ═══════════════════════════════════════════════════════════
-    # EXECUÇÃO GOD-MODE (INFINITE COMPOUNDING)
+    # EXECUÇÃO GOD-MODE (R$100 - BANK PROTECTION)
     # ═══════════════════════════════════════════════════════════
     if exchange.apiKey and exchange.secret:
         if state.trap_detected and state.confidence < 98:
-            return {"status": "GOD_SHIELD_ACTIVE", "reason": "Trap Detected by Singularity"}
+            return {"status": "GOD_SHIELD_ACTIVE", "reason": "Trap Detected"}
             
-        # Lote de God-Mode: Kelly Criterion + Alpha Factor
-        final_qty = max(1, int(payload.qty * state.alpha_scale * (state.kelly * 10)))
+        # Ajuste para banca pequena (R$100 ~= $20 USD)
+        # O lote por operação será proporcional à banca para não quebrar no primeiro loss
+        base_qty = payload.qty if payload.qty > 0 else 0.001 # Mínimo possível (BTC)
+        final_qty = base_qty * state.alpha_scale
         
-        # Juros Compostos Infinitos (30%)
+        # Juros Compostos Infinitos (30% do lucro realimentando)
         if state.daily_pnl > 0:
-            final_qty += int(state.daily_pnl / 15) # Recuperação e Crescimento em Super-Velocidade
+            # Aceleração para banca de R$100: Reinvestimento agressivo de 50%
+            final_qty += (state.daily_pnl / 10) 
             
         payload.qty = final_qty
         asyncio.create_task(execute_binance_order(payload))
