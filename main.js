@@ -1,5 +1,5 @@
 /**
- * PREDATOR v13.0 SINGULARITY - Frontend Engine
+ * PREDATOR v21.2 APEX MUTATION - Frontend Engine
  * 100% CLOUD | Zero Local | Custo Zero
  * 
  * Fluxo: TradingView → Render API → Este Dashboard

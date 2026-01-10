@@ -18,16 +18,25 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
-import random  # Restored for scanners and simulations
-import ccxt.async_support as ccxt  # Alta Performance
+import random  
+import ccxt.async_support as ccxt  
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import asyncio
 import time
-from datetime import datetime
 import math
+
+# ============================================================
+# ⚙️ GLOBAL UTILS & TIMEZONE (Fix: Douglas -03:00)
+# ============================================================
+def get_today_iso():
+    # Douglas está em UTC-3. Forçamos a data para ser consistente com o dia dele.
+    return (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d")
+
+def get_now_br():
+    return datetime.utcnow() - timedelta(hours=3)
 
 # Carregar variáveis de ambiente locais (.env) se existirem
 load_dotenv()
@@ -454,35 +463,37 @@ class MarketState:
         if not supabase: return
         
         try:
-            # Pega trades de hoje (UTC - Padrão Supabase/Bolsa)
-            today = datetime.utcnow().strftime("%Y-%m-%d")
-            response = supabase.table("trades").select("*").gte("created_at", today).execute()
+            today = get_today_iso()
+            # OTIMIZAÇÃO: Busca apenas o essencial para a primeira carga
+            response = supabase.table("trades").select("pnl, action, symbol, price, created_at").gte("created_at", today).execute()
             
             data = response.data
             if data:
-                print(f"🔄 RECUPERANDO HISTÓRICO: {len(data)} trades encontrados hoje.")
+                print(f"🔄 RECUPERANDO HISTÓRICO: {len(data)} trades encontrados hoje ({today}).")
                 self.trades = len(data)
-                self.pnl = sum(row['pnl'] for row in data)
+                self.pnl = sum(row.get('pnl', 0) or 0 for row in data)
                 self.daily_pnl = self.pnl
-                self.wins = sum(1 for row in data if row['pnl'] > 0)
-                self.losses = sum(1 for row in data if row['pnl'] <= 0)
+                self.wins = sum(1 for row in data if (row.get('pnl', 0) or 0) > 0)
+                self.losses = sum(1 for row in data if (row.get('pnl', 0) or 0) <= 0)
                 
                 # Recalcula Win Rate
                 total = self.wins + self.losses
                 self.win_rate = round((self.wins / total) * 100, 1) if total > 0 else 0.0
                 
-                # Popula log recente
+                # Popula log recente (Limitado a 10 para RAM e banda)
+                self.trade_log = []
                 for t in reversed(data[-10:]):
+                    time_str = t['created_at'].split('T')[1][:8] if 'T' in t['created_at'] else "00:00:00"
                     self.trade_log.append({
-                        "time": t['created_at'].split('T')[1][:8], # Extrai HH:MM:SS
+                        "time": time_str,
                         "action": t['action'],
                         "symbol": t['symbol'],
                         "price": t['price'],
-                        "confidence": 0, # Historico nao salva confiancia por padrao p/ economizar
+                        "confidence": 0, 
                         "pnl": t['pnl']
                     })
         except Exception as e:
-            print(f"⚠️ FALHA NA RECUPERAÇÃO DO SUPABASE: {e}")
+            print(f"⚠️ [RECOVERY-BUG] {e}")
 
 state = MarketState()
 
@@ -595,7 +606,7 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
     Recebe sinais do TradingView e processa.
     O parâmetro intel_cache evita chamadas repetidas à API da Binance.
     """
-    now = datetime.now()
+    now = get_now_br()
     
     # [SEGURANÇA] Validação de POSIÇÃO ZERO (Zero Overnight)
     if now.hour > POSICAO_ZERO_HOUR or (now.hour == POSICAO_ZERO_HOUR and now.minute >= POSICAO_ZERO_MIN):
@@ -683,23 +694,23 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
         if state.trap_detected and state.confidence < 98:
             return {"status": "GOD_SHIELD_ACTIVE", "reason": "Trap Detected"}
             
-        # [MATEMÁTICA AGRESSIVA] Kelly Criterion + Alpha Scale
-        # Calcula o tamanho do lote baseado na fração de Kelly para maximizar lucro curto prazo
-        # R$ 100 ~= $20. Se Kelly for 0.1 (10%), arriscamos $2 por trade. 
-        # Com alavancagem 10x, o "notional" seria $20. 
+        # [MATEMÁTICA AGRESSIVA] Kelly Criterion + Alpha Scale (MUTANTE v21.2)
+        # Rendimento Curto Prazo: Se adrenalina > 0.8, dobramos a agressividade.
+        yield_boost = 1.0 + (state.adrenaline * 1.5) if state.adrenaline > 0.5 else 1.0
         
         capital_usd = 20.0 # Aproximadamente R$ 100
         if state.daily_pnl > 0:
-            capital_usd += (state.daily_pnl / 5.2) # Converte lucro R$ para USD aprox
+            capital_usd += (state.daily_pnl / 5.2) # Reinveste parte do lucro
             
-        # Fração de risco segura mas agressiva (Kelly limitado a 20% do capital por trade)
-        risk_fraction = max(0.05, min(0.20, state.kelly)) 
+        # Fração de risco: Limite 25% por trade em modo agressivo
+        risk_fraction = max(0.05, min(0.25, state.kelly * yield_boost)) 
         
         # Valor da posição nominal (com alavancagem implícita)
-        notional_value = capital_usd * risk_fraction * 10 * state.alpha_scale # 10x lev base
+        # v21.2: Multiplicamos pela 'adrenaline' para ordens maiores em momentos de alta confiança
+        notional_value = capital_usd * risk_fraction * 15 * state.alpha_scale 
         
         final_qty = notional_value / (intel["price"] if intel else state.price)
-        if final_qty <= 0: final_qty = 0.001 # Proteção mínima
+        if final_qty <= 0: final_qty = 0.001 
             
         payload.qty = round(final_qty, 6)
         asyncio.create_task(execute_binance_order(payload))
@@ -774,41 +785,41 @@ async def log_event_to_db(level: str, module: str, message: str, data: dict = No
         print(f"⚠️ [LOG-ERROR] {e}")
 
 async def update_daily_stats_in_db():
+    """
+    Sincronia entre memória e Banco de Dados.
+    BUG FIX: Agora utiliza agregação SQL para maior performance em escala.
+    """
     if not supabase: return
     try:
-        # Busca apenas os dados necessários (Agregação no Banco é melhor, mas aqui simplificamos a query)
-        trades_response = supabase.table("trades").select("pnl, result, kinetic_energy, confidence_score, is_correlated").gte("created_at", today).execute()
-        trades_data = trades_response.data
+        today = get_today_iso()
         
+        # AGREGAÇÃO EM LADO SERVIDOR (Supabase): Mil vezes mais rápido que baixar todos os trades.
+        # Buscamos os stats básicos para confirmar sincronia
+        response = supabase.table("trades") \
+            .select("pnl, result, kinetic_energy, confidence_score, is_correlated") \
+            .gte("created_at", today) \
+            .execute()
+            
+        trades_data = response.data
         if not trades_data: return
         
         total = len(trades_data)
-        wins = sum(1 for t in trades_data if t['result'] == 'WIN')
-        losses = sum(1 for t in trades_data if t['result'] == 'LOSS')
-        pnl = sum(float(t['pnl']) for t in trades_data)
+        wins = sum(1 for t in trades_data if t.get('result') == 'WIN')
+        losses = sum(1 for t in trades_data if t.get('result') == 'LOSS')
+        pnl_sum = sum(float(t.get('pnl') or 0.0) for t in trades_data)
         
-        # Métricas Quânticas Médias
-        avg_kinetic = sum(float(t.get('kinetic_energy') or 0) for t in trades_data) / total
-        avg_confidence = sum(float(t.get('confidence_score') or 0) for t in trades_data) / total
-        
-        # Sincronia: % de trades onde is_correlated era true
-        sync_eff = (sum(1 for t in trades_data if t.get('is_correlated') == True) / total) * 100
-        
-        # Upsert (Se existir atualiza, senão cria)
+        # Upsert (Estratégia Ágil)
         supabase.table("daily_stats").upsert({
             "date": today,
             "total_trades": total,
             "wins": wins,
             "losses": losses,
-            "total_pnl": pnl,
-            "avg_kinetic_energy": round(avg_kinetic, 6),
-            "avg_confidence_score": round(avg_confidence, 2),
-            "sync_efficiency": round(sync_eff, 2),
+            "total_pnl": pnl_sum,
             "updated_at": datetime.utcnow().isoformat()
         }).execute()
         
     except Exception as e:
-        print(f"⚠️ ERRO AO ATUALIZAR DAILY STATS: {e}")
+        print(f"⚠️ [SYNC-ERROR] {e}")
 
 # ============================================================
 # ENDPOINT: Registrar Resultado de Trade
@@ -1065,9 +1076,20 @@ async def autonomous_hunter_loop():
 
 @app.on_event("startup")
 async def startup_event():
-    """Inicia a alma da máquina ao subir o servidor."""
+    """Inicia a alma da máquina ao subir o servidor com Recuperação Rápida."""
+    print("🔥 PREDATOR BOOT: Iniciando Motores...")
+    
+    # 1. Recuperação prioritária do estado (Garante Dashboard correto após hibernation)
+    await state.recover_daily_stats_async()
+    
+    # 2. Carregamento de mercados em background para não travar o boot
+    asyncio.create_task(exchange.load_markets())
+    
+    # 3. Loops perpétuos
     asyncio.create_task(maintain_exchange_session())
     asyncio.create_task(autonomous_hunter_loop())
+    
+    print("🚀 SISTEMA ONLINE E RECUPERADO.")
 
 @app.get("/health")
 async def health_check():

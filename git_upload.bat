@@ -1,13 +1,13 @@
 @echo off
 echo ========================================================
-echo   PREDATOR v13.0 - UPLOAD PARA GITHUB
+echo   PREDATOR v21.2 APEX MUTATION - UPLOAD PARA GITHUB
 echo ========================================================
 echo.
 echo [1/3] Adicionando arquivos...
 git add .
 
 echo [2/3] Criando commit...
-git commit -m "Upgrade: Cloud API, Supabase, MQL5 Bridge e Dashboard Real-time"
+git commit -m "Upgrade: PREDATOR v21.2 APEX MUTATION - Cloud HFT Finalized"
 
 echo [3/3] Enviando para GitHub...
 git push origin main
