@@ -142,6 +142,10 @@ class NomadBrain:
         for k in self.genes: self.genes[k] /= total
         print(f"🧬 [MUTATION] Genes Evoluídos: {self.genes}")
 
+    async def fetch_god_intelligence(self, symbol):
+        """Busca dados de alta fidelidade e retorna métricas puras."""
+        try:
+            target = f"{symbol}/USDT" if "/" not in symbol else symbol
             # ⚓ ÂNCORA BTC + ATIVO ALVO PARALELIZADO
             # Busca ampliada para cálculos de RSI e Médias Móveis (30 candles)
             tasks = [
