@@ -96,6 +96,8 @@ class NomadBrain:
         self.btc_last_fetch = 0.0
         self.kelly_fraction = 0.20
         self.leverage_cache = {} 
+        self.last_balance = 0.0
+        self.last_balance_time = 0.0
 
     async def scan_market(self):
         best_opportunity = None
@@ -749,18 +751,52 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
         "message": "Predator NOMAD v21.1: Física e Correlação em Sintonia."
     }
 
+# ⚡ HELPER: Gestão de Capital Auto-Compounding (Caixa Preta)
+async def get_compounded_amount(symbol, kelly=0.20):
+    """Calcula o tamanho do lote baseado no saldo real da Binance com alavancagem."""
+    try:
+        # Cache de saldo por 60 segundos para evitar Rate Limit
+        now = time.time()
+        if brain.last_balance == 0 or (now - brain.last_balance_time) > 60:
+            balance = await exchange.fetch_balance()
+            brain.last_balance = float(balance['total'].get('USDT', 0))
+            brain.last_balance_time = now
+            print(f"💰 [CAPITAL] Saldo Atualizado: ${brain.last_balance:.2f} USDT")
+        
+        capital = brain.last_balance
+        if capital < 5: return 0 # Segurança mínima
+        
+        # Lógica de Lote: (Capital * Fração de Kelly * Alavancagem) / Preço Atual
+        ticker = await exchange.fetch_ticker(symbol)
+        price = ticker['last']
+        
+        # Alavancagem agressiva de 15x
+        leverage = 15
+        risk_amount = capital * kelly * leverage
+        amount = risk_amount / price
+        
+        return amount
+    except Exception as e:
+        print(f"⚠️ [CAPITAL-ERROR] {e}")
+        return 0
+
 # ⚡ HELPER: Execução Assíncrona Binance (Alta Performance)
-async def execute_binance_order(payload: WebhookPayload):
-    """Executa a ordem na Binance sem travar o restante da API."""
+async def execute_binance_order(payload: WebhookPayload, use_compounding=True):
+    """Executa a ordem na Binance com Auto-Compounding."""
     try:
         symbol = payload.symbol.upper()
         if "/" not in symbol:
             symbol = f"{symbol}/USDT" if "USDT" not in symbol else symbol
         
-        amount = payload.qty
         action = payload.action.upper()
         
-        # Ajuste de Precisão (Lot Size) para evitar erro da Binance
+        # Se for Black Box, ignora a quantidade do payload e calcula sozinho
+        amount = payload.qty
+        if use_compounding and action != "CLOSE":
+            amount = await get_compounded_amount(symbol, kelly=brain.kelly_fraction)
+            if amount == 0: return # Saldo insuficiente ou erro
+        
+        # Ajuste de Precisão (Lot Size)
         if symbol in exchange.markets:
             market = exchange.market(symbol)
             amount = exchange.amount_to_precision(symbol, amount)
@@ -1093,8 +1129,8 @@ async def autonomous_hunter_loop():
                         qty=0.001, # Mínimo inicial p/ escala
                         confidence=report["score"]
                     )
-                    # Dispara execução injetando intel em cache
-                    await tradingview_webhook(payload, intel_cache=intel)
+                    # Dispara execução com AUTO-COMPOUNDING ativado
+                    await execute_binance_order(payload, use_compounding=True)
             
             # Intervalo de scan (Alta Frequência mas respeitando limites de API)
             await asyncio.sleep(10) 
