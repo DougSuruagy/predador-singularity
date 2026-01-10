@@ -1,10 +1,10 @@
-fastapi
-uvicorn
-pydantic
-python-multipart
-ccxt
-supabase
-python-dotenv
-asyncio
-yarl
-aiodns
+# PREDATOR v21.3 APEX PROGENY - Dependencies
+# Render.com Compatible
+
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+python-multipart==0.0.6
+supabase==2.3.0
+ccxt==4.2.14
+python-dotenv==1.0.0

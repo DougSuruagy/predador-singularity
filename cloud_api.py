@@ -48,17 +48,9 @@ app = FastAPI(
 )
 
 # ============================================================
-# 🧠 NEURAL CORE 2026 - PREDATOR APEX V16.0 (ANTI-INSTITUTIONAL)
+# 🧠 NEURAL CORE 2026 - PREDATOR v21.3 'APEX-PROGENY'
+# 🚀 (AUTONOMOUS HUNTER + GENETIC EVOLUTION)
 # ============================================================
-# ============================================================
-# 🧠 NEURAL CORE 2026 - PREDATOR OMEGA-SINGULARITY V19.0
-# 🚀 (PHYSICS + PURE MATH + QUANTUM STATS)
-# ============================================================
-# ============================================================
-# 🧠 NEURAL CORE 2026 - PREDATOR v21.0 'NOMAD-INFINITY'
-# 🚀 (AUTONOMOUS MARKET SCANNER + GOD-MODE EXECUTION)
-# ============================================================
-import math
 
 class NomadBrain:
     def __init__(self):
@@ -752,7 +744,7 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
     }
 
 # ⚡ HELPER: Gestão de Capital Auto-Compounding (Caixa Preta)
-async def get_compounded_amount(symbol, kelly=0.20):
+async def get_compounded_amount(symbol, kelly=0.20, price=None):
     """Calcula o tamanho do lote baseado no saldo real da Binance com alavancagem."""
     try:
         # Cache de saldo por 60 segundos para evitar Rate Limit
@@ -766,9 +758,10 @@ async def get_compounded_amount(symbol, kelly=0.20):
         capital = brain.last_balance
         if capital < 5: return 0 # Segurança mínima
         
-        # Lógica de Lote: (Capital * Fração de Kelly * Alavancagem) / Preço Atual
-        ticker = await exchange.fetch_ticker(symbol)
-        price = ticker['last']
+        # Se o preço não foi passado, busca (fallback)
+        if price is None or price == 0:
+            ticker = await exchange.fetch_ticker(symbol)
+            price = ticker['last']
         
         # Alavancagem agressiva de 15x
         leverage = 15
@@ -781,7 +774,7 @@ async def get_compounded_amount(symbol, kelly=0.20):
         return 0
 
 # ⚡ HELPER: Execução Assíncrona Binance (Alta Performance)
-async def execute_binance_order(payload: WebhookPayload, use_compounding=True):
+async def execute_binance_order(payload: WebhookPayload, use_compounding=True, entry_price=None):
     """Executa a ordem na Binance com Auto-Compounding."""
     try:
         symbol = payload.symbol.upper()
@@ -793,7 +786,7 @@ async def execute_binance_order(payload: WebhookPayload, use_compounding=True):
         # Se for Black Box, ignora a quantidade do payload e calcula sozinho
         amount = payload.qty
         if use_compounding and action != "CLOSE":
-            amount = await get_compounded_amount(symbol, kelly=brain.kelly_fraction)
+            amount = await get_compounded_amount(symbol, kelly=brain.kelly_fraction, price=entry_price)
             if amount == 0: return # Saldo insuficiente ou erro
         
         # Ajuste de Precisão (Lot Size)
@@ -1113,7 +1106,7 @@ async def autonomous_hunter_loop():
                 state.metabolism = 1.0 + (state.synaptic_firing / 100.0)
                 state.genes = report["genes"]
             
-            if symbol and score >= 95:
+            if symbol and score >= 80:
                 print(f"💎 OPORTUNIDADE GOD-LEVEL: {symbol} (SCORE: {score:.1f})")
                 await log_event_to_db("INFO", "SCANNER", f"Oportunidade detectada: {symbol}", {"score": score, "bias": state.bias})
                 
@@ -1121,16 +1114,37 @@ async def autonomous_hunter_loop():
                 report = brain.analyze_infinity(state, intel)
                 
                 if not report["trap"]:
-                    # Cria payload simulado de webhook para reaproveitar execução
+                    action = "BUY" if report["bias"] == "GOD_LONG" else "SELL"
+                    
+                    # Cria payload com preço para otimização de capital
                     payload = WebhookPayload(
-                        action="BUY" if report["bias"] == "GOD_LONG" else "SELL",
+                        action=action,
                         symbol=symbol,
                         price=intel["price"], 
-                        qty=0.001, # Mínimo inicial p/ escala
+                        qty=0.001,
                         confidence=report["score"]
                     )
+                    
                     # Dispara execução com AUTO-COMPOUNDING ativado
-                    await execute_binance_order(payload, use_compounding=True)
+                    await execute_binance_order(payload, use_compounding=True, entry_price=intel["price"])
+                    
+                    # [CRITICAL] Registra o trade no Supabase para auditoria e evolução
+                    if supabase:
+                        try:
+                            supabase.table("trades").insert({
+                                "symbol": symbol,
+                                "action": action,
+                                "price": intel["price"],
+                                "confidence_score": report["score"],
+                                "kinetic_energy": intel.get("kinetic", 0),
+                                "z_score": intel.get("z_score", 0),
+                                "obp_score": intel.get("obp", 0),
+                                "btc_momentum": intel.get("btc_corr", 0),
+                                "is_correlated": report["correlation"] == "SYNCED"
+                            }).execute()
+                            print(f"💾 [SUPABASE] Trade registrado: {action} {symbol}")
+                        except Exception as db_err:
+                            print(f"⚠️ [DB-TRADE-ERROR] {db_err}")
             
             # Intervalo de scan (Alta Frequência mas respeitando limites de API)
             await asyncio.sleep(10) 
@@ -1186,17 +1200,18 @@ async def health_check():
     """Health check para Render."""
     return {
         "status": "OK",
-        "version": "21.2.0",
+        "version": "21.3.0",
         "mode": "100% CLOUD | AUTONOMOUS",
         "uptime_seconds": round(time.time() - state.session_start, 0),
-        "hunting": state.is_hunting
+        "hunting": state.is_hunting,
+        "balance": brain.last_balance
     }
 
 @app.get("/")
 async def root():
     """Página inicial da API."""
     return {
-        "message": "🦅 PREDATOR v21.2 APEX MUTATION",
+        "message": "🦅 PREDATOR v21.3 APEX PROGENY",
         "mode": "100% Cloud - Zero Local",
         "docs": "/docs",
         "status": "/state",
