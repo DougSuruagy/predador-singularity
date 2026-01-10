@@ -103,17 +103,13 @@ class NomadBrain:
         
         return best_opportunity, highest_score
 
-    async def fetch_god_intelligence(self, symbol):
-        """Busca dados de alta fidelidade e retorna métricas puras."""
-        try:
-            target = f"{symbol}/USDT" if "/" not in symbol else symbol
             # ⚓ ÂNCORA BTC + ATIVO ALVO PARALELIZADO
-            # Otimização Crítica: Buscar múltiplos timeframes para confirmar inércia
+            # Busca ampliada para cálculos de RSI e Médias Móveis (30 candles)
             tasks = [
                 exchange.fetch_ohlcv('BTC/USDT', timeframe='1m', limit=10),
                 exchange.fetch_order_book(target, limit=10),
-                exchange.fetch_ohlcv(target, timeframe='1m', limit=10),
-                exchange.fetch_ohlcv(target, timeframe='5m', limit=5)
+                exchange.fetch_ohlcv(target, timeframe='1m', limit=30),
+                exchange.fetch_ohlcv(target, timeframe='5m', limit=10)
             ]
             results = await asyncio.gather(*tasks)
             
@@ -136,10 +132,24 @@ class NomadBrain:
             closes = [c[4] for c in ohlcv]
             closes_5m = [c[4] for c in ohlcv_5m]
             
-            # Cálculo de Inércia Multimomento (1m + 5m)
+            # [INDICADORES CRIPTO MASTER]
+            # 1. RSI (Relative Strength Index) - 14 períodos
+            deltas = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+            gains = [d if d > 0 else 0 for d in deltas[-14:]]
+            losses = [-d if d < 0 else 0 for d in deltas[-14:]]
+            avg_gain = sum(gains) / 14
+            avg_loss = sum(losses) / 14
+            rs = avg_gain / (avg_loss + 0.00001)
+            rsi = 100 - (100 / (1 + rs))
+            
+            # 2. EMA (Exponential Moving Average) Alignment
+            ema_fast = sum(closes[-8:]) / 8
+            ema_slow = sum(closes[-21:]) / 21
+            trend_aligned = (ema_fast > ema_slow and closes[-1] > ema_fast) or (ema_fast < ema_slow and closes[-1] < ema_fast)
+            
+            # 3. Inércia Multimomento (1m + 5m)
             vel_1m = (closes[-1] - closes[-3]) / closes[-3] if len(closes) > 3 else 0
             vel_5m = (closes_5m[-1] - closes_5m[-2]) / closes_5m[-2] if len(closes_5m) > 2 else 0
-            
             kinetic = abs((vel_1m * 0.7) + (vel_5m * 0.3)) * 1000
             
             mean = sum(closes) / len(closes)
@@ -152,7 +162,9 @@ class NomadBrain:
                 "z_score": z_score, 
                 "symbol": symbol,
                 "btc_corr": btc_momentum,
-                "price": closes[-1]
+                "price": closes[-1],
+                "rsi": rsi,
+                "trend_aligned": trend_aligned
             }
             
         except Exception as e:
@@ -169,27 +181,31 @@ class NomadBrain:
         kinetic = intel["kinetic"] if intel else self.kinetic_energy
         z_score = intel["z_score"] if intel else self.volatility_z_score
         btc_corr = intel["btc_corr"] if intel else self.btc_momentum
+        rsi = intel.get("rsi", 50) if intel else 50
+        trend_aligned = intel.get("trend_aligned", True) if intel else True
         
-        entropy = abs(z_score) / (kinetic + 0.0001) # Alta entropia = movimento errático (fuga)
-        
-        flow_vector = (state.imb * 0.4) + (obp * 0.6)
-        p = max(0.4, min(0.9, state.win_rate / 100))
-        self.kelly_fraction = (p * 2) - 1 
+        entropy = abs(z_score) / (kinetic + 0.0001)
+        flow_vector = (state.imb * 0.3) + (obp * 0.7)
         
         # ⚓ REGRA DE CORRELAÇÃO (O Ativo deve seguir o Bitcoin)
         is_correlated = (flow_vector > 0 and btc_corr > 0) or (flow_vector < 0 and btc_corr < 0)
         
-        # ⚛️ ESCUDO DE REALIDADE (Frequência Harmônica + Entropia)
-        reality_trap = (flow_vector > 0.3 and z_score > 2.5) or (not is_correlated) or (entropy > 5.0)
+        # ⚛️ ESCUDO DE REALIDADE - Adicionado filtro de RSI (Sobrecompra/Sobrevenda)
+        rsi_trap = (flow_vector > 0 and rsi > 70) or (flow_vector < 0 and rsi < 30)
+        reality_trap = (abs(z_score) > 2.8) or (not is_correlated) or (entropy > 6.0) or rsi_trap
         
         bias = "NEUTRAL"
-        if flow_vector > 0.20 and kinetic > 0.001 and is_correlated: bias = "GOD_LONG"
-        if flow_vector < -0.20 and kinetic > 0.001 and is_correlated: bias = "GOD_SHORT"
+        if flow_vector > 0.15 and kinetic > 0.001 and is_correlated and trend_aligned: bias = "GOD_LONG"
+        if flow_vector < -0.15 and kinetic > 0.001 and is_correlated and trend_aligned: bias = "GOD_SHORT"
         
-        confidence = (abs(flow_vector) * 50) + (state.prob * 0.3) + (kinetic * 20)
-        confidence = min(100, confidence * (0.5 if not is_correlated else 1.0))
-        
-        alpha = 4.0 if confidence > 90 and not reality_trap else 1.0
+        # Score final com peso nos indicadores técnicos Master
+        confidence = (abs(flow_vector) * 40) + (kinetic * 20) + (20 if trend_aligned else 0)
+        # Bônus por RSI saudável (não exausto)
+        if (bias == "GOD_LONG" and rsi < 60) or (bias == "GOD_SHORT" and rsi > 40):
+            confidence += 20
+            
+        confidence = min(100, confidence * (0.4 if not is_correlated else 1.0))
+        alpha = 4.0 if confidence > 92 and not reality_trap else 1.0
         
         return {
             "score": confidence,
@@ -201,8 +217,10 @@ class NomadBrain:
             "z_score": z_score,
             "obp": obp,
             "correlation": is_correlated,
-            "btc_momentum": btc_corr,
-            "entropy": entropy
+            "btc_momentum": btc_momentum,
+            "entropy": entropy,
+            "rsi": rsi,
+            "trend_aligned": trend_aligned
         }
 
 brain = NomadBrain()
@@ -319,6 +337,8 @@ class MarketState:
         self.is_locked: bool = False
         self.trap_detected: bool = False
         self.entropy: float = 0.0
+        self.rsi: float = 50.0
+        self.trend_aligned: bool = True
         
         # Controle de Tempo
         self.last_update: float = time.time()
@@ -788,6 +808,8 @@ async def get_state():
         "obp": round(state.obp, 4),
         "z_score": round(state.z_score, 3),
         "entropy": round(getattr(state, 'entropy', 0.0), 2), 
+        "rsi": round(state.rsi, 1),
+        "trend_aligned": state.trend_aligned,
         "is_correlated": state.is_correlated,
         "btc_momentum": round(state.btc_momentum, 6),
         "trap_detected": state.trap_detected,
@@ -882,6 +904,8 @@ async def autonomous_hunter_loop():
                         state.confidence = report["score"]
                         state.bias = report["bias"]
                         state.trap_detected = report["trap"]
+                        state.rsi = report["rsi"]
+                        state.trend_aligned = report["trend_aligned"]
                 
                 if symbol and score >= 95:
                     print(f"💎 OPORTUNIDADE GOD-LEVEL: {symbol} (SCORE: {score:.1f})")
