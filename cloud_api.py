@@ -84,7 +84,7 @@ class NomadBrain:
         return best_opportunity, highest_score
 
     async def fetch_god_intelligence(self, symbol):
-        """Sincronia Total em Milissegundos (Quantum Parallel)."""
+        """Busca dados de alta fidelidade e retorna métricas puras."""
         try:
             target = f"{symbol}/USDT" if "/" not in symbol else symbol
             tasks = [
@@ -94,34 +94,43 @@ class NomadBrain:
             ]
             results = await asyncio.gather(*tasks)
             
-            self.btc_last_price = results[0]['last']
+            btc_price = results[0]['last']
             ob = results[1]
             bids_vol = sum([b[1] for b in ob['bids']])
             asks_vol = sum([a[1] for a in ob['asks']])
-            self.obp_score = (bids_vol - asks_vol) / (bids_vol + asks_vol) if (bids_vol + asks_vol) > 0 else 0
+            obp = (bids_vol - asks_vol) / (bids_vol + asks_vol) if (bids_vol + asks_vol) > 0 else 0
             
             ohlcv = results[2]
             closes = [c[4] for c in ohlcv]
             velocity = (closes[-1] - closes[-3]) / closes[-3] if len(closes) > 3 else 0
-            self.kinetic_energy = abs(velocity * 1000)
+            kinetic = abs(velocity * 1000)
             
             mean = sum(closes) / len(closes)
             std = math.sqrt(sum((x - mean)**2 for x in closes) / len(closes))
-            self.volatility_z_score = (closes[-1] - mean) / (std if std > 0 else 1)
+            z_score = (closes[-1] - mean) / (std if std > 0 else 1)
+            
+            # ATUALIZA ÂNCORA GLOBAL (Apenas BTC)
+            if "BTC" in symbol: self.btc_last_price = btc_price
+            
+            return {"obp": obp, "kinetic": kinetic, "z_score": z_score, "symbol": symbol}
             
         except Exception as e:
-            # Silencioso durante o scan para não poluir o log
-            pass
+            return None
 
-    def analyze_infinity(self, state):
-        flow_vector = (state.imb * 0.4) + (self.obp_score * 0.6)
+    def analyze_infinity(self, state, intel=None):
+        # Usa inteligência do scan ou a última do cérebro
+        obp = intel["obp"] if intel else self.obp_score
+        kinetic = intel["kinetic"] if intel else self.kinetic_energy
+        z_score = intel["z_score"] if intel else self.volatility_z_score
+        
+        flow_vector = (state.imb * 0.4) + (obp * 0.6)
         p = max(0.4, min(0.9, state.win_rate / 100))
         self.kelly_fraction = (p * 2) - 1 
-        reality_trap = (flow_vector > 0.3 and self.volatility_z_score > 2.5)
+        reality_trap = (flow_vector > 0.3 and z_score > 2.5)
         
         bias = "NEUTRAL"
-        if flow_vector > 0.20 and self.kinetic_energy > 0.001: bias = "GOD_LONG"
-        if flow_vector < -0.20 and self.kinetic_energy > 0.001: bias = "GOD_SHORT"
+        if flow_vector > 0.20 and kinetic > 0.001: bias = "GOD_LONG"
+        if flow_vector < -0.20 and kinetic > 0.001: bias = "GOD_SHORT"
         
         confidence = (abs(flow_vector) * 60) + (state.prob * 0.4)
         alpha = 4.0 if confidence > 90 and not reality_trap else 1.0
@@ -132,7 +141,9 @@ class NomadBrain:
             "trap": reality_trap,
             "alpha": alpha,
             "kelly": self.kelly_fraction,
-            "physics": self.kinetic_energy
+            "physics": kinetic,
+            "z_score": z_score,
+            "obp": obp
         }
 
 brain = NomadBrain()
@@ -323,6 +334,7 @@ class TradeResult(BaseModel):
     """Resultado de um trade (para atualização de PnL)"""
     result: str              # "WIN" ou "LOSS"
     pnl: float = 0.0
+    symbol: str = "BTC/USDT" # Adicionado para persistência correta
     points: Optional[float] = 0.0
 
 # ============================================================
@@ -447,15 +459,14 @@ async def tradingview_webhook(payload: WebhookPayload):
     state.last_update = time.time()
     state.last_order = trade_entry
     
-    # ✨ SCANNER AUTÔNOMO (A Busca pelo Lucro)
-    # Sempre que a API respira, ela dá uma olhadinha em outros ativos
-    asyncio.create_task(brain.scan_market())
+    # 💫 SINGULARIDADE v21.0 - Busca Inteligência para o ativo ATUAL
+    intel = await brain.fetch_god_intelligence(payload.symbol)
     
-    report = brain.analyze_infinity(state)
+    report = brain.analyze_infinity(state, intel=intel)
     state.confidence = report["score"]
     state.kinetic = report["physics"]
-    state.z_score = brain.volatility_z_score 
-    state.kelly = report["kelly"]
+    state.z_score = report["z_score"]
+    state.obp = report["obp"]
     state.alpha_scale = report["alpha"]
     state.trap_detected = report["trap"]
     
@@ -471,10 +482,11 @@ async def tradingview_webhook(payload: WebhookPayload):
         base_qty = payload.qty if payload.qty > 0 else 0.001 # Mínimo possível (BTC)
         final_qty = base_qty * state.alpha_scale
         
-        # Juros Compostos Infinitos (30% do lucro realimentando)
+        # Juros Compostos Infinitos (Refinado para R$100)
         if state.daily_pnl > 0:
-            # Aceleração para banca de R$100: Reinvestimento agressivo de 50%
-            final_qty += (state.daily_pnl / 10) 
+            # Reinvestimento proporcional: Cada R$100 de lucro dobra o lucro (50% Reinv)
+            # final_qty *= (1 + (state.daily_pnl / capital_inicial))
+            final_qty *= (1 + (state.daily_pnl / 100))
             
         payload.qty = final_qty
         asyncio.create_task(execute_binance_order(payload))
@@ -552,26 +564,26 @@ async def register_trade_result(result: TradeResult):
     state.win_rate = round((state.wins / total) * 100, 1) if total > 0 else 0.0
     state.last_update = time.time()
     
-        # 💾 PERSISTÊNCIA SUPABASE (Memória Viva)
-        if supabase:
-            try:
-                # Salva o estado atual do sistema como um snapshot de log
-                supabase.table("logs").insert({
-                    "event": "TRADE_RESULT",
-                    "details": f"{result.result} | PnL: {result.pnl} | PnL Total: {state.pnl}",
-                    "level": "INFO" if result.result == "WIN" else "WARNING"
-                }).execute()
-                
-                # Salva o trade em si
-                supabase.table("trades").insert({
-                    "symbol": "BTC/USDT", 
-                    "action": "CLOSE",
-                    "result": result.result,
-                    "pnl": result.pnl,
-                    "price": state.price
-                }).execute()
-            except Exception as e:
-                print(f"⚠️ ERRO AO SALVAR NO DB: {e}")
+    # 💾 PERSISTÊNCIA SUPABASE (Memória Viva)
+    if supabase:
+        try:
+            # Salva o estado atual do sistema como um snapshot de log
+            supabase.table("logs").insert({
+                "event": "TRADE_RESULT",
+                "details": f"{result.result} | PnL: {result.pnl} | PnL Total: {state.pnl}",
+                "level": "INFO" if result.result == "WIN" else "WARNING"
+            }).execute()
+            
+            # Salva o trade em si
+            supabase.table("trades").insert({
+                "symbol": result.symbol, 
+                "action": "CLOSE",
+                "result": result.result,
+                "pnl": result.pnl,
+                "price": state.price
+            }).execute()
+        except Exception as e:
+            print(f"⚠️ ERRO AO SALVAR NO DB: {e}")
     
     return {"status": "OK", "win_rate": state.win_rate, "pnl": state.pnl}
 
