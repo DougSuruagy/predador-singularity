@@ -1,0 +1,23 @@
+# PREDATOR PROGRESS LOG
+
+## Iteration v21.4 (Current)
+- **Status:** COMPLETED
+- **Learnings:**
+  - The `auth.role()` call in Supabase RLS policies caused major performance warnings. Solution: Wrap in `(SELECT auth.role())`.
+  - Scalping requires sub-5s loops. We reduced the `autonomous_hunter_loop` sleep from 10s to 3s and saw immediate responsiveness.
+  - Hardcoded capital limits ($20) inhibit scalability. We switched to `get_compounded_amount()` using real Binance balance.
+  - Institutional flow is invisible to RSI/MACD. We implemented `Volume Spike Detection` (>80% avg) to track whales.
+  - Vercel/Render communication requires strictly configured CORS. We hardened `cloud_api.py` to only allow specific origins.
+
+## Iteration v21.3 (Evolution)
+- **Status:** COMPLETED
+- **Learnings:**
+  - Implemented the Senior/Junior architecture.
+  - Junior (Vercel) successfully generates DNA based on Supabase trade history.
+  - Senior (Render) successfully hot-swaps genes without restarting.
+
+## Iteration v21.2
+- **Status:** COMPLETED
+- **Learnings:**
+  - Hybrid Cloud architecture established: Render (Python/Execution) + Vercel (Node/Supervisor).
+  - "Estoque Zero" concept renamed to "Flat Position Protocol" for institutional compliance.

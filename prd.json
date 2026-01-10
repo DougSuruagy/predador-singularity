@@ -1,0 +1,29 @@
+{
+    "feature": "PREDATOR v22.0 QUANTUM LEAP",
+    "status": "IN_PROGRESS",
+    "userStories": [
+        {
+            "id": "STORY-1",
+            "title": "Implement Genetic Backtesting Engine",
+            "description": "Create a new endpoint `/backtest` in cloud_api.py that allows the Supervisor to request a simulation of current DNA against historical data (last 24h) to validate mutations BEFORE they are applied to the live account.",
+            "acceptanceCriteria": [
+                "Endpoint accepts start_date and end_date",
+                "Runs NomadBrain.scan_market logic on historical candles",
+                "Returns total PnL and Win Rate",
+                "Verify results via logic check"
+            ],
+            "passes": false
+        },
+        {
+            "id": "STORY-2",
+            "title": "Enhance Visual Dashboard with TradingView Charts",
+            "description": "Upgrade main.js to use the full Lightweight Charts CandleSeries instead of just AreaSeries, and overlay Buy/Sell markers from the `trades` table.",
+            "acceptanceCriteria": [
+                "Chart shows Candlesticks",
+                "Trades are fetched from Supabase and plotted as markers",
+                "Verify in browser"
+            ],
+            "passes": false
+        }
+    ]
+}
