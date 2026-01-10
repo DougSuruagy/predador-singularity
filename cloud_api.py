@@ -54,11 +54,12 @@ import math
 class NomadBrain:
     def __init__(self):
         self.btc_last_price = 0.0
+        self.btc_momentum = 0.0 # Direção do Bitcoin
         self.obp_score = 0.0
         self.kinetic_energy = 0.0
         self.volatility_z_score = 0.0
         self.kelly_fraction = 0.15
-        self.active_hunters = [] # Lista de ativos sendo escaneados
+        self.active_hunters = [] 
         self.market_watchlist = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ADA/USDT", "DOGE/USDT", "AVAX/USDT"]
 
     async def scan_market(self):
@@ -88,13 +89,20 @@ class NomadBrain:
         try:
             target = f"{symbol}/USDT" if "/" not in symbol else symbol
             tasks = [
-                exchange.fetch_ticker('BTC/USDT'),
+                exchange.fetch_ohlcv('BTC/USDT', timeframe='1m', limit=5),
                 exchange.fetch_order_book(target, limit=20),
                 exchange.fetch_ohlcv(target, timeframe='1m', limit=20)
             ]
             results = await asyncio.gather(*tasks)
             
-            btc_price = results[0]['last']
+            # ⚓ ÂNCORA BTC
+            btc_ohlcv = results[0]
+            btc_closes = [c[4] for c in btc_ohlcv]
+            btc_momentum = (btc_closes[-1] - btc_closes[0]) / btc_closes[0]
+            self.btc_last_price = btc_closes[-1]
+            self.btc_momentum = btc_momentum
+            
+            # 📊 ATIVO ALVO
             ob = results[1]
             bids_vol = sum([b[1] for b in ob['bids']])
             asks_vol = sum([a[1] for a in ob['asks']])
@@ -109,12 +117,16 @@ class NomadBrain:
             std = math.sqrt(sum((x - mean)**2 for x in closes) / len(closes))
             z_score = (closes[-1] - mean) / (std if std > 0 else 1)
             
-            # ATUALIZA ÂNCORA GLOBAL (Apenas BTC)
-            if "BTC" in symbol: self.btc_last_price = btc_price
-            
-            return {"obp": obp, "kinetic": kinetic, "z_score": z_score, "symbol": symbol}
+            return {
+                "obp": obp, 
+                "kinetic": kinetic, 
+                "z_score": z_score, 
+                "symbol": symbol,
+                "btc_corr": btc_momentum
+            }
             
         except Exception as e:
+            print(f"⚠️ INTEL FAILURE: {e}")
             return None
 
     def analyze_infinity(self, state, intel=None):
@@ -122,17 +134,25 @@ class NomadBrain:
         obp = intel["obp"] if intel else self.obp_score
         kinetic = intel["kinetic"] if intel else self.kinetic_energy
         z_score = intel["z_score"] if intel else self.volatility_z_score
+        btc_corr = intel["btc_corr"] if intel else self.btc_momentum
         
         flow_vector = (state.imb * 0.4) + (obp * 0.6)
         p = max(0.4, min(0.9, state.win_rate / 100))
         self.kelly_fraction = (p * 2) - 1 
-        reality_trap = (flow_vector > 0.3 and z_score > 2.5)
+        
+        # ⚓ REGRA DE CORRELAÇÃO (O Ativo deve seguir o Bitcoin)
+        is_correlated = (flow_vector > 0 and btc_corr > 0) or (flow_vector < 0 and btc_corr < 0)
+        
+        # ⚛️ ESCUDO DE REALIDADE (Frequência Harmônica)
+        reality_trap = (flow_vector > 0.3 and z_score > 2.5) or (not is_correlated)
         
         bias = "NEUTRAL"
-        if flow_vector > 0.20 and kinetic > 0.001: bias = "GOD_LONG"
-        if flow_vector < -0.20 and kinetic > 0.001: bias = "GOD_SHORT"
+        if flow_vector > 0.20 and kinetic > 0.001 and is_correlated: bias = "GOD_LONG"
+        if flow_vector < -0.20 and kinetic > 0.001 and is_correlated: bias = "GOD_SHORT"
         
         confidence = (abs(flow_vector) * 60) + (state.prob * 0.4)
+        if not is_correlated: confidence *= 0.5 # Penaliza se não houver correlação
+        
         alpha = 4.0 if confidence > 90 and not reality_trap else 1.0
         
         return {
@@ -143,7 +163,8 @@ class NomadBrain:
             "kelly": self.kelly_fraction,
             "physics": kinetic,
             "z_score": z_score,
-            "obp": obp
+            "obp": obp,
+            "correlation": is_correlated
         }
 
 brain = NomadBrain()
@@ -225,13 +246,15 @@ class MarketState:
         self.losses: int = 0
         self.win_rate: float = 0.0
         
-        # 🌌 IA INFINITY-SINGULARITY v20.0
+        # 🌌 IA NOMAD-INFINITY v21.1
         self.prob: float = 75.0
         self.imb: float = 0.0
         self.obp: float = 0.0
         self.kinetic: float = 0.0
         self.z_score: float = 0.0
         self.kelly: float = 0.15
+        self.is_correlated: bool = True
+        self.btc_momentum: float = 0.0
         self.alpha_scale: float = 1.0
         self.compounding: float = 0.30 # 30% REINVESTIMENTO (LIMITE MÁXIMO)
         self.regime: str = "WAITING"
@@ -467,6 +490,7 @@ async def tradingview_webhook(payload: WebhookPayload):
     state.kinetic = report["physics"]
     state.z_score = report["z_score"]
     state.obp = report["obp"]
+    state.is_correlated = report["correlation"]
     state.alpha_scale = report["alpha"]
     state.trap_detected = report["trap"]
     
@@ -497,7 +521,8 @@ async def tradingview_webhook(payload: WebhookPayload):
         "bias": report["bias"],
         "alpha": f"x{state.alpha_scale}",
         "kelly": f"{state.kelly * 100:.1f}%",
-        "message": "Predator GOD-MODE v20.0: O mercado agora é pura matemática."
+        "correlation": "SYNCED" if state.is_correlated else "DISCONNECTED",
+        "message": "Predator NOMAD v21.1: Física e Correlação em Sintonia."
     }
 
 # ⚡ HELPER: Execução Assíncrona Binance (Alta Performance)

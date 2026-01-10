@@ -91,6 +91,9 @@ function initDOM() {
     DOM.statusPill = document.querySelector('.status-pill');
     DOM.feedLog = document.getElementById('feed');
     DOM.regimeLabel = document.querySelector('.regime-label');
+    DOM.assetSymbol = document.getElementById('asset-symbol');
+    DOM.inertiaVal = document.getElementById('inertia-val');
+    DOM.corrVal = document.getElementById('corr-val');
 
     // Iniciar Gráfico
     initChart();
@@ -196,10 +199,25 @@ function updateUI(data) {
 
     // Flow Bar
     if (DOM.flowBar) {
-        const imb = data.imb || 0;
-        const width = Math.max(5, Math.min(95, 50 + (imb * 50)));
+        const obp = data.obp || 0; // Usar OBP real para o fluxo
+        const width = Math.max(5, Math.min(95, 50 + (obp * 50)));
         DOM.flowBar.style.width = `${width}%`;
-        DOM.flowBar.style.background = imb > 0 ? 'var(--neon-green)' : 'var(--neon-pink)';
+        DOM.flowBar.style.background = obp > 0 ? 'var(--neon-green)' : 'var(--neon-pink)';
+    }
+
+    // Physics Metrics (NOMAD v21.1)
+    if (DOM.inertiaVal) {
+        DOM.inertiaVal.innerText = (data.kinetic || 0).toFixed(4);
+    }
+
+    if (DOM.corrVal) {
+        const synced = data.is_correlated;
+        DOM.corrVal.innerText = synced ? 'SYNCED' : 'DISC';
+        DOM.corrVal.style.color = synced ? 'var(--neon-green)' : 'var(--neon-pink)';
+    }
+
+    if (DOM.assetSymbol && data.last_order) {
+        DOM.assetSymbol.innerText = `${data.last_order.symbol} • NOMAD-INFINITY HUNTER`;
     }
 
     // Status e Escudo APEX V16.0
@@ -234,7 +252,7 @@ function updateUI(data) {
 // INICIAR ENGINE
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🦅 PREDATOR v13.0 | 100% CLOUD ENGINE");
+    console.log("🦅 PREDATOR v21.1 | NOMAD-INFINITY ENGINE");
     console.log(`📡 API: ${CONFIG.API_URL}`);
 
     initDOM();

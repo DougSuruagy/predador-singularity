@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="PREDATOR v13.0 SINGULARITY - Dashboard de Trading HFT com IA">
-    <title>PREDATOR v13.0 | SINGULARITY HUB</title>
+    <meta name="description" content="PREDATOR v21.1 NOMAD-INFINITY - Dashboard de Trading HFT com IA">
+    <title>PREDATOR v21.1 | NOMAD-INFINITY</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -427,12 +427,12 @@
                 </defs>
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
             </svg>
-            PREDATOR v13.0
+            PREDATOR v21.1
         </div>
 
-        <div class="nav-item active">TERMINAL HUB</div>
-        <div class="nav-item">NEURAL CONFIG</div>
-        <div class="nav-item">ASSET SCANNER</div>
+        <div class="nav-item active">NOMAD CORE</div>
+        <div class="nav-item">PHYSICS ENGINE</div>
+        <div class="nav-item">QUANTUM SCANNER</div>
         <div class="nav-item">PORTFOLIO</div>
 
         <button class="btn-panic" onclick="terminateAll()">⚠ TERMINATE ALL</button>
@@ -441,7 +441,7 @@
     <main>
         <header>
             <div class="price-hero">
-                <div class="symbol-badge">WING26 • B3 INDEX FUTURES</div>
+                <div class="symbol-badge" id="asset-symbol">BTC/USDT • NOMAD-INFINITY HUNTER</div>
                 <div id="big-price">---</div>
             </div>
 
@@ -491,6 +491,20 @@
                     <div class="stat-box">
                         <span class="card-label" style="margin-bottom: 5px;">TRADES</span>
                         <h3 style="color: var(--neon-purple);">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <span class="card-label">Quantum Momentum</span>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="card-label" style="margin-bottom: 5px;">INERTIA</span>
+                        <h3 id="inertia-val" style="color: var(--neon-blue);">0.0</h3>
+                    </div>
+                    <div class="stat-box">
+                        <span class="card-label" style="margin-bottom: 5px;">CORR (BTC)</span>
+                        <h3 id="corr-val" style="color: var(--neon-green);">WAIT</h3>
                     </div>
                 </div>
             </div>
