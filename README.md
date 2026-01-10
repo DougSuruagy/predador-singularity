@@ -32,7 +32,7 @@ Through **Accelerated Compound Interest** algorithms, the engine utilizes every 
 ### 🛡️ Defense & Capital Shield
 *   **Reality Trap Detection**: Cross-references Order Book Pressure (OBP) with Kinetic Physics to detect **Liquidity Traps** (Whale Bypassing).
 *   **3-Strikes Lock**: If the algorithm detects a sudden market regime shift (3 consecutive losses), it hard-locks operations to protect your capital pillar.
-*   **Zero Overnight Protocol**: Automated "Estoque Zero" ensuring no positions are held during high-volatility closing hours.
+*   **Flat Position Protocol**: Automated risk management ensuring zero exposure during high-volatility periods and overnight sessions.
 *   **Supervisor Kill-Switch**: The Vercel Junior can trigger an emergency cooldown if it detects a critical loss streak.
 
 ### ⚡ Auto-Compounding (Black Box Mode)

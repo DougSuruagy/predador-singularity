@@ -8,7 +8,7 @@ Fluxo:
 
 Características:
   ✅ Recebe sinais do TradingView via webhook
-  ✅ Processa ordens com lógica de Estoque Zero
+  ✅ Processa ordens com lógica de Flat Position Protocol
   ✅ Alimenta o Dashboard em tempo real
   ✅ 3-Strikes Rule para proteção
   ✅ Pronto para integrar com API de corretora
