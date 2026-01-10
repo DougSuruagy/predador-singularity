@@ -151,6 +151,19 @@
             border: 1px solid var(--neon-blue);
             margin-bottom: 12px;
             letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .hunter-status {
+            font-size: 0.65rem;
+            color: var(--neon-purple);
+            border: 1px solid var(--neon-purple);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 800;
+            text-transform: uppercase;
         }
 
         /* Dash Cards */
@@ -441,7 +454,10 @@
     <main>
         <header>
             <div class="price-hero">
-                <div class="symbol-badge" id="asset-symbol">BTC/USDT • NOMAD-INFINITY HUNTER</div>
+                <div class="symbol-badge" id="asset-symbol">
+                    BTC/USDT • NOMAD-INFINITY HUNTER
+                    <span class="hunter-status" id="hunter-pill">SCANNING</span>
+                </div>
                 <div id="big-price">---</div>
             </div>
 
@@ -501,6 +517,10 @@
                     <div class="stat-box">
                         <span class="card-label" style="margin-bottom: 5px;">INERTIA</span>
                         <h3 id="inertia-val" style="color: var(--neon-blue);">0.0</h3>
+                    </div>
+                    <div class="stat-box">
+                        <span class="card-label" style="margin-bottom: 5px;">ENTROPY</span>
+                        <h3 id="entropy-val" style="color: var(--neon-pink);">0.0</h3>
                     </div>
                     <div class="stat-box">
                         <span class="card-label" style="margin-bottom: 5px;">CORR (BTC)</span>

@@ -93,7 +93,9 @@ function initDOM() {
     DOM.regimeLabel = document.querySelector('.regime-label');
     DOM.assetSymbol = document.getElementById('asset-symbol');
     DOM.inertiaVal = document.getElementById('inertia-val');
+    DOM.entropyVal = document.getElementById('entropy-val');
     DOM.corrVal = document.getElementById('corr-val');
+    DOM.hunterPill = document.getElementById('hunter-pill');
 
     // Iniciar Gráfico
     initChart();
@@ -205,15 +207,26 @@ function updateUI(data) {
         DOM.flowBar.style.background = obp > 0 ? 'var(--neon-green)' : 'var(--neon-pink)';
     }
 
-    // Physics Metrics (NOMAD v21.1)
     if (DOM.inertiaVal) {
         DOM.inertiaVal.innerText = (data.kinetic || 0).toFixed(4);
+    }
+
+    if (DOM.entropyVal) {
+        DOM.entropyVal.innerText = (data.entropy || 0).toFixed(2);
+        DOM.entropyVal.style.color = (data.entropy || 0) > 3 ? 'var(--neon-pink)' : 'var(--neon-blue)';
     }
 
     if (DOM.corrVal) {
         const synced = data.is_correlated;
         DOM.corrVal.innerText = synced ? 'SYNCED' : 'DISC';
         DOM.corrVal.style.color = synced ? 'var(--neon-green)' : 'var(--neon-pink)';
+    }
+
+    if (DOM.hunterPill) {
+        const hunting = data.is_hunting;
+        DOM.hunterPill.innerText = hunting ? 'HUNTING' : 'IDLE';
+        DOM.hunterPill.style.color = hunting ? 'var(--neon-purple)' : 'var(--text-dim)';
+        DOM.hunterPill.style.borderColor = hunting ? 'var(--neon-purple)' : 'var(--text-dim)';
     }
 
     if (DOM.assetSymbol && data.last_order) {

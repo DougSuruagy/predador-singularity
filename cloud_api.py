@@ -33,9 +33,9 @@ import math
 load_dotenv()
 
 app = FastAPI(
-    title="PREDATOR API - CRYPTO EDITION",
-    version="14.0.0",
-    description="100% Cloud Trading API - No Local Dependency"
+    title="PREDATOR v21.1 - NOMAD INFINITY",
+    version="21.1.0",
+    description="A Máquina de Lucro Definitiva para o Mercado Cripto 2026"
 )
 
 # ============================================================
@@ -64,21 +64,25 @@ class NomadBrain:
 
     async def scan_market(self):
         """Escaneia o mercado em busca de distorções quânticas (A caça começou)."""
-        # Melhora crítica: Só escaneia se não houver trade ativo importante (Performance)
         best_opportunity = None
         highest_score = 0
         
         try:
-            # Escaneia em chunks paralelos para não sobrecarregar o Event Loop
-            tasks = [self.fetch_god_intelligence(symbol.replace("/USDT", "")) for symbol in self.market_watchlist]
-            await asyncio.gather(*tasks)
+            # Escaneia em chunks paralelos para obter inteligência de múltiplos ativos
+            tasks = [self.fetch_god_intelligence(symbol) for symbol in self.market_watchlist]
+            results = await asyncio.gather(*tasks)
             
-            for symbol in self.market_watchlist:
-                # Lógica Matemática Pura de Pontuação
-                score = (abs(self.obp_score) * 50) + (self.kinetic_energy * 50)
-                if score > highest_score and score > 80:
+            for intel in results:
+                if not intel: continue
+                
+                # Lógica Matemática Pura de Pontuação baseada no retorno local de cada ativo
+                # Score = Impacto do Book (OBP) + Força do Movimento (Kinetic)
+                score = (abs(intel["obp"]) * 50) + (intel["kinetic"] * 50)
+                
+                if score > highest_score:
                     highest_score = score
-                    best_opportunity = symbol
+                    best_opportunity = intel["symbol"]
+                    
         except Exception as e:
             print(f"📡 [SCAN-ERROR] {e}")
         
@@ -136,6 +140,8 @@ class NomadBrain:
         z_score = intel["z_score"] if intel else self.volatility_z_score
         btc_corr = intel["btc_corr"] if intel else self.btc_momentum
         
+        entropy = abs(z_score) / (kinetic + 0.0001) # Alta entropia = movimento errático (fuga)
+        
         flow_vector = (state.imb * 0.4) + (obp * 0.6)
         p = max(0.4, min(0.9, state.win_rate / 100))
         self.kelly_fraction = (p * 2) - 1 
@@ -143,15 +149,15 @@ class NomadBrain:
         # ⚓ REGRA DE CORRELAÇÃO (O Ativo deve seguir o Bitcoin)
         is_correlated = (flow_vector > 0 and btc_corr > 0) or (flow_vector < 0 and btc_corr < 0)
         
-        # ⚛️ ESCUDO DE REALIDADE (Frequência Harmônica)
-        reality_trap = (flow_vector > 0.3 and z_score > 2.5) or (not is_correlated)
+        # ⚛️ ESCUDO DE REALIDADE (Frequência Harmônica + Entropia)
+        reality_trap = (flow_vector > 0.3 and z_score > 2.5) or (not is_correlated) or (entropy > 5.0)
         
         bias = "NEUTRAL"
         if flow_vector > 0.20 and kinetic > 0.001 and is_correlated: bias = "GOD_LONG"
         if flow_vector < -0.20 and kinetic > 0.001 and is_correlated: bias = "GOD_SHORT"
         
-        confidence = (abs(flow_vector) * 60) + (state.prob * 0.4)
-        if not is_correlated: confidence *= 0.5 # Penaliza se não houver correlação
+        confidence = (abs(flow_vector) * 50) + (state.prob * 0.3) + (kinetic * 20)
+        confidence = min(100, confidence * (0.5 if not is_correlated else 1.0))
         
         alpha = 4.0 if confidence > 90 and not reality_trap else 1.0
         
@@ -164,7 +170,9 @@ class NomadBrain:
             "physics": kinetic,
             "z_score": z_score,
             "obp": obp,
-            "correlation": is_correlated
+            "correlation": is_correlated,
+            "btc_momentum": btc_corr,
+            "entropy": entropy
         }
 
 brain = NomadBrain()
@@ -259,8 +267,11 @@ class MarketState:
         self.compounding: float = 0.30 # 30% REINVESTIMENTO (LIMITE MÁXIMO)
         self.regime: str = "WAITING"
         self.confidence: float = 80.0
+        self.bias: str = "NEUTRAL"
         self.is_hunting: bool = True
         self.is_locked: bool = False
+        self.trap_detected: bool = False
+        self.entropy: float = 0.0
         
         # Controle de Tempo
         self.last_update: float = time.time()
@@ -373,6 +384,12 @@ class MQL5Update(BaseModel):
     imb: float
     intensity: float
     symbol: str
+    kinetic_energy: Optional[float] = 0.0
+    z_score: Optional[float] = 0.0
+    obp_score: Optional[float] = 0.0
+    confidence_score: Optional[float] = 0.0
+    btc_momentum: Optional[float] = 0.0
+    is_correlated: Optional[bool] = True
 
 # ============================================================
 # ENDPOINT: Receber Telemetria do MQL5
@@ -389,7 +406,12 @@ async def mql5_update(data: MQL5Update):
     state.win_rate = data.win_rate
     state.prob = data.prob
     state.imb = data.imb
-    state.confidence = data.prob # Mapeando prob para confidence
+    state.confidence = data.confidence_score or data.prob or state.confidence
+    state.kinetic = data.kinetic_energy or state.kinetic
+    state.z_score = data.z_score or state.z_score
+    state.obp = data.obp_score or state.obp
+    state.btc_momentum = data.btc_momentum or state.btc_momentum
+    state.is_correlated = data.is_correlated if data.is_correlated is not None else state.is_correlated
     state.last_update = time.time()
     state.regime = "ACTIVE"
     
@@ -487,9 +509,11 @@ async def tradingview_webhook(payload: WebhookPayload):
     
     report = brain.analyze_infinity(state, intel=intel)
     state.confidence = report["score"]
+    state.bias = report["bias"]
     state.kinetic = report["physics"]
     state.z_score = report["z_score"]
     state.obp = report["obp"]
+    state.btc_momentum = report["btc_momentum"]
     state.is_correlated = report["correlation"]
     state.alpha_scale = report["alpha"]
     state.trap_detected = report["trap"]
@@ -557,6 +581,59 @@ async def execute_binance_order(payload: WebhookPayload):
     except Exception as e:
         print(f"❌ [BINANCE ERROR] Falha Crítica na Execução: {e}")
 
+# 📊 HELPER: Atualizar Daily Stats no DB
+async def log_event_to_db(level: str, module: str, message: str, data: dict = None):
+    """Grava logs críticos no Supabase (Caixa-Preta 2026)."""
+    try:
+        if supabase:
+            log_data = {
+                "level": level,
+                "module": module,
+                "message": message,
+                "data": data or {}
+            }
+            supabase.table("system_logs").insert(log_data).execute()
+    except Exception as e:
+        print(f"⚠️ [LOG-ERROR] {e}")
+
+async def update_daily_stats_in_db():
+    if not supabase: return
+    try:
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+        # Busca trades de hoje
+        trades_response = supabase.table("trades").select("*").gte("created_at", today).execute()
+        trades_data = trades_response.data
+        
+        if not trades_data: return
+        
+        total = len(trades_data)
+        wins = sum(1 for t in trades_data if t['result'] == 'WIN')
+        losses = sum(1 for t in trades_data if t['result'] == 'LOSS')
+        pnl = sum(float(t['pnl']) for t in trades_data)
+        
+        # Métricas Quânticas Médias
+        avg_kinetic = sum(float(t.get('kinetic_energy') or 0) for t in trades_data) / total
+        avg_confidence = sum(float(t.get('confidence_score') or 0) for t in trades_data) / total
+        
+        # Sincronia: % de trades onde is_correlated era true
+        sync_eff = (sum(1 for t in trades_data if t.get('is_correlated') == True) / total) * 100
+        
+        # Upsert (Se existir atualiza, senão cria)
+        supabase.table("daily_stats").upsert({
+            "date": today,
+            "total_trades": total,
+            "wins": wins,
+            "losses": losses,
+            "total_pnl": pnl,
+            "avg_kinetic_energy": round(avg_kinetic, 6),
+            "avg_confidence_score": round(avg_confidence, 2),
+            "sync_efficiency": round(sync_eff, 2),
+            "updated_at": datetime.utcnow().isoformat()
+        }).execute()
+        
+    except Exception as e:
+        print(f"⚠️ ERRO AO ATUALIZAR DAILY STATS: {e}")
+
 # ============================================================
 # ENDPOINT: Registrar Resultado de Trade
 # ============================================================
@@ -599,14 +676,23 @@ async def register_trade_result(result: TradeResult):
                 "level": "INFO" if result.result == "WIN" else "WARNING"
             }).execute()
             
-            # Salva o trade em si
+            # Salva o trade em si com as variáveis quânticas
             supabase.table("trades").insert({
                 "symbol": result.symbol, 
                 "action": "CLOSE",
                 "result": result.result,
                 "pnl": result.pnl,
-                "price": state.price
+                "price": state.price,
+                "kinetic_energy": state.kinetic,
+                "z_score": state.z_score,
+                "obp_score": state.obp,
+                "confidence_score": state.confidence,
+                "btc_momentum": state.btc_momentum,
+                "is_correlated": state.is_correlated
             }).execute()
+            
+            # Atualiza daily_stats
+            await update_daily_stats_in_db()
         except Exception as e:
             print(f"⚠️ ERRO AO SALVAR NO DB: {e}")
     
@@ -648,8 +734,15 @@ async def get_state():
         "imb": round(state.imb, 2),
         "regime": state.regime,
         "confidence": round(state.confidence, 1),
-        "neural_score": round(state.neural_score, 1),
-        "bias": brain.neural_bias,
+        "neural_score": round(state.confidence, 1),
+        "bias": state.bias,
+        "kinetic": round(state.kinetic, 6),
+        "obp": round(state.obp, 4),
+        "z_score": round(state.z_score, 3),
+        "entropy": round(getattr(state, 'entropy', 0.0), 2), 
+        "is_correlated": state.is_correlated,
+        "btc_momentum": round(state.btc_momentum, 6),
+        "trap_detected": state.trap_detected,
         "is_hunting": state.is_hunting,
         "is_locked": state.is_locked,
         "consecutive_losses": state.consecutive_losses,
@@ -710,14 +803,72 @@ async def unlock_system():
 # ============================================================
 # ENDPOINTS DE SISTEMA
 # ============================================================
+# ============================================================
+# 🦅 AUTONOMOUS HUNTER TASK (GOD-MODE SCANNER)
+# ============================================================
+async def autonomous_hunter_loop():
+    """Loop perpétuo de caça para a Máquina de Lucro 2026."""
+    print("🎯 NOMAD GOD-MODE: CAÇADOR AUTÔNOMO INICIADO.")
+    while True:
+        try:
+            if state.is_hunting and not state.is_locked:
+                state.regime = "HUNTING"
+                symbol, score = await brain.scan_market()
+                
+                # Sincroniza a "visão" do caçador com o estado global para o dashboard
+                if symbol:
+                    intel = await brain.fetch_god_intelligence(symbol)
+                    if intel:
+                        report = brain.analyze_infinity(state, intel)
+                        state.kinetic = report["physics"]
+                        state.z_score = report["z_score"]
+                        state.obp = report["obp"]
+                        state.entropy = report["entropy"]
+                        state.btc_momentum = report["btc_momentum"]
+                        state.is_correlated = report["correlation"]
+                        state.confidence = report["score"]
+                        state.bias = report["bias"]
+                        state.trap_detected = report["trap"]
+                
+                if symbol and score >= 95:
+                    print(f"💎 OPORTUNIDADE GOD-LEVEL: {symbol} (SCORE: {score:.1f})")
+                    await log_event_to_db("INFO", "SCANNER", f"Oportunidade detectada: {symbol}", {"score": score, "bias": state.bias})
+                    
+                    intel = await brain.fetch_god_intelligence(symbol)
+                    report = brain.analyze_infinity(state, intel)
+                    
+                    if not report["trap"]:
+                        # Cria payload simulado de webhook para reaproveitar execução
+                        payload = WebhookPayload(
+                            action="BUY" if report["bias"] == "GOD_LONG" else "SELL",
+                            symbol=symbol,
+                            price=0.0, # Market price
+                            qty=0.001, # Mínimo inicial p/ escala
+                            confidence=score
+                        )
+                        # Dispara execução
+                        await tradingview_webhook(payload)
+            
+            # Intervalo de scan (Alta Frequência mas respeitando limites de API)
+            await asyncio.sleep(10) 
+        except Exception as e:
+            print(f"📡 [HUNTER-ERROR] {e}")
+            await asyncio.sleep(30)
+
+@app.on_event("startup")
+async def startup_event():
+    """Inicia a alma da máquina ao subir o servidor."""
+    asyncio.create_task(autonomous_hunter_loop())
+
 @app.get("/health")
 async def health_check():
     """Health check para Render."""
     return {
         "status": "OK",
-        "version": "13.0.0",
-        "mode": "100% CLOUD",
-        "uptime_seconds": round(time.time() - state.session_start, 0)
+        "version": "21.1.0",
+        "mode": "100% CLOUD | AUTONOMOUS",
+        "uptime_seconds": round(time.time() - state.session_start, 0),
+        "hunting": state.is_hunting
     }
 
 @app.get("/")
