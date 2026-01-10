@@ -53,62 +53,94 @@ import math
 
 class NomadBrain:
     def __init__(self):
-        self.btc_last_price = 0.0
-        self.btc_momentum = 0.0 # Direção do Bitcoin
-        self.obp_score = 0.0
-        self.kinetic_energy = 0.0
-        self.volatility_z_score = 0.0
-        self.kelly_fraction = 0.15
-        self.active_hunters = [] 
-        self.market_watchlist = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ADA/USDT", "DOGE/USDT", "AVAX/USDT"]
+        # 🟢 MULTI-OCULAR SYSTEM (OLHOS)
+        self.eyes = {
+            "DEFI": ["UNI/USDT", "AAVE/USDT", "LINK/USDT"],
+            "L1": ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "ADA/USDT"],
+            "MEMES": ["DOGE/USDT", "PEPE/USDT", "WIF/USDT", "SHIB/USDT"],
+            "AI": ["NEAR/USDT", "FET/USDT", "RENDER/USDT"]
+        }
+        self.market_watchlist = []
+        for v in self.eyes.values(): self.market_watchlist.extend(v)
+        
+        # 🧠 MULTI-CEREBRAL CORTEX (CÉREBROS EXPANSORES)
+        self.genes = {
+            "frontal_weight": 0.35,   # Lógica/EMA
+            "occipital_weight": 0.35, # Visão de Fluxo/OBP
+            "amygdala_weight": 0.15,  # Emoção/Risco/Adrenalina
+            "parietal_weight": 0.15   # Espacial/Liquidez (Depth)
+        }
+        
+        # 🦴 CEREBELO (Memória Muscular / Execução)
+        self.muscle_memory = {"avg_latency": 0.2, "success_rate": 0.0}
+        
         self.restricted_symbols = set()
         
-        # 🟢 BIO-QUANTUM CORE (V21.1 LIVING ORGANISM)
+        # 🧬 BIO-QUANTUM LIFE SIGNS
         self.metabolism = 1.0           # Taxa de processamento biológico
-        self.adrenaline = 0.0           # Resposta ao estresse de mercado (Volatilidade)
-        self.homeostasis = 100.0        # Saúde do sistema (Integridade da banca de R$ 100)
-        self.quantum_entropy = 0.1      # Desordem quântica no preço
+        self.adrenaline = 0.0           # Resposta ao estresse de mercado
+        self.homeostasis = 100.0        # Saúde do sistema (Banca R$ 100)
+        self.quantum_entropy = 0.1      # Desordem quântica
         self.synaptic_firing = 0.0      # Intensidade de sinais neurais
+        self.btc_momentum = 0.0
+        self.kelly_fraction = 0.20
 
     async def scan_market(self):
-        """Busca agressiva na internet pelos melhores ativos para lucro a curto prazo."""
+        """MULTI-OCULAR VISION: Enxerga onde o lucro está escondido em múltiplos setores."""
         best_opportunity = None
         highest_score = 0
         
         try:
-            # DESCOBERTA REAL: Busca os tickers com maior volume/volatilidade na Binance agora
+            # Seleciona os ativos mais quentes de cada "Olho" para análise
             all_tickers = await exchange.fetch_tickers()
-            
-            # Filtra apenas pares USDT com volume expressivo (> $10M) e que não são stablecoins
-            # Isso garante que estamos caçando onde o dinheiro real está sendo movido
             candidates = []
-            for symbol, ticker in all_tickers.items():
-                if symbol.endswith("/USDT") and ticker['quoteVolume'] > 10000000:
-                    if "USDC" not in symbol and "DAI" not in symbol:
-                        # Prioridade para volatilidade (24h change)
+            
+            for sector, symbols in self.eyes.items():
+                for sym in symbols:
+                    ticker = all_tickers.get(sym)
+                    if ticker and ticker['quoteVolume'] > 5000000:
                         score_v = abs(ticker.get('percentage', 0))
-                        candidates.append((symbol, score_v))
+                        candidates.append((sym, score_v, sector))
             
-            # Ordena e pega os top 8 para análise profunda
+            # Ordena por volatilidade setorial
             candidates.sort(key=lambda x: x[1], reverse=True)
-            self.market_watchlist = [c[0] for c in candidates[:8]]
+            discovery = [c[0] for c in candidates[:10]]
             
-            # Escaneia em chunks paralelos para obter inteligência de múltiplos ativos
-            tasks = [self.fetch_god_intelligence(symbol) for symbol in self.market_watchlist]
+            # Escaneamento Paralelo Bio-Sincronizado
+            tasks = [self.fetch_god_intelligence(symbol) for symbol in discovery]
             results = await asyncio.gather(*tasks)
             
             for intel in results:
                 if not intel: continue
-                # Lógica de Pontuação Real (OBP + Energia Cinética)
+                # Score Neural: OBP + Cinética + RSI
                 score = (abs(intel["obp"]) * 50) + (intel["kinetic"] * 50)
                 if score > highest_score:
                     highest_score = score
                     best_opportunity = intel["symbol"]
                     
         except Exception as e:
-            print(f"📡 [SCAN-ERROR] {e}")
+            print(f"📡 [OCULAR-ERROR] {e}")
         
         return best_opportunity, highest_score
+
+    def mutate(self, success: bool):
+        """MOTOR DE MUTAÇÃO GENÉTICA: Evolui os pesos neurais baseados no lucro."""
+        mutation_rate = 0.05
+        if success:
+            # Se deu lucro, reforça os lobos frontais e occipitais (Análise Fria)
+            self.genes["frontal_weight"] += mutation_rate
+            self.genes["occipital_weight"] += mutation_rate
+            self.genes["amygdala_weight"] -= mutation_rate
+        else:
+            # Se deu prejuízo, reforça a Amígdala (Risco/Instinto)
+            self.genes["amygdala_weight"] += mutation_rate
+            self.genes["frontal_weight"] -= mutation_rate
+            self.genes["occipital_weight"] -= mutation_rate
+        
+        # Normalização dos Genes
+        total = sum(self.genes.values())
+        for k in self.genes: self.genes[k] /= total
+        print(f"🧬 [MUTATION] Genes Evoluídos: {self.genes}")
 
             # ⚓ ÂNCORA BTC + ATIVO ALVO PARALELIZADO
             # Busca ampliada para cálculos de RSI e Médias Móveis (30 candles)
@@ -183,51 +215,74 @@ class NomadBrain:
             return None
 
     def analyze_infinity(self, state, intel=None):
-        # Usa inteligência do scan ou a última do cérebro
-        obp = intel["obp"] if intel else self.obp_score
-        kinetic = intel["kinetic"] if intel else self.kinetic_energy
-        z_score = intel["z_score"] if intel else self.volatility_z_score
-        btc_corr = intel["btc_corr"] if intel else self.btc_momentum
-        rsi = intel.get("rsi", 50) if intel else 50
+        # 🧠 LOBO OCCIPITAL (Visão de Fluxo)
+        obp = intel["obp"] if intel else 0.0
+        occipital_signal = (obp * self.genes["occipital_weight"])
+        
+        # 🧠 LOBO FRONTAL (Lógica de Tendência e Preço)
+        kinetic = intel["kinetic"] if intel else 0.0
         trend_aligned = intel.get("trend_aligned", True) if intel else True
+        rsi = intel.get("rsi", 50) if intel else 50
+        frontal_signal = (kinetic * 0.5 + (1 if trend_aligned else -1) * 0.5) * self.genes["frontal_weight"]
+        
+        # 🧠 LOBO PARIETAL (Integração de Liquidez Espacial)
+        # Se o preço está perto de uma parede de liquidez (OBP alto), o sinal parietal é forte
+        parietal_signal = (abs(obp) * 2.0) * self.genes["parietal_weight"]
+        
+        # 🧠 AMÍGDALA (Resposta ao Risco e Adrenalina)
+        z_score = intel["z_score"] if intel else 0.0
+        vol_stress = abs(z_score) * 0.3
+        self.adrenaline = max(0, min(1.0, vol_stress))
+        amygdala_signal = (1.0 - self.adrenaline) * self.genes["amygdala_weight"]
+        
+        # ⚛️ COOPERAÇÃO SINÁPTICA: Um único sinal harmônico
+        psi = (occipital_signal + frontal_signal + amygdala_signal + parietal_signal)
+        self.quantum_entropy = abs(psi - obp)
         
         entropy = abs(z_score) / (kinetic + 0.0001)
-        flow_vector = (state.imb * 0.3) + (obp * 0.7)
+        btc_corr = intel["btc_corr"] if intel else state.btc_momentum
+        is_correlated = (psi > 0 and btc_corr > 0) or (psi < 0 and btc_corr < 0)
         
-        # ⚓ REGRA DE CORRELAÇÃO (O Ativo deve seguir o Bitcoin)
-        is_correlated = (flow_vector > 0 and btc_corr > 0) or (flow_vector < 0 and btc_corr < 0)
+        # 🛡️ HOMEOSTASE (Estado de Saúde da Banca)
+        pnl_impact = (state.daily_pnl / 100.0)
+        self.homeostasis = max(0, min(100, 100 + (pnl_impact * 50)))
         
-        # ⚛️ ESCUDO DE REALIDADE - Adicionado filtro de RSI (Sobrecompra/Sobrevenda)
-        rsi_trap = (flow_vector > 0 and rsi > 70) or (flow_vector < 0 and rsi < 30)
-        reality_trap = (abs(z_score) > 2.8) or (not is_correlated) or (entropy > 6.0) or rsi_trap
+        # 🛡️ ESCUDO DE REALIDADE (BIO-QUANTUM SHIELD)
+        rsi_trap = (psi > 0 and rsi > 70) or (psi < 0 and rsi < 30)
+        reality_trap = (abs(z_score) > 2.8) or (not is_correlated) or (entropy > 6.0) or rsi_trap or (self.homeostasis < 40)
         
         bias = "NEUTRAL"
-        if flow_vector > 0.15 and kinetic > 0.001 and is_correlated and trend_aligned: bias = "GOD_LONG"
-        if flow_vector < -0.15 and kinetic > 0.001 and is_correlated and trend_aligned: bias = "GOD_SHORT"
+        consensus_threshold = 0.20
+        if psi > consensus_threshold and is_correlated and trend_aligned: bias = "GOD_LONG"
+        if psi < -consensus_threshold and is_correlated and trend_aligned: bias = "GOD_SHORT"
         
-        # Score final com peso nos indicadores técnicos Master
-        confidence = (abs(flow_vector) * 40) + (kinetic * 20) + (20 if trend_aligned else 0)
-        # Bônus por RSI saudável (não exausto)
-        if (bias == "GOD_LONG" and rsi < 60) or (bias == "GOD_SHORT" and rsi > 40):
-            confidence += 20
-            
-        confidence = min(100, confidence * (0.4 if not is_correlated else 1.0))
+        # SINAPSE: Intensidade do disparo neural
+        self.synaptic_firing = (abs(psi) * 100)
+        confidence = min(100, self.synaptic_firing * (0.4 if not is_correlated else 1.0))
+        
+        # 🧬 MUTAÇÃO ALPHA: Ajuste de Potência Bio-Mecânica
         alpha = 4.0 if confidence > 92 and not reality_trap else 1.0
+        if self.adrenaline > 0.7: alpha *= 1.5 
         
         return {
             "score": confidence,
             "bias": bias,
             "trap": reality_trap,
             "alpha": alpha,
-            "kelly": self.kelly_fraction,
+            "kelly": 0.20,
             "physics": kinetic,
             "z_score": z_score,
             "obp": obp,
             "correlation": is_correlated,
-            "btc_momentum": btc_momentum,
+            "btc_momentum": btc_corr,
             "entropy": entropy,
             "rsi": rsi,
-            "trend_aligned": trend_aligned
+            "trend_aligned": trend_aligned,
+            "homeostasis": self.homeostasis,
+            "adrenaline": self.adrenaline,
+            "synaptic_firing": self.synaptic_firing,
+            "quantum_entropy": self.quantum_entropy,
+            "genes": self.genes
         }
 
 brain = NomadBrain()
@@ -765,6 +820,9 @@ async def register_trade_result(result: TradeResult):
     state.win_rate = round((state.wins / total) * 100, 1) if total > 0 else 0.0
     state.last_update = time.time()
     
+    # Persistência Biológica: Mutação dos Genes
+    brain.mutate(success=(result.result == "WIN"))
+    
     # 💾 PERSISTÊNCIA SUPABASE (Memória Viva)
     if supabase:
         try:
@@ -848,6 +906,7 @@ async def get_state():
         "synaptic_firing": round(state.synaptic_firing, 3),
         "quantum_entropy": round(state.quantum_entropy, 4),
         "metabolism": round(state.metabolism, 2),
+        "genes": brain.genes,
         "is_hunting": state.is_hunting,
         "is_locked": state.is_locked,
         "consecutive_losses": state.consecutive_losses,
