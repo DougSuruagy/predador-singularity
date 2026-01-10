@@ -1,7 +1,17 @@
-# 🦅 PREDATOR v21.1 - NOMAD INFINITY | GOD-MODE 🪐
+# 🦅 PREDATOR v21.3 - APEX PROGENY | EVOLUTIONARY BLACK BOX 🧬
 
-### **The Ultimate HFT Liquidity Hunter & Profit Engine (2026 Edition)**
-**PREDATOR v21.1 'NOMAD-INFINITY'** is a cutting-edge High-Frequency Trading (HFT) system meticulously engineered for total autonomy, harmonic synchronicity, and zero-cost cloud operations. Forged for dominance in the Crypto and Futures markets, it fuses **Kinetic Physics**, **Quantum Correlation**, and **Recursive Kelly Mathematics** into a single, lethal execution engine.
+### **The Ultimate Autonomous HFT System with Genetic Evolution (2026 Edition)**
+**PREDATOR v21.3 'APEX-PROGENY'** is a revolutionary High-Frequency Trading (HFT) framework engineered for total autonomy, self-evolution, and zero-cost cloud operations. The system features a **dual-brain architecture**: a "Senior" execution engine on Render and a "Junior" evolutionary supervisor on Vercel, both sharing a genetic vault on Supabase.
+
+---
+
+## 🧬 The Progeny Protocol (Genetic Evolution)
+The system now operates as a **living organism** that creates its own descendants:
+1.  **Senior (Render)**: The primary executor. Hunts the market 24/7, executes trades, and inherits optimal DNA from the genetic vault.
+2.  **Junior (Vercel)**: The evolutionary supervisor. Analyzes performance and generates new neural DNA (trading parameters) when win rates are high.
+3.  **Genetic Vault (Supabase)**: A shared database where both brains store and retrieve evolved trading DNA.
+
+When the Junior detects optimal conditions (Win Rate > 60%), it mutates the current DNA and creates a new "descendant" generation. The Senior periodically checks the vault and inherits the best-performing DNA, ensuring continuous improvement.
 
 ---
 
@@ -23,60 +33,86 @@ Through **Accelerated Compound Interest** algorithms, the engine utilizes every 
 *   **Reality Trap Detection**: Cross-references Order Book Pressure (OBP) with Kinetic Physics to detect **Liquidity Traps** (Whale Bypassing).
 *   **3-Strikes Lock**: If the algorithm detects a sudden market regime shift (3 consecutive losses), it hard-locks operations to protect your capital pillar.
 *   **Zero Overnight Protocol**: Automated "Estoque Zero" ensuring no positions are held during high-volatility closing hours.
+*   **Supervisor Kill-Switch**: The Vercel Junior can trigger an emergency cooldown if it detects a critical loss streak.
+
+### ⚡ Auto-Compounding (Black Box Mode)
+*   The system operates in **Black Box Mode**: no dashboard monitoring required.
+*   Reads your real Binance balance and calculates optimal trade sizes using the **Kelly Fraction** and **15x Leverage**.
+*   Profits are automatically compounded into larger positions.
 
 ---
 
 ## ☁️ Cloud Architecture (Zero Cost Infrastructure)
 The system operates 100% autonomously across a distributed cloud mesh:
-1.  **Render (The Brain)**: FastAPI Engine with Parallel Neural Processing.
-2.  **Vercel (The Vision)**: Ultra-low latency Glassmorphic Dashboard.
-3.  **Supabase (The Memory)**: Sovereign Database with Black Box Telemetry & SQL Auditability.
 
----
-
-## 🛠️ Stack Tecnológico
-| Componente | Tecnologia | Função |
+| Component | Platform | Role |
 | :--- | :--- | :--- |
-| **Backend** | Python 3.10+ / FastAPI | Lógica Neural e Execução HFT |
-| **Frontend** | Vanilla JS / Vite | Painel de Controle 'Visão' |
-| **Database** | Supabase (PostgreSQL) | Persistência e Auditoria |
-| **Bridge** | MQL5 / CCXT | Integração com MT5 e Binance Futures |
-| **Infrastructure** | Render / Vercel | Hospedagem 100% Cloud Free Tier |
+| **The Brain (Senior)** | Render | FastAPI Engine with Autonomous Hunter Loop |
+| **The Supervisor (Junior)** | Vercel (Serverless) | Evolutionary DNA Generator & Integrity Auditor |
+| **The Memory** | Supabase | Genetic Vault, Trade History, Black Box Telemetry |
 
 ---
 
-## 🏗️ Quick Setup (Deploy em 5 Minutos)
+## 🛠️ Tech Stack
+| Component | Technology | Function |
+| :--- | :--- | :--- |
+| **Backend** | Python 3.10+ / FastAPI | Neural Logic & HFT Execution |
+| **Supervisor** | Node.js / Vercel Functions | Genetic Evolution & Performance Audit |
+| **Frontend** | Vanilla JS / Vite | 'Vision' Control Panel (Optional) |
+| **Database** | Supabase (PostgreSQL) | Persistence, RLS Security & Audit |
+| **Bridge** | CCXT (Async) | Binance Futures Integration |
+| **Infrastructure** | Render / Vercel | 100% Cloud Free Tier Hosting |
 
-1.  **Clone o Repositório**:
-    ```bash
-    git clone https://github.com/DougSuruagy/predador-singularity.git
-    ```
-2.  **Configuração de Ambiente**:
-    Crie um arquivo `.env` baseado no `.env.example` e preencha as chaves:
-    *   `BINANCE_API_KEY` / `BINANCE_API_SECRET`
-    *   `SUPABASE_URL` / `SUPABASE_KEY`
-3.  **Deploy Backend (Render)**:
-    *   Conecte seu GitHub ao Render.com.
-    *   Use o arquivo `render.yaml` para subir a API e o Worker.
-4.  **Deploy Frontend (Vercel)**:
-    *   Conecte o repositório ao Vercel.com.
-    *   Aponte a `VITE_API_URL` para o endereço do seu Render.
-5.  **Setup Database**:
-    *   Execute o script `supabase_setup.sql` no SQL Editor do seu projeto Supabase.
+---
+
+## 🏗️ Quick Setup (Deploy in 5 Minutes)
+
+### 1. Clone the Repository:
+```bash
+git clone https://github.com/DougSuruagy/predador-singularity.git
+```
+
+### 2. Environment Variables:
+Configure the following in **Render** (Senior):
+| Key | Value |
+|-----|-------|
+| `BINANCE_API_KEY` | Your Binance Futures API Key |
+| `BINANCE_API_SECRET` | Your Binance Futures API Secret |
+| `SUPABASE_URL` | `https://YOUR_PROJECT.supabase.co` |
+| `SUPABASE_KEY` | Your Supabase `service_role` or `anon` key |
+
+Configure the following in **Vercel** (Junior):
+| Key | Value |
+|-----|-------|
+| `SUPABASE_URL` | `https://YOUR_PROJECT.supabase.co` |
+| `SUPABASE_KEY` | Your Supabase `anon` key |
+| `RENDER_API_URL` | `https://your-render-app.onrender.com` |
+
+### 3. Deploy Backend (Render):
+*   Connect your GitHub to Render.com.
+*   Use the `render.yaml` Blueprint for automatic setup.
+
+### 4. Deploy Frontend/Supervisor (Vercel):
+*   Connect the repository to Vercel.com.
+*   The `/api/supervisor` route will be automatically detected as a Serverless Function.
+
+### 5. Setup Database:
+*   Execute the `supabase_setup.sql` script in your Supabase SQL Editor.
 
 ---
 
 ## 📊 Black Box Telemetry (Database Schema)
-O PREDATOR v21.1 utiliza uma arquitetura de dados otimizada para performance extrema:
-*   **`trades`**: Registro detalhado de execuções com métricas físicas (Kinetic, Z-Score).
-*   **`daily_stats`**: Consolidado diário para análise de curva de capital.
-*   **`system_logs`**:Logs de sistema com nível de auditoria bancária.
-*   **`nomad_health_check`**: View em tempo real para monitoramento de latência e saúde do sistema.
+PREDATOR v21.3 uses a high-performance, security-hardened data architecture:
+*   **`trades`**: Detailed execution records with physics metrics (Kinetic, Z-Score, OBP).
+*   **`daily_stats`**: Daily consolidated stats for capital curve analysis.
+*   **`system_logs`**: Bank-grade audit logs.
+*   **`genetics`**: The Genetic Vault storing evolved neural DNA for the Progeny system.
+*   **`nomad_health_check`**: Real-time view for system health and latency monitoring.
 
 ---
 
 ## ⚖️ Legal Disclaimer
-Trading involves significant risk. PREDATOR NOMAD v21.1 is a high-precision algorithm, but market conditions are sovereign. Use this system at your own risk. Past performance does not guarantee future results.
+Trading involves significant risk. PREDATOR APEX-PROGENY v21.3 is a high-precision algorithm, but market conditions are sovereign. Use this system at your own risk. Past performance does not guarantee future results.
 
 ---
-**Predator NOMAD v21.1: The final fusion between Science and Wealth.** 🦅🪐⚓💰🚀
+**Predator APEX-PROGENY v21.3: The first algorithm that evolves its own descendants.** 🦅🧬💰🚀
