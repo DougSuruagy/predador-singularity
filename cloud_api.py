@@ -189,6 +189,7 @@ BINANCE_API_SECRET = os.environ.get("BINANCE_API_SECRET")
 
 # 🌐 CONFIGURAÇÃO DE PROXY (Opcional - Para contornar bloqueios regionais)
 PROXY_URL = os.environ.get("PROXY_URL") # Ex: http://user:pass@host:port
+proxies = {'http': PROXY_URL, 'https': PROXY_URL} if PROXY_URL and PROXY_URL.strip() else None
 
 # Configurar Exchange (Modo Futures - Otimizado para Baixa Latência)
 exchange = ccxt.binance({
@@ -199,7 +200,7 @@ exchange = ccxt.binance({
         'defaultType': 'future',
         'adjustForTimeDifference': True
     },
-    'proxies': {'http': PROXY_URL, 'https': PROXY_URL} if PROXY_URL else None
+    'proxies': proxies
 })
 
 # Se as chaves estiverem presentes, testa conexão
