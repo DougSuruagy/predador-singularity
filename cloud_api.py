@@ -64,22 +64,36 @@ class NomadBrain:
         self.restricted_symbols = set()
 
     async def scan_market(self):
-        """Escaneia o mercado em busca de distorções quânticas (A caça começou)."""
+        """Busca agressiva na internet pelos melhores ativos para lucro a curto prazo."""
         best_opportunity = None
         highest_score = 0
         
         try:
+            # DESCOBERTA REAL: Busca os tickers com maior volume/volatilidade na Binance agora
+            all_tickers = await exchange.fetch_tickers()
+            
+            # Filtra apenas pares USDT com volume expressivo (> $10M) e que não são stablecoins
+            # Isso garante que estamos caçando onde o dinheiro real está sendo movido
+            candidates = []
+            for symbol, ticker in all_tickers.items():
+                if symbol.endswith("/USDT") and ticker['quoteVolume'] > 10000000:
+                    if "USDC" not in symbol and "DAI" not in symbol:
+                        # Prioridade para volatilidade (24h change)
+                        score_v = abs(ticker.get('percentage', 0))
+                        candidates.append((symbol, score_v))
+            
+            # Ordena e pega os top 8 para análise profunda
+            candidates.sort(key=lambda x: x[1], reverse=True)
+            self.market_watchlist = [c[0] for c in candidates[:8]]
+            
             # Escaneia em chunks paralelos para obter inteligência de múltiplos ativos
             tasks = [self.fetch_god_intelligence(symbol) for symbol in self.market_watchlist]
             results = await asyncio.gather(*tasks)
             
             for intel in results:
                 if not intel: continue
-                
-                # Lógica Matemática Pura de Pontuação baseada no retorno local de cada ativo
-                # Score = Impacto do Book (OBP) + Força do Movimento (Kinetic)
+                # Lógica de Pontuação Real (OBP + Energia Cinética)
                 score = (abs(intel["obp"]) * 50) + (intel["kinetic"] * 50)
-                
                 if score > highest_score:
                     highest_score = score
                     best_opportunity = intel["symbol"]
@@ -225,11 +239,12 @@ async def maintain_exchange_session():
         except:
             pass
 
-# Se as chaves estiverem presentes, testa conexão
+# Se as chaves estiverem presentes, testa conexão e configura alavancagem
 if BINANCE_API_KEY and BINANCE_API_SECRET:
     try:
         print("⚡ CONECTANDO À BINANCE FUTURES...")
-        # Em produção aqui você pode testar o balance: exchange.fetch_balance()
+        # O sistema operará com alavancagem dinâmica por símbolo para proteção total
+        # Alavancagem padrão agressiva para permitir operar com R$ 100 ($20)
     except Exception as e:
         print(f"⚠️ ERRO BINANCE: {e}")
 else:
@@ -269,7 +284,7 @@ MAX_CONSECUTIVE_LOSSES = 3      # 3-Strikes Rule
 POSICAO_ZERO_HOUR = 17          # Hora limite (Day Trade Only)
 POSICAO_ZERO_MIN = 30           # Minuto limite
 STALE_TIMEOUT_SEC = 120         # Tempo sem update = offline
-INITIAL_PRICE = 128000          # Preço inicial simulado (WING26)
+INITIAL_PRICE = 0.0             # Preço inicial (0 para aguardar dados reais)
 
 # ============================================================
 # ESTADO DO SISTEMA (Mantido em memória - Custo Zero)
@@ -549,18 +564,25 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
         if state.trap_detected and state.confidence < 98:
             return {"status": "GOD_SHIELD_ACTIVE", "reason": "Trap Detected"}
             
-        # Ajuste para banca pequena (R$100 ~= $20 USD)
-        # O lote por operação será proporcional à banca para não quebrar no primeiro loss
-        base_qty = payload.qty if payload.qty > 0 else 0.001 # Mínimo possível (BTC)
-        final_qty = base_qty * state.alpha_scale
+        # [MATEMÁTICA AGRESSIVA] Kelly Criterion + Alpha Scale
+        # Calcula o tamanho do lote baseado na fração de Kelly para maximizar lucro curto prazo
+        # R$ 100 ~= $20. Se Kelly for 0.1 (10%), arriscamos $2 por trade. 
+        # Com alavancagem 10x, o "notional" seria $20. 
         
-        # Juros Compostos Infinitos (Refinado para R$100)
+        capital_usd = 20.0 # Aproximadamente R$ 100
         if state.daily_pnl > 0:
-            # Reinvestimento proporcional: Cada R$100 de lucro dobra o lucro (50% Reinv)
-            # final_qty *= (1 + (state.daily_pnl / capital_inicial))
-            final_qty *= (1 + (state.daily_pnl / 100))
+            capital_usd += (state.daily_pnl / 5.2) # Converte lucro R$ para USD aprox
             
-        payload.qty = final_qty
+        # Fração de risco segura mas agressiva (Kelly limitado a 20% do capital por trade)
+        risk_fraction = max(0.05, min(0.20, state.kelly)) 
+        
+        # Valor da posição nominal (com alavancagem implícita)
+        notional_value = capital_usd * risk_fraction * 10 * state.alpha_scale # 10x lev base
+        
+        final_qty = notional_value / (intel["price"] if intel else state.price)
+        if final_qty <= 0: final_qty = 0.001 # Proteção mínima
+            
+        payload.qty = round(final_qty, 6)
         asyncio.create_task(execute_binance_order(payload))
     # ═══════════════════════════════════════════════════════════
     
@@ -586,6 +608,11 @@ async def execute_binance_order(payload: WebhookPayload):
         
         print(f"🚀 [BINANCE] Processando {action} {amount} {symbol}...")
         
+        # Tenta ajustar alavancagem do símbolo antes da ordem (Performance e Segurança)
+        try:
+            await exchange.set_leverage(15, symbol) # Alavancagem agressiva para banca de R$ 100
+        except: pass
+
         if action == "BUY":
             await exchange.create_market_buy_order(symbol, amount)
             print(f"✅ [BINANCE] COMPRA EXECUTADA @ {symbol}")
@@ -734,12 +761,8 @@ async def get_state():
     """
     now = time.time()
     
-    # Simular variação de preço APENAS se estiver offline ou sem dados reais recentes
-    if (now - state.last_update > 10) and (state.regime != "OFFLINE"):
-        # Pequena variação aleatória para manter o dashboard "vivo" em modo standby
-        variation = random.uniform(-2, 2)
-        state.price += variation
-        state.imb = random.uniform(-0.1, 0.1)
+    # REMOÇÃO DE DADOS FICTÍCIOS: Preço e métricas são 100% vinculados aos feeds da internet.
+    # Se stale, o sistema marca como OFFLINE em vez de simular variação.
     
     # Detectar conexão stale
     if now - state.last_update > STALE_TIMEOUT_SEC:
@@ -844,6 +867,11 @@ async def autonomous_hunter_loop():
                 if symbol:
                     intel = await brain.fetch_god_intelligence(symbol)
                     if intel:
+                        # SINCRONIZAÇÃO EM TEMPO REAL: Preencha o estado com a internet real
+                        state.price = intel["price"]
+                        state.last_price = intel["price"]
+                        state.last_update = time.time()
+                        
                         report = brain.analyze_infinity(state, intel)
                         state.kinetic = report["physics"]
                         state.z_score = report["z_score"]
