@@ -23,6 +23,17 @@
                 "Logs regime change"
             ],
             "passes": true
+        },
+        {
+            "id": "STORY-3",
+            "title": "Fix Render Build (Read-only FS Error)",
+            "description": "Render build is failing due to compilation of pydantic-core/rust on a read-only filesystem (likely due to Python 3.13 mismatch or missing wheels). Fix: Unpin requirements to allow newer binary wheels and force Python version.",
+            "acceptanceCriteria": [
+                "Build succeeds on Render",
+                "Dependencies install from binary wheels (no compilation)",
+                "System starts successfully"
+            ],
+            "passes": true
         }
     ]
 }

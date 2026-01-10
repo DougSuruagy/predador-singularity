@@ -5,6 +5,7 @@
 - **Learnings:**
   - Implemented **Zero-Latency Capital Manager**. Execution time reduced drastically by caching balance in RAM and updating asynchronously via `maintain_exchange_session` (10s loop) and `execute_binance_order` callback.
   - Implemented **Dynamic Regime Cortex**. The AI now detects Ranging vs Trending markets using Volatility Ratio (ATR/Price). Logic adapts automatically (Mean Reversion vs Trend Following).
+  - **Critical Build Fix**: Render failed due to `os error 30` (Read-only FS) when compiling Rust dependencies (Pydantic Core) on Python 3.13. **Solution**: Unpinned `requirements.txt` to allow newer binary wheels and enforced Python 3.11.9 via `.python-version`.
 
 ## Iteration v22.0 Quantum Leap
 - **Status:** COMPLETED
