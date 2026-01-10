@@ -1,5 +1,5 @@
 """
-PREDATOR v13.0 SINGULARITY - Cloud API (Render)
+PREDATOR v21.2 APEX MUTATION - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
 100% CLOUD | ZERO LOCAL | CUSTO ZERO
 
@@ -1124,7 +1124,7 @@ async def health_check():
     """Health check para Render."""
     return {
         "status": "OK",
-        "version": "21.1.0",
+        "version": "21.2.0",
         "mode": "100% CLOUD | AUTONOMOUS",
         "uptime_seconds": round(time.time() - state.session_start, 0),
         "hunting": state.is_hunting
@@ -1134,7 +1134,7 @@ async def health_check():
 async def root():
     """Página inicial da API."""
     return {
-        "message": "🦅 PREDATOR v13.0 SINGULARITY",
+        "message": "🦅 PREDATOR v21.2 APEX MUTATION",
         "mode": "100% Cloud - Zero Local",
         "docs": "/docs",
         "status": "/state",
