@@ -93,10 +93,13 @@ class NomadBrain:
         """Busca dados de alta fidelidade e retorna métricas puras."""
         try:
             target = f"{symbol}/USDT" if "/" not in symbol else symbol
+            # ⚓ ÂNCORA BTC + ATIVO ALVO PARALELIZADO
+            # Otimização Crítica: Buscar múltiplos timeframes para confirmar inércia
             tasks = [
-                exchange.fetch_ohlcv('BTC/USDT', timeframe='1m', limit=5),
-                exchange.fetch_order_book(target, limit=20),
-                exchange.fetch_ohlcv(target, timeframe='1m', limit=20)
+                exchange.fetch_ohlcv('BTC/USDT', timeframe='1m', limit=10),
+                exchange.fetch_order_book(target, limit=10),
+                exchange.fetch_ohlcv(target, timeframe='1m', limit=10),
+                exchange.fetch_ohlcv(target, timeframe='5m', limit=5)
             ]
             results = await asyncio.gather(*tasks)
             
@@ -114,9 +117,16 @@ class NomadBrain:
             obp = (bids_vol - asks_vol) / (bids_vol + asks_vol) if (bids_vol + asks_vol) > 0 else 0
             
             ohlcv = results[2]
+            ohlcv_5m = results[3]
+            
             closes = [c[4] for c in ohlcv]
-            velocity = (closes[-1] - closes[-3]) / closes[-3] if len(closes) > 3 else 0
-            kinetic = abs(velocity * 1000)
+            closes_5m = [c[4] for c in ohlcv_5m]
+            
+            # Cálculo de Inércia Multimomento (1m + 5m)
+            vel_1m = (closes[-1] - closes[-3]) / closes[-3] if len(closes) > 3 else 0
+            vel_5m = (closes_5m[-1] - closes_5m[-2]) / closes_5m[-2] if len(closes_5m) > 2 else 0
+            
+            kinetic = abs((vel_1m * 0.7) + (vel_5m * 0.3)) * 1000
             
             mean = sum(closes) / len(closes)
             std = math.sqrt(sum((x - mean)**2 for x in closes) / len(closes))
@@ -127,7 +137,8 @@ class NomadBrain:
                 "kinetic": kinetic, 
                 "z_score": z_score, 
                 "symbol": symbol,
-                "btc_corr": btc_momentum
+                "btc_corr": btc_momentum,
+                "price": closes[-1]
             }
             
         except Exception as e:
@@ -198,10 +209,21 @@ exchange = ccxt.binance({
     'enableRateLimit': True,
     'options': {
         'defaultType': 'future',
-        'adjustForTimeDifference': True
+        'adjustForTimeDifference': True,
+        'recvWindow': 5000,
     },
     'proxies': proxies
 })
+
+# Task para manter a sessão da exchange viva e evitar reconexões lentas
+async def maintain_exchange_session():
+    while True:
+        try:
+            if exchange.apiKey:
+                await exchange.fetch_balance()
+            await asyncio.sleep(60)
+        except:
+            pass
 
 # Se as chaves estiverem presentes, testa conexão
 if BINANCE_API_KEY and BINANCE_API_SECRET:
@@ -302,9 +324,9 @@ class MarketState:
         self.pending_command: str = ""
         
         # TENTAR RECUPERAR ESTADO DO SUPABASE
-        self.recover_daily_stats()
+        asyncio.create_task(self.recover_daily_stats_async())
 
-    def recover_daily_stats(self):
+    async def recover_daily_stats_async(self):
         """Recupera PnL do dia do Supabase se disponível."""
         if not supabase: return
         
@@ -868,6 +890,7 @@ async def autonomous_hunter_loop():
 @app.on_event("startup")
 async def startup_event():
     """Inicia a alma da máquina ao subir o servidor."""
+    asyncio.create_task(maintain_exchange_session())
     asyncio.create_task(autonomous_hunter_loop())
 
 @app.get("/health")
