@@ -61,6 +61,7 @@ class NomadBrain:
         self.kelly_fraction = 0.15
         self.active_hunters = [] 
         self.market_watchlist = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ADA/USDT", "DOGE/USDT", "AVAX/USDT"]
+        self.restricted_symbols = set()
 
     async def scan_market(self):
         """Escaneia o mercado em busca de distorções quânticas (A caça começou)."""
@@ -130,7 +131,11 @@ class NomadBrain:
             }
             
         except Exception as e:
-            print(f"⚠️ INTEL FAILURE: {e}")
+            if "451" in str(e):
+                print(f"🚫 [RESTRICTED] {symbol} está bloqueado nesta região (Error 451). Use um PROXY_URL.")
+                self.restricted_symbols.add(symbol)
+            else:
+                print(f"⚠️ INTEL FAILURE: {e}")
             return None
 
     def analyze_infinity(self, state, intel=None):
@@ -182,6 +187,9 @@ state_lock = asyncio.Lock()
 BINANCE_API_KEY = os.environ.get("BINANCE_API_KEY")
 BINANCE_API_SECRET = os.environ.get("BINANCE_API_SECRET")
 
+# 🌐 CONFIGURAÇÃO DE PROXY (Opcional - Para contornar bloqueios regionais)
+PROXY_URL = os.environ.get("PROXY_URL") # Ex: http://user:pass@host:port
+
 # Configurar Exchange (Modo Futures - Otimizado para Baixa Latência)
 exchange = ccxt.binance({
     'apiKey': BINANCE_API_KEY,
@@ -190,7 +198,8 @@ exchange = ccxt.binance({
     'options': {
         'defaultType': 'future',
         'adjustForTimeDifference': True
-    }
+    },
+    'proxies': {'http': PROXY_URL, 'https': PROXY_URL} if PROXY_URL else None
 })
 
 # Se as chaves estiverem presentes, testa conexão
