@@ -399,7 +399,13 @@ else:
 # CORS para Vercel e qualquer frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://predador-singularity.vercel.app",
+        "https://*.vercel.app",
+        "http://localhost:3000",
+        "http://127.0.0.1:8000"
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -646,12 +652,12 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
             "losses": state.consecutive_losses
         }
     
-    # [SEGURANÇA] Verificar se está em modo de caça
-    if not state.is_hunting or state.is_locked:
+    # [SEGURANÇA] Verificar se está bloqueado (3-Strikes ou PANIC)
+    if state.is_locked:
         return {
             "status": "REJECTED",
-            "reason": "SYSTEM_PAUSED",
-            "message": "Sistema em pausa. Aguarde desbloqueio."
+            "reason": "SYSTEM_LOCKED",
+            "message": "Sistema bloqueado. Use /unlock para desbloquear."
         }
     
     # Atualizar preço se fornecido
@@ -724,15 +730,10 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
         # Fração de risco: Limite 25% por trade em modo agressivo
         risk_fraction = max(0.05, min(0.25, state.kelly * yield_boost)) 
         
-        # Valor da posição nominal (com alavancagem implícita)
-        # v21.2: Multiplicamos pela 'adrenaline' para ordens maiores em momentos de alta confiança
-        notional_value = capital_usd * risk_fraction * 15 * state.alpha_scale 
-        
-        final_qty = notional_value / (intel["price"] if intel else state.price)
-        if final_qty <= 0: final_qty = 0.001 
-            
-        payload.qty = round(final_qty, 6)
-        asyncio.create_task(execute_binance_order(payload))
+        # [SEGURANÇA] Usa Auto-Compounding com preço real
+        entry_price = intel["price"] if intel else state.price
+        payload.qty = 0.001  # Valor base, será recalculado pelo compounding
+        asyncio.create_task(execute_binance_order(payload, use_compounding=True, entry_price=entry_price))
     # ═══════════════════════════════════════════════════════════
     
     return {
