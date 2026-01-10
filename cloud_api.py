@@ -445,8 +445,11 @@ brain = NomadBrain()
 state_lock = asyncio.Lock()
 
 # BINANCE CONNECTION (Custo Zero - Sem MT5)
-BINANCE_API_KEY = os.environ.get("BINANCE_API_KEY")
-BINANCE_API_SECRET = os.environ.get("BINANCE_API_SECRET")
+raw_key = os.environ.get("BINANCE_API_KEY", "")
+raw_secret = os.environ.get("BINANCE_API_SECRET", "")
+
+BINANCE_API_KEY = raw_key.strip() if raw_key else None
+BINANCE_API_SECRET = raw_secret.strip() if raw_secret else None
 
 # 🌐 CONFIGURAÇÃO DE PROXY (Opcional - Para contornar bloqueios regionais)
 PROXY_URL = os.environ.get("PROXY_URL") # Ex: http://user:pass@host:port

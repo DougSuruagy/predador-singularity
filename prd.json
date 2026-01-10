@@ -12,6 +12,16 @@
                 "Logs 'LOW FUEL' warning to dashboard/Supabase"
             ],
             "passes": true
+        },
+        {
+            "id": "STORY-2",
+            "title": "Fix Binance Signature Error",
+            "description": "Render logs show 'Signature for this request is not valid'. This is often due to whitespace in env vars. Solution: Sanitize API keys with .strip() on load.",
+            "acceptanceCriteria": [
+                "API Keys are stripped of whitespace",
+                "Binance connection succeeds without Signature Error"
+            ],
+            "passes": true
         }
     ]
 }
