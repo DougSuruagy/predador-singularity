@@ -466,16 +466,37 @@ exchange = ccxt.binance({
 })
 
 # Task para manter a sessão da exchange viva e evitar reconexões lentas
+# Task para manter a sessão da exchange viva e monitorar LIQUIDEZ (Gatekeeper)
 async def maintain_exchange_session():
+    print("🛡️ LIQUIDITY GATEKEEPER: Monitorando fluxo de caixa...")
     while True:
         try:
             if exchange.apiKey:
                 # ⚡ ZERO-LATENCY: Cache balance every 10s
                 bal = await exchange.fetch_balance()
-                state.balance = float(bal['total']['USDT']) if 'USDT' in bal['total'] else 0.0
+                usdt_bal = float(bal['total']['USDT']) if 'USDT' in bal['total'] else 0.0
+                state.balance = usdt_bal
+                
+                # 🔒 LIQUIDITY LOGIC (v23.1)
+                if usdt_bal < 5.0:
+                    if not state.funding_locked:
+                        print(f"⚠️ [NO FUEL] Saldo ${usdt_bal:.2f} insuficiente. Pausando PREDATOR.")
+                    state.funding_locked = True
+                    state.is_hunting = False
+                    state.regime = "NO_CASH"
+                else:
+                    # Se estava bloqueado e agora tem dinheiro, libera (se não tiver outro lock)
+                    if state.funding_locked:
+                        print(f"💰 [FUEL DETECTED] Saldo ${usdt_bal:.2f}. Reativando PREDATOR.")
+                        state.funding_locked = False
+                        if not state.is_locked and state.consecutive_losses < MAX_CONSECUTIVE_LOSSES:
+                             state.is_hunting = True
+                             state.regime = "ACTIVE"
+                             
             await asyncio.sleep(10)
-        except:
-            pass
+        except Exception as e:
+            print(f"⚠️ GATEKEEPER ERROR: {e}")
+            await asyncio.sleep(10)
 
 # Se as chaves estiverem presentes, testa conexão e configura alavancagem
 if BINANCE_API_KEY and BINANCE_API_SECRET:
@@ -564,7 +585,8 @@ class MarketState:
         self.regime: str = "WAITING"
         self.confidence: float = 80.0
         self.bias: str = "NEUTRAL"
-        self.is_hunting: bool = True
+        self.is_hunting: bool = False # 🔒 INICIA PAUSADO (AGUARDANDO LIQUIDEZ)
+        self.funding_locked: bool = True # 🔒 SEM FUNDOS ATÉ PROVAR O CONTRÁRIO
         self.is_locked: bool = False
         self.trap_detected: bool = False
         self.entropy: float = 0.0
@@ -750,6 +772,14 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
     """
     now = get_now_br()
     
+    # [SEGURANÇA] Liquidity Gatekeeper (v23.1)
+    if state.funding_locked:
+        return {
+            "status": "REJECTED",
+            "reason": "NO_FUEL",
+            "message": "Saldo Insuficiente na BinanceFutures (<$5). Deposite para ativar."
+        }
+        
     # [SEGURANÇA] Validação de POSIÇÃO ZERO (Zero Overnight)
     if now.hour > POSICAO_ZERO_HOUR or (now.hour == POSICAO_ZERO_HOUR and now.minute >= POSICAO_ZERO_MIN):
         return {
@@ -875,8 +905,10 @@ async def get_compounded_amount(symbol, kelly=0.20, price=None):
                 bal = await exchange.fetch_balance()
                 available_balance = float(bal['total']['USDT']) if 'USDT' in bal['total'] else 0.0
                 state.balance = available_balance
+                state.balance = available_balance
             except:
-                available_balance = 20.0 # Valor nominal de emergência
+                print("⚠️ FALHA CRÍTICA: Não foi possível obter saldo real.")
+                return 0.0 # Aborta cálculo se não souber o saldo
                 
         # 🎰 APEX LEVERAGE MATRIX (10x - 20x Dinâmico)
         leverage = 20 if state.homeostasis > 80 else 10

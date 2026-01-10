@@ -1,37 +1,15 @@
 {
-    "feature": "PREDATOR v23.0 SENTINEL AGILITY",
+    "feature": "PREDATOR v23.1 LIQUIDITY GATEKEEPER",
     "status": "COMPLETED",
     "userStories": [
         {
             "id": "STORY-1",
-            "title": "Implement Zero-Latency Capital Manager (Balance Cache)",
-            "description": "Remove the synchronous `fetch_balance` call from the critical execution path. Cache balance in `MarketState` and update it asynchronously via `maintain_exchange_session` and after every trade.",
+            "title": "Implement Liquidity Gatekeeper",
+            "description": "System must strictly block any trading ('is_hunting = False') if confirmed Binance USDT balance is below $5. No simulation fallbacks allowed in Production mode.",
             "acceptanceCriteria": [
-                "Execution time reduces by ~300ms",
-                "Balance is managed in memory",
-                "Async update loop ensures accuracy"
-            ],
-            "passes": true
-        },
-        {
-            "id": "STORY-2",
-            "title": "Dynamic Regime Cortex (Trend vs Range)",
-            "description": "Upgrade `analyze_infinity` to detect Market Regime based on ATR/Price ratio. If Low Volatility, use Mean Reversion logic. If High Volatility, use Trend Following logic.",
-            "acceptanceCriteria": [
-                "Calculates Volatility Ratio",
-                "Switches Strategy Mode dynamically",
-                "Logs regime change"
-            ],
-            "passes": true
-        },
-        {
-            "id": "STORY-3",
-            "title": "Fix Render Build (Read-only FS Error)",
-            "description": "Render build is failing due to compilation of pydantic-core/rust on a read-only filesystem (likely due to Python 3.13 mismatch or missing wheels). Fix: Unpin requirements to allow newer binary wheels and force Python version.",
-            "acceptanceCriteria": [
-                "Build succeeds on Render",
-                "Dependencies install from binary wheels (no compilation)",
-                "System starts successfully"
+                "Starts in PAUSED mode until balance check passes",
+                "Automatically pauses if balance drops below threshold",
+                "Logs 'LOW FUEL' warning to dashboard/Supabase"
             ],
             "passes": true
         }

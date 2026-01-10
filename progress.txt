@@ -1,6 +1,13 @@
 # PREDATOR PROGRESS LOG
 
-## Iteration v23.0 Sentinel Agility (Current)
+## Iteration v23.1 Liquidity Gatekeeper (Current)
+- **Status:** COMPLETED
+- **Learnings:**
+  - Implemented **Liquidity Gatekeeper Protocol**: The system now starts in a locked state (`funding_locked=True`) and only unlocks `is_hunting` if the background scanner confirms a Binance USDT balance > $5.
+  - Removed dangerous fallback simulation money ($20) from production logic. No money = No Trade.
+  - Webhook signals are explicitly rejected with `NO_FUEL` reason if funds are insufficient.
+
+## Iteration v23.0 Sentinel Agility
 - **Status:** COMPLETED
 - **Learnings:**
   - Implemented **Zero-Latency Capital Manager**. Execution time reduced drastically by caching balance in RAM and updating asynchronously via `maintain_exchange_session` (10s loop) and `execute_binance_order` callback.
@@ -13,25 +20,3 @@
   - Implemented the "Genetic Backtesting Engine" (`/backtest` endpoint). This allows the system to simulate performance on historical data before risking capital.
   - Upgraded the Frontend Dashboard to v21.4 with Real Candlesticks and Trade Markers. Visual feedback is now instant.
   - "Ralph Pattern" with `prd.json` proved effective for keeping focus on granular tasks.
-
-## Iteration v21.4
-- **Status:** COMPLETED
-- **Learnings:**
-  - The `auth.role()` call in Supabase RLS policies caused major performance warnings. Solution: Wrap in `(SELECT auth.role())`.
-  - Scalping requires sub-5s loops. We reduced the `autonomous_hunter_loop` sleep from 10s to 3s and saw immediate responsiveness.
-  - Hardcoded capital limits ($20) inhibit scalability. We switched to `get_compounded_amount()` using real Binance balance.
-  - Institutional flow is invisible to RSI/MACD. We implemented `Volume Spike Detection` (>80% avg) to track whales.
-  - Vercel/Render communication requires strictly configured CORS. We hardened `cloud_api.py` to only allow specific origins.
-
-## Iteration v21.3 (Evolution)
-- **Status:** COMPLETED
-- **Learnings:**
-  - Implemented the Senior/Junior architecture.
-  - Junior (Vercel) successfully generates DNA based on Supabase trade history.
-  - Senior (Render) successfully hot-swaps genes without restarting.
-
-## Iteration v21.2
-- **Status:** COMPLETED
-- **Learnings:**
-  - Hybrid Cloud architecture established: Render (Python/Execution) + Vercel (Node/Supervisor).
-  - "Estoque Zero" concept renamed to "Flat Position Protocol" for institutional compliance.
