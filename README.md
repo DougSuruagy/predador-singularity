@@ -1,7 +1,7 @@
-# 🦅 PREDATOR v21.3 - APEX PROGENY | EVOLUTIONARY BLACK BOX 🧬
+# 🦅 PREDATOR v21.4 - APEX SCALPER | INSTITUTIONAL EDGE 🧬
 
 ### **The Ultimate Autonomous HFT System with Genetic Evolution (2026 Edition)**
-**PREDATOR v21.3 'APEX-PROGENY'** is a revolutionary High-Frequency Trading (HFT) framework engineered for total autonomy, self-evolution, and zero-cost cloud operations. The system features a **dual-brain architecture**: a "Senior" execution engine on Render and a "Junior" evolutionary supervisor on Vercel, both sharing a genetic vault on Supabase.
+**PREDATOR v21.4 'APEX-SCALPER'** is a high-frequency trading (HFT) scalper engineered for institutional-grade precision. It features **Volume Spike Detection**, **RSI Divergence**, **ATR Dynamic Risk**, and an ultra-fast **3s Execution Loop**.
 
 ---
 
@@ -27,7 +27,9 @@ Through **Accelerated Compound Interest** algorithms, the engine utilizes every 
 *   **Physical Inertia Core**: Analyzes price mass and velocity to calculate real-time **Kinetic Energy**. Execution only triggers when "Inertia" is sufficient to shatter liquidity zones.
 *   **BTC Harmonic Sync**: Bitcoin is the anchor. PREDATOR synchronizes the pulse of Altcoins (SOL, ETH, BNB) with BTC. If correlation breaks, the signal is aborted by the **Reality Shield**.
 *   **Stat-Gravity (Z-Score)**: Monitors mean deviation in milliseconds. Identifies trend exhaustion and mean-reversion with sub-second precision.
-*   **Nomad Scanner (Hunter)**: A decentralized autonomous hunter that scans the market 24/7 for quantum distortions.
+*   **Nomad Scanner (Hunter)**: A decentralized autonomous hunter that scans the market every **3 seconds** for quantum distortions.
+*   **Institutional Flow**: Detects **Volume Spikes** and **Order Flow** anomalies invisible to standard indicators.
+*   **Momentum Divergence**: Identifies reversals before they happen using advanced RSI/Price divergence logic.
 
 ### 🛡️ Defense & Capital Shield
 *   **Reality Trap Detection**: Cross-references Order Book Pressure (OBP) with Kinetic Physics to detect **Liquidity Traps** (Whale Bypassing).
@@ -112,7 +114,7 @@ PREDATOR v21.3 uses a high-performance, security-hardened data architecture:
 ---
 
 ## ⚖️ Legal Disclaimer
-Trading involves significant risk. PREDATOR APEX-PROGENY v21.3 is a high-precision algorithm, but market conditions are sovereign. Use this system at your own risk. Past performance does not guarantee future results.
+Trading involves significant risk. PREDATOR APEX-SCALPER v21.4 is a high-precision algorithm, but market conditions are sovereign. Use this system at your own risk. Past performance does not guarantee future results.
 
 ---
-**Predator APEX-PROGENY v21.3: The first algorithm that evolves its own descendants.** 🦅🧬💰🚀
+**Predator APEX-SCALPER v21.4: The first algorithm that hunts with institutional vision.** 🦅🧬💰🚀
