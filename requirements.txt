@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+ccxt
+supabase
+python-dotenv
+asyncio
+yarl
+aiodns
