@@ -1036,65 +1036,65 @@ async def autonomous_hunter_loop():
     print("🎯 NOMAD GOD-MODE: CAÇADOR AUTÔNOMO INICIADO.")
     while True:
         try:
-                # Garante que os mercados estão carregados antes de caçar (Crucial para precisão de lotes)
-                if not exchange.markets:
-                    print("⏳ [WAIT] Carregando mercados de câmbio...")
-                    await exchange.load_markets()
-                
-                state.regime = "HUNTING"
-                # Executa scan com timeout para não travar o loop
-                try:
-                    symbol, score, intel = await asyncio.wait_for(brain.scan_market(), timeout=15)
-                except asyncio.TimeoutError:
-                    print("⌛ [TIMEOUT] Scanner demorou muito. Pulando ciclo.")
-                    continue
-                
-                # Sincroniza a "visão" do caçador com o estado global para o dashboard
-                if symbol and intel:
-                    # SINCRONIZAÇÃO EM TEMPO REAL: Preencha o estado com a internet real
-                    state.price = intel["price"]
-                    state.last_price = intel["price"]
-                    state.last_update = time.time()
-                        
-                    report = brain.analyze_infinity(state, intel)
-                    state.kinetic = report["physics"]
-                    state.z_score = report["z_score"]
-                    state.obp = report["obp"]
-                    state.entropy = report["entropy"]
-                    state.btc_momentum = report["btc_momentum"]
-                    state.is_correlated = report["correlation"]
-                    state.confidence = report["score"]
-                    state.bias = report["bias"]
-                    state.trap_detected = report["trap"]
-                    state.rsi = report["rsi"]
-                    state.trend_aligned = report["trend_aligned"]
+            # Garante que os mercados estão carregados antes de caçar (Crucial para precisão de lotes)
+            if not exchange.markets:
+                print("⏳ [WAIT] Carregando mercados de câmbio...")
+                await exchange.load_markets()
+            
+            state.regime = "HUNTING"
+            # Executa scan com timeout para não travar o loop
+            try:
+                symbol, score, intel = await asyncio.wait_for(brain.scan_market(), timeout=15)
+            except asyncio.TimeoutError:
+                print("⌛ [TIMEOUT] Scanner demorou muito. Pulando ciclo.")
+                continue
+            
+            # Sincroniza a "visão" do caçador com o estado global para o dashboard
+            if symbol and intel:
+                # SINCRONIZAÇÃO EM TEMPO REAL: Preencha o estado com a internet real
+                state.price = intel["price"]
+                state.last_price = intel["price"]
+                state.last_update = time.time()
                     
-                    # 🧬 SYNC BIO-QUANTUM LIFE SIGNS
-                    state.homeostasis = report["homeostasis"]
-                    state.adrenaline = report["adrenaline"]
-                    state.synaptic_firing = report["synaptic_firing"]
-                    state.quantum_entropy = report["quantum_entropy"]
-                    state.metabolism = 1.0 + (state.synaptic_firing / 100.0)
-                    state.genes = report["genes"]
+                report = brain.analyze_infinity(state, intel)
+                state.kinetic = report["physics"]
+                state.z_score = report["z_score"]
+                state.obp = report["obp"]
+                state.entropy = report["entropy"]
+                state.btc_momentum = report["btc_momentum"]
+                state.is_correlated = report["correlation"]
+                state.confidence = report["score"]
+                state.bias = report["bias"]
+                state.trap_detected = report["trap"]
+                state.rsi = report["rsi"]
+                state.trend_aligned = report["trend_aligned"]
                 
-                if symbol and score >= 95:
-                    print(f"💎 OPORTUNIDADE GOD-LEVEL: {symbol} (SCORE: {score:.1f})")
-                    await log_event_to_db("INFO", "SCANNER", f"Oportunidade detectada: {symbol}", {"score": score, "bias": state.bias})
-                    
-                    intel = await brain.fetch_god_intelligence(symbol)
-                    report = brain.analyze_infinity(state, intel)
-                    
-                    if not report["trap"]:
-                        # Cria payload simulado de webhook para reaproveitar execução
-                        payload = WebhookPayload(
-                            action="BUY" if report["bias"] == "GOD_LONG" else "SELL",
-                            symbol=symbol,
-                            price=intel["price"], 
-                            qty=0.001, # Mínimo inicial p/ escala
-                            confidence=report["score"]
-                        )
-                        # Dispara execução injetando intel em cache
-                        await tradingview_webhook(payload, intel_cache=intel)
+                # 🧬 SYNC BIO-QUANTUM LIFE SIGNS
+                state.homeostasis = report["homeostasis"]
+                state.adrenaline = report["adrenaline"]
+                state.synaptic_firing = report["synaptic_firing"]
+                state.quantum_entropy = report["quantum_entropy"]
+                state.metabolism = 1.0 + (state.synaptic_firing / 100.0)
+                state.genes = report["genes"]
+            
+            if symbol and score >= 95:
+                print(f"💎 OPORTUNIDADE GOD-LEVEL: {symbol} (SCORE: {score:.1f})")
+                await log_event_to_db("INFO", "SCANNER", f"Oportunidade detectada: {symbol}", {"score": score, "bias": state.bias})
+                
+                intel = await brain.fetch_god_intelligence(symbol)
+                report = brain.analyze_infinity(state, intel)
+                
+                if not report["trap"]:
+                    # Cria payload simulado de webhook para reaproveitar execução
+                    payload = WebhookPayload(
+                        action="BUY" if report["bias"] == "GOD_LONG" else "SELL",
+                        symbol=symbol,
+                        price=intel["price"], 
+                        qty=0.001, # Mínimo inicial p/ escala
+                        confidence=report["score"]
+                    )
+                    # Dispara execução injetando intel em cache
+                    await tradingview_webhook(payload, intel_cache=intel)
             
             # Intervalo de scan (Alta Frequência mas respeitando limites de API)
             await asyncio.sleep(10) 
