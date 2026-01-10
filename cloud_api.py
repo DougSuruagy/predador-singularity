@@ -1056,26 +1056,26 @@ async def autonomous_hunter_loop():
                     state.last_price = intel["price"]
                     state.last_update = time.time()
                         
-                        report = brain.analyze_infinity(state, intel)
-                        state.kinetic = report["physics"]
-                        state.z_score = report["z_score"]
-                        state.obp = report["obp"]
-                        state.entropy = report["entropy"]
-                        state.btc_momentum = report["btc_momentum"]
-                        state.is_correlated = report["correlation"]
-                        state.confidence = report["score"]
-                        state.bias = report["bias"]
-                        state.trap_detected = report["trap"]
-                        state.rsi = report["rsi"]
-                        state.trend_aligned = report["trend_aligned"]
-                        
-                        # 🧬 SYNC BIO-QUANTUM LIFE SIGNS
-                        state.homeostasis = report["homeostasis"]
-                        state.adrenaline = report["adrenaline"]
-                        state.synaptic_firing = report["synaptic_firing"]
-                        state.quantum_entropy = report["quantum_entropy"]
-                        state.metabolism = 1.0 + (state.synaptic_firing / 100.0)
-                        state.genes = report["genes"]
+                    report = brain.analyze_infinity(state, intel)
+                    state.kinetic = report["physics"]
+                    state.z_score = report["z_score"]
+                    state.obp = report["obp"]
+                    state.entropy = report["entropy"]
+                    state.btc_momentum = report["btc_momentum"]
+                    state.is_correlated = report["correlation"]
+                    state.confidence = report["score"]
+                    state.bias = report["bias"]
+                    state.trap_detected = report["trap"]
+                    state.rsi = report["rsi"]
+                    state.trend_aligned = report["trend_aligned"]
+                    
+                    # 🧬 SYNC BIO-QUANTUM LIFE SIGNS
+                    state.homeostasis = report["homeostasis"]
+                    state.adrenaline = report["adrenaline"]
+                    state.synaptic_firing = report["synaptic_firing"]
+                    state.quantum_entropy = report["quantum_entropy"]
+                    state.metabolism = 1.0 + (state.synaptic_firing / 100.0)
+                    state.genes = report["genes"]
                 
                 if symbol and score >= 95:
                     print(f"💎 OPORTUNIDADE GOD-LEVEL: {symbol} (SCORE: {score:.1f})")
