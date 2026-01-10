@@ -42,8 +42,8 @@ def get_now_br():
 load_dotenv()
 
 app = FastAPI(
-    title="PREDATOR v21.2 - APEX MUTATION",
-    version="21.2.0",
+    title="PREDATOR v21.3 - APEX PROGENY",
+    version="21.3.0",
     description="A Máquina de Lucro Definitiva para o Mercado Cripto 2026"
 )
 
@@ -1138,6 +1138,31 @@ async def autonomous_hunter_loop():
             print(f"📡 [HUNTER-ERROR] {e}")
             await asyncio.sleep(30)
 
+async def evolution_watcher_loop():
+    """O Senior observa os descendentes gerados pelo Junior no Supabase."""
+    print("🧬 GENETIC LINK: Senior observando evolução do Junior...")
+    while True:
+        try:
+            if supabase:
+                # Busca a última geração de DNA no cofre genético
+                response = supabase.table("genetics").select("dna, generation").order("generation", desc=True).limit(1).execute()
+                if response.data:
+                    latest_gen = response.data[0]
+                    new_dna = latest_gen['dna']
+                    gen_id = latest_gen['generation']
+                    
+                    # Se for uma nova geração, o Senior herda os genes
+                    if new_dna != brain.genes:
+                        print(f"🧬 [EVOLUTION] Senior herdando DNA da Geração {gen_id} (Origem Junior)!")
+                        brain.genes = new_dna
+                        state.genes = new_dna
+                        await log_event_to_db("INFO", "EVOLUTION", f"Senior evoluiu para Gen {gen_id}", {"dna": new_dna})
+            
+            await asyncio.sleep(3600) # Checa a cada hora
+        except Exception as e:
+            print(f"⚠️ [EVOLUTION-BUG] {e}")
+            await asyncio.sleep(300)
+
 @app.on_event("startup")
 async def startup_event():
     """Inicia a alma da máquina ao subir o servidor com Recuperação Rápida."""
@@ -1152,6 +1177,7 @@ async def startup_event():
     # 3. Loops perpétuos
     asyncio.create_task(maintain_exchange_session())
     asyncio.create_task(autonomous_hunter_loop())
+    asyncio.create_task(evolution_watcher_loop())
     
     print("🚀 SISTEMA ONLINE E RECUPERADO.")
 

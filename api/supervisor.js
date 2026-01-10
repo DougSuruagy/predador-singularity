@@ -57,15 +57,62 @@ export default async function handler(req, res) {
         const recentResults = trades.slice(0, 3).map(t => t.result);
         const criticalFailure = recentResults.length === 3 && recentResults.every(r => r === 'LOSS');
 
-        // 4. Inteligência de Recomendação
+        // 4. Lógica de "Progeny" (O Junior gera descendentes)
+        let evolutionStatus = "STABLE";
+        let newDna = null;
+
+        if (totalTrades >= 5 && winRate > 60) {
+            console.log("🧬 JUNIOR_VERCEL: Condições ideais detectadas. Gerando descendente...");
+
+            // Busca o DNA atual da última geração
+            const { data: lastGen } = await supabase
+                .from('genetics')
+                .select('*')
+                .order('generation', { ascending: false })
+                .limit(1);
+
+            const currentDna = lastGen?.[0]?.dna || {
+                frontal_weight: 0.35,
+                occipital_weight: 0.35,
+                amygdala_weight: 0.15,
+                parietal_weight: 0.15
+            };
+
+            // Mutação do Junior (Evolução por descendência)
+            newDna = { ...currentDna };
+            const mutationFactor = 0.05;
+            newDna.frontal_weight += (Math.random() - 0.5) * mutationFactor;
+            newDna.occipital_weight += (Math.random() - 0.5) * mutationFactor;
+
+            // Normalização
+            const total = Object.values(newDna).reduce((a, b) => a + b, 0);
+            for (let key in newDna) newDna[key] /= total;
+
+            await supabase.from('genetics').insert({
+                generation: (lastGen?.[0]?.generation || 0) + 1,
+                dna: newDna,
+                fitness: winRate,
+                parent_id: lastGen?.[0]?.id || null,
+                origin: 'JUNIOR_VERCEL'
+            });
+
+            evolutionStatus = "NEW_GEN_BORN";
+        }
+
+        // 5. Inteligência de Recomendação
         let recommendation = "KEEP_HUNTING";
         if (criticalFailure) recommendation = "EMERGENCY_COOLDOWN";
-        if (totalPnl < -20) recommendation = "RISK_REDUCTION"; // Perda de 20% da banca base
+        if (totalPnl < -20) recommendation = "RISK_REDUCTION";
 
         const report = {
-            version: "21.2.0 APEX SUPERVISOR",
+            version: "21.3.0 APEX PROGENY",
             status: "ACTIVE",
             timestamp: new Date().toISOString(),
+            evolution: {
+                status: evolutionStatus,
+                generation: newDna ? "NEW" : "CURRENT",
+                junior_contribution: newDna ? "GENETIC_MUTATION_APPLIED" : "MONITORING"
+            },
             infrastructure: {
                 render_bridge: renderStatus,
                 render_uptime: uptime
@@ -77,7 +124,7 @@ export default async function handler(req, res) {
                 streak_status: criticalFailure ? "CRITICAL_LOSS_STREAK" : "STABLE"
             },
             ai_recommendation: recommendation,
-            message: "Monitoramento Serverless Vercel ativo. Escaneando integridade do Render e Binance."
+            message: "O Junior na Vercel está gerando descendentes baseados nos lucros do Senior no Render."
         };
 
         return res.status(200).json(report);
