@@ -1,3 +1,0 @@
-@echo off
-echo Abrindo Dashboard via Servidor Local (Porta 5500)...
-start http://localhost:5500/index.html

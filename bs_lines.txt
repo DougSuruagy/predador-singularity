@@ -1,7 +1,0 @@
-
-Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:379:    Sovereign::BioState::LoadLifeState();
-Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:409:   Sovereign::BioState::SaveLifeState(); // 🩸 Salva batimento atual
-Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:5493:    double energy_level = Sovereign::BioState::atp_energy;
-Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:5515:    double biological_drive = (Sovereign::BioState::atp_energy / 100.0);
-Neural_Risk_Manager_AI_V1000000000_SUPREME_COLLECTOR.mq5:7256:   Sovereign::BioState::Pulse(); // 🔥 Metabolismo Ativado
-
