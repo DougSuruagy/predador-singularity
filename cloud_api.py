@@ -138,6 +138,9 @@ class NomadBrain:
                     best_opportunity = intel["symbol"]
                     best_intel = intel
                     
+        except Exception as e:
+            print(f"⚠️ [SCAN-ERROR] {e}")
+
         return best_opportunity, highest_score, best_intel
 
     def mutate(self, success: bool):
@@ -241,7 +244,7 @@ class NomadBrain:
                 "kinetic": kinetic, 
                 "z_score": z_score, 
                 "symbol": symbol,
-                "btc_corr": btc_momentum,
+                "btc_corr": self.btc_momentum,
                 "price": closes[-1],
                 "rsi": rsi,
                 "trend_aligned": trend_aligned
