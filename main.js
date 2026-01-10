@@ -1,5 +1,5 @@
 /**
- * PREDATOR v21.2 APEX MUTATION - Frontend Engine
+ * PREDATOR v21.3 APEX PROGENY - Frontend Engine
  * 100% CLOUD | Zero Local | Custo Zero
  * 
  * Fluxo: TradingView → Render API → Este Dashboard
@@ -13,7 +13,7 @@ const CONFIG = {
     // Se sim, usa a API local. Se não, usa a API de Produção (Render)
     API_URL: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
         ? "http://127.0.0.1:8000"
-        : "https://predador-api-odpt.onrender.com", // API REAL (Render)
+        : "https://predador-api.onrender.com", // API REAL (Render)
 
     // Frequência de atualização do dashboard (ms)
     SYNC_INTERVAL_MS: 500,

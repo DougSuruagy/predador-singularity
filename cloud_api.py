@@ -290,9 +290,9 @@ class NomadBrain:
         reality_trap = (abs(z_score) > 2.8) or (not is_correlated) or (entropy > 6.0) or rsi_trap or (self.homeostasis < 40)
         
         bias = "NEUTRAL"
-        consensus_threshold = 0.20
-        if psi > consensus_threshold and is_correlated and trend_aligned: bias = "GOD_LONG"
-        if psi < -consensus_threshold and is_correlated and trend_aligned: bias = "GOD_SHORT"
+        consensus_threshold = 0.15  # Reduzido para mais oportunidades
+        if psi > consensus_threshold and is_correlated: bias = "GOD_LONG"
+        if psi < -consensus_threshold and is_correlated: bias = "GOD_SHORT"
         
         # SINAPSE: Intensidade do disparo neural
         self.synaptic_firing = (abs(psi) * 100)
@@ -302,15 +302,16 @@ class NomadBrain:
         alpha = 4.0 if confidence > 92 and not reality_trap else 1.0
         if self.adrenaline > 0.7: alpha *= 1.5 
         
-        # Otimização Kelly: Se banca está saudável (Homeostasis), arrisca mais para rendimento ICP
-        kelly = 0.20 + (0.10 if self.homeostasis > 85 else 0.0)
+        # Otimização Kelly: Ajuste dinâmico baseado na saúde da banca
+        dynamic_kelly = 0.20 + (0.10 if self.homeostasis > 85 else 0.0)
+        self.kelly_fraction = dynamic_kelly  # Atualiza instância para uso na execução
         
         return {
             "score": confidence,
             "bias": bias,
             "trap": reality_trap,
             "alpha": alpha,
-            "kelly": kelly,
+            "kelly": dynamic_kelly,
             "physics": kinetic,
             "z_score": z_score,
             "obp": obp,
