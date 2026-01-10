@@ -1,27 +1,26 @@
 {
-    "feature": "PREDATOR v22.0 QUANTUM LEAP",
+    "feature": "PREDATOR v23.0 SENTINEL AGILITY",
     "status": "COMPLETED",
     "userStories": [
         {
             "id": "STORY-1",
-            "title": "Implement Genetic Backtesting Engine",
-            "description": "Create a new endpoint `/backtest` in cloud_api.py that allows the Supervisor to request a simulation of current DNA against historical data (last 24h) to validate mutations BEFORE they are applied to the live account.",
+            "title": "Implement Zero-Latency Capital Manager (Balance Cache)",
+            "description": "Remove the synchronous `fetch_balance` call from the critical execution path. Cache balance in `MarketState` and update it asynchronously via `maintain_exchange_session` and after every trade.",
             "acceptanceCriteria": [
-                "Endpoint accepts start_date and end_date",
-                "Runs NomadBrain.scan_market logic on historical candles",
-                "Returns total PnL and Win Rate",
-                "Verify results via logic check"
+                "Execution time reduces by ~300ms",
+                "Balance is managed in memory",
+                "Async update loop ensures accuracy"
             ],
             "passes": true
         },
         {
             "id": "STORY-2",
-            "title": "Enhance Visual Dashboard with TradingView Charts",
-            "description": "Upgrade main.js to use the full Lightweight Charts CandleSeries instead of just AreaSeries, and overlay Buy/Sell markers from the `trades` table.",
+            "title": "Dynamic Regime Cortex (Trend vs Range)",
+            "description": "Upgrade `analyze_infinity` to detect Market Regime based on ATR/Price ratio. If Low Volatility, use Mean Reversion logic. If High Volatility, use Trend Following logic.",
             "acceptanceCriteria": [
-                "Chart shows Candlesticks",
-                "Trades are fetched from Supabase and plotted as markers",
-                "Verify in browser"
+                "Calculates Volatility Ratio",
+                "Switches Strategy Mode dynamically",
+                "Logs regime change"
             ],
             "passes": true
         }

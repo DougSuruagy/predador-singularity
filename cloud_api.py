@@ -42,9 +42,9 @@ def get_now_br():
 load_dotenv()
 
 app = FastAPI(
-    title="PREDATOR v21.4 - APEX SCALPER",
-    version="21.4.0",
-    description="A Máquina de Lucro Definitiva para o Mercado Cripto 2026 - Scalper Edition"
+    title="PREDATOR v23.0 - SENTINEL AGILITY",
+    version="23.0.0",
+    description="Sovereign AI Trading System with Dynamic Regime Cortex and Zero-Latency Core."
 )
 
 # ============================================================
@@ -349,11 +349,27 @@ class NomadBrain:
         obp = intel["obp"] if intel else 0.0
         occipital_signal = (obp * self.genes["occipital_weight"])
         
-        # 🧠 LOBO FRONTAL (Lógica de Tendência e Preço)
+        # 🌀 DYNAMIC REGIME CORTEX (v23.0)
+        # Analisa Volatilidade para decidir entre Trend Following ou Mean Reversion
+        atr = intel.get("atr", 0.0) if intel else 0.0
+        price = intel.get("price", 1.0) if intel else 1.0
+        vol_ratio = atr / price if price > 0 else 0.0
+        
+        market_regime = "TRENDING" if vol_ratio > 0.003 else "RANGING" # 0.3% threshold
+        
+        # 🧠 LOBO FRONTAL (Lógica Adaptativa)
         kinetic = intel["kinetic"] if intel else 0.0
         trend_aligned = intel.get("trend_aligned", True) if intel else True
         rsi = intel.get("rsi", 50) if intel else 50
-        frontal_signal = (kinetic * 0.5 + (1 if trend_aligned else -1) * 0.5) * self.genes["frontal_weight"]
+        
+        # Se RANGING, inverte RSI para Mean Reversion (Compra Fundo, Vende Topo)
+        # Se TRENDING, segue o momento (RSI > 50 ajuda compra)
+        if market_regime == "RANGING":
+            rsi_factor = -1.0 * ((rsi - 50) / 50.0) # RSI 70 -> -0.4 (Vende)
+        else:
+            rsi_factor = 1.0 * ((rsi - 50) / 50.0)  # RSI 70 -> +0.4 (Compra)
+            
+        frontal_signal = (kinetic * 0.4 + rsi_factor * 0.6) * self.genes["frontal_weight"]
         
         # 🧠 LOBO PARIETAL (Integração de Liquidez Espacial)
         # Se o preço está perto de uma parede de liquidez (OBP alto), o sinal parietal é forte
@@ -378,7 +394,11 @@ class NomadBrain:
         self.homeostasis = max(0, min(100, 100 + (pnl_impact * 50)))
         
         # 🛡️ ESCUDO DE REALIDADE (BIO-QUANTUM SHIELD)
-        rsi_trap = (psi > 0 and rsi > 70) or (psi < 0 and rsi < 30)
+        # Em Ranging, RSI > 70 não é trap, é oportunidade de venda. Trap só em Trending.
+        rsi_trap = False
+        if market_regime == "TRENDING":
+             rsi_trap = (psi > 0 and rsi > 70) or (psi < 0 and rsi < 30)
+             
         reality_trap = (abs(z_score) > 2.8) or (not is_correlated) or (entropy > 6.0) or rsi_trap or (self.homeostasis < 40)
         
         bias = "NEUTRAL"
@@ -394,8 +414,10 @@ class NomadBrain:
         alpha = 4.0 if confidence > 92 and not reality_trap else 1.0
         if self.adrenaline > 0.7: alpha *= 1.5 
         
-        # Otimização Kelly: Ajuste dinâmico baseado na saúde da banca
-        dynamic_kelly = 0.20 + (0.10 if self.homeostasis > 85 else 0.0)
+        # Otimização Kelly: Ajuste dinâmico baseado na saúde da banca e regime
+        # Ranging permite posições maiores pois Stop Loss é técnico e curto
+        kelly_base = 0.25 if market_regime == "RANGING" else 0.15
+        dynamic_kelly = kelly_base + (0.10 if self.homeostasis > 85 else 0.0)
         self.kelly_fraction = dynamic_kelly  # Atualiza instância para uso na execução
         
         return {
@@ -448,8 +470,10 @@ async def maintain_exchange_session():
     while True:
         try:
             if exchange.apiKey:
-                await exchange.fetch_balance()
-            await asyncio.sleep(60)
+                # ⚡ ZERO-LATENCY: Cache balance every 10s
+                bal = await exchange.fetch_balance()
+                state.balance = float(bal['total']['USDT']) if 'USDT' in bal['total'] else 0.0
+            await asyncio.sleep(10)
         except:
             pass
 
@@ -519,6 +543,7 @@ class MarketState:
         # Preço e Métricas
         self.price: float = INITIAL_PRICE
         self.last_price: float = INITIAL_PRICE
+        self.balance: float = 0.0 # ⚡ CACHE DE SALDO (Zero-Latency)
         self.pnl: float = 0.0
         self.daily_pnl: float = 0.0
         self.trades: int = 0
@@ -837,30 +862,48 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
         "message": "Predator NOMAD v21.1: Física e Correlação em Sintonia."
     }
 
-# ⚡ HELPER: Gestão de Capital Auto-Compounding (Caixa Preta)
+# ⚡ HELPER: Gestão de Capital Auto-Compounding (Caixa Preta - Zero Latency)
 async def get_compounded_amount(symbol, kelly=0.20, price=None):
-    """Calcula o tamanho do lote baseado no saldo real da Binance com alavancagem."""
+    """Calcula o tamanho do lote baseado no saldo em CACHE da Binance com alavancagem."""
     try:
-        # Cache de saldo por 60 segundos para evitar Rate Limit
-        now = time.time()
-        if brain.last_balance == 0 or (now - brain.last_balance_time) > 60:
-            balance = await exchange.fetch_balance()
-            brain.last_balance = float(balance['total'].get('USDT', 0))
-            brain.last_balance_time = now
-            print(f"💰 [CAPITAL] Saldo Atualizado: ${brain.last_balance:.2f} USDT")
+        # ⚡ ZERO-LATENCY CAPITAL MANAGER
+        available_balance = state.balance
         
-        capital = brain.last_balance
-        if capital < 5: return 0 # Segurança mínima
+        # Fallback de segurança na primeira execução
+        if available_balance <= 0:
+            try:
+                bal = await exchange.fetch_balance()
+                available_balance = float(bal['total']['USDT']) if 'USDT' in bal['total'] else 0.0
+                state.balance = available_balance
+            except:
+                available_balance = 20.0 # Valor nominal de emergência
+                
+        # 🎰 APEX LEVERAGE MATRIX (10x - 20x Dinâmico)
+        leverage = 20 if state.homeostasis > 80 else 10
         
-        # Se o preço não foi passado, busca (fallback)
-        if price is None or price == 0:
+        # Otimização: Cache de alavancagem para evitar chamadas excessivas
+        if symbol not in getattr(brain, 'leverage_cache', {}):
+             if not hasattr(brain, 'leverage_cache'): brain.leverage_cache = {}
+             try:
+                 await exchange.set_leverage(leverage, symbol)
+                 brain.leverage_cache[symbol] = leverage
+             except: pass 
+            
+        # Kelly Criterion Limitado (Max 30% da banca em um trade)
+        risk_amount = available_balance * min(0.30, kelly)
+        
+        # Valor nocional com alavancagem
+        notional_value = risk_amount * leverage
+        
+        if not price:
             ticker = await exchange.fetch_ticker(symbol)
             price = ticker['last']
-        
-        # Alavancagem agressiva de 15x
-        leverage = 15
-        risk_amount = capital * kelly * leverage
-        amount = risk_amount / price
+            
+        amount = notional_value / price
+        return amount
+    except Exception as e:
+        print(f"⚠️ ERRO CALCULANDO LOTE COMPOUND: {e}")
+        return 0.001
         
         return amount
     except Exception as e:
@@ -916,6 +959,15 @@ async def execute_binance_order(payload: WebhookPayload, use_compounding=True, e
                     await exchange.create_market_order(symbol, side, abs(size), params={'reduceOnly': True})
                     print(f"✅ [BINANCE] POSIÇÃO ZERADA: {abs(size)} {symbol}")
                     await log_event_to_db("INFO", "EXECUTION", f"Posição zerada: {symbol}", {"size": size})
+        
+        # ⚡ ATUALIZAÇÃO PÓS-TRADE (Async)
+        async def refresh_balance():
+             await asyncio.sleep(1) # Espera propagação
+             try:
+                 bal = await exchange.fetch_balance()
+                 state.balance = float(bal['total']['USDT']) if 'USDT' in bal['total'] else 0.0
+             except: pass
+        asyncio.create_task(refresh_balance())
                     
     except Exception as e:
         print(f"❌ [BINANCE ERROR] Falha Crítica na Execução: {e}")

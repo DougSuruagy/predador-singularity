@@ -1,5 +1,5 @@
 /**
- * PREDATOR v21.4 APEX SCALPER - Frontend Engine
+ * PREDATOR v23.0 SENTINEL AGILITY - Frontend Engine
  * 100% CLOUD | Zero Local | Custo Zero
  * 
  * Fluxo: TradingView → Render API → Este Dashboard
