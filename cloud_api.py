@@ -42,8 +42,8 @@ def get_now_br():
 load_dotenv()
 
 app = FastAPI(
-    title="PREDATOR v21.1 - NOMAD INFINITY",
-    version="21.1.0",
+    title="PREDATOR v21.2 - APEX MUTATION",
+    version="21.2.0",
     description="A Máquina de Lucro Definitiva para o Mercado Cripto 2026"
 )
 
@@ -92,7 +92,10 @@ class NomadBrain:
         self.quantum_entropy = 0.1      # Desordem quântica
         self.synaptic_firing = 0.0      # Intensidade de sinais neurais
         self.btc_momentum = 0.0
+        self.btc_last_price = 0.0
+        self.btc_last_fetch = 0.0
         self.kelly_fraction = 0.20
+        self.leverage_cache = {} 
 
     async def scan_market(self):
         best_opportunity = None
@@ -115,8 +118,15 @@ class NomadBrain:
             candidates.sort(key=lambda x: x[1], reverse=True)
             discovery = [c[0] for c in candidates[:10]]
             
+            # [PERFORMANCE-BOOST] Fetch BTC once for all symbols in this scan
+            btc_intel = await exchange.fetch_ohlcv('BTC/USDT', timeframe='1m', limit=10)
+            btc_closes = [c[4] for c in btc_intel]
+            self.btc_momentum = (btc_closes[-1] - btc_closes[0]) / btc_closes[0]
+            self.btc_last_price = btc_closes[-1]
+            self.btc_last_fetch = time.time()
+            
             # Escaneamento Paralelo Bio-Sincronizado
-            tasks = [self.fetch_god_intelligence(symbol) for symbol in discovery]
+            tasks = [self.fetch_god_intelligence(symbol, btc_provided=True) for symbol in discovery]
             results = await asyncio.gather(*tasks)
             
             for intel in results:
@@ -161,26 +171,34 @@ class NomadBrain:
         
         print(f"🧬 [MUTATION] Genes Evoluídos: {self.genes}")
 
-    async def fetch_god_intelligence(self, symbol):
+    async def fetch_god_intelligence(self, symbol, btc_provided=False):
         """Busca dados de alta fidelidade e retorna métricas puras."""
         try:
             target = f"{symbol}/USDT" if "/" not in symbol else symbol
             # ⚓ ÂNCORA BTC + ATIVO ALVO PARALELIZADO
-            # Busca ampliada para cálculos de RSI e Médias Móveis (30 candles)
-            tasks = [
-                exchange.fetch_ohlcv('BTC/USDT', timeframe='1m', limit=10),
-                exchange.fetch_order_book(target, limit=10),
-                exchange.fetch_ohlcv(target, timeframe='1m', limit=30),
-                exchange.fetch_ohlcv(target, timeframe='5m', limit=10)
-            ]
+            # Otimização: Se BTC já foi buscado no loop de scan, evita a chamada repetida
+            if not btc_provided:
+                tasks = [
+                    exchange.fetch_ohlcv('BTC/USDT', timeframe='1m', limit=10),
+                    exchange.fetch_order_book(target, limit=10),
+                    exchange.fetch_ohlcv(target, timeframe='1m', limit=30),
+                    exchange.fetch_ohlcv(target, timeframe='5m', limit=10)
+                ]
+            else:
+                tasks = [
+                    asyncio.sleep(0), # Placeholder
+                    exchange.fetch_order_book(target, limit=10),
+                    exchange.fetch_ohlcv(target, timeframe='1m', limit=30),
+                    exchange.fetch_ohlcv(target, timeframe='5m', limit=10)
+                ]
+            
             results = await asyncio.gather(*tasks)
             
-            # ⚓ ÂNCORA BTC
-            btc_ohlcv = results[0]
-            btc_closes = [c[4] for c in btc_ohlcv]
-            btc_momentum = (btc_closes[-1] - btc_closes[0]) / btc_closes[0]
-            self.btc_last_price = btc_closes[-1]
-            self.btc_momentum = btc_momentum
+            if not btc_provided:
+                btc_ohlcv = results[0]
+                btc_closes = [c[4] for c in btc_ohlcv]
+                self.btc_momentum = (btc_closes[-1] - btc_closes[0]) / btc_closes[0]
+                self.btc_last_price = btc_closes[-1]
             
             # 📊 ATIVO ALVO
             ob = results[1]
@@ -287,12 +305,15 @@ class NomadBrain:
         alpha = 4.0 if confidence > 92 and not reality_trap else 1.0
         if self.adrenaline > 0.7: alpha *= 1.5 
         
+        # Otimização Kelly: Se banca está saudável (Homeostasis), arrisca mais para rendimento ICP
+        kelly = 0.20 + (0.10 if self.homeostasis > 85 else 0.0)
+        
         return {
             "score": confidence,
             "bias": bias,
             "trap": reality_trap,
             "alpha": alpha,
-            "kelly": 0.20,
+            "kelly": kelly,
             "physics": kinetic,
             "z_score": z_score,
             "obp": obp,
@@ -744,10 +765,14 @@ async def execute_binance_order(payload: WebhookPayload):
         
         print(f"🚀 [BINANCE] Processando {action} {amount} {symbol}...")
         
-        # Tenta ajustar alavancagem do símbolo antes da ordem (Performance e Segurança)
-        try:
-            await exchange.set_leverage(15, symbol) # Alavancagem agressiva para banca de R$ 100
-        except: pass
+        # [PERFORMANCE-BOOST] Caching de Alavancagem para evitar chamadas de rede redundantes
+        target_lev = 15
+        if symbol not in brain.leverage_cache or brain.leverage_cache[symbol] != target_lev:
+            try:
+                await exchange.set_leverage(target_lev, symbol)
+                brain.leverage_cache[symbol] = target_lev
+                print(f"⚡ [LEVERAGE] {symbol} definido para {target_lev}x")
+            except: pass
 
         if action == "BUY":
             await exchange.create_market_buy_order(symbol, amount)

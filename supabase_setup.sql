@@ -61,7 +61,7 @@ AS $$
 BEGIN
   INSERT INTO public.daily_stats (date, total_trades, wins, losses, total_pnl)
   VALUES (
-    CURRENT_DATE,
+    (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date,
     1,
     CASE WHEN NEW.result = 'WIN' THEN 1 ELSE 0 END,
     CASE WHEN NEW.result = 'LOSS' THEN 1 ELSE 0 END,

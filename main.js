@@ -130,16 +130,19 @@ async function syncDashboard() {
         isOnline = false;
 
         if (DOM.statusPill) {
+            const statusText = syncErrors < 10 && syncErrors > 0
+                ? `WAKING UP THE BEAST... (booting ${syncErrors})`
+                : `CLOUD: OFFLINE (retry ${syncErrors})`;
+
             DOM.statusPill.innerHTML = `
                 <div style="background:var(--neon-pink)" class="dot"></div> 
-                CLOUD: OFFLINE (retry ${syncErrors})
+                ${statusText}
             `;
         }
 
-        // Retry mais lento se muitos erros
-        if (syncErrors > 5) {
-            await new Promise(r => setTimeout(r, 2000));
-        }
+        // Retry mais lento se muitos erros (evitar spam enquanto boota)
+        const delay = syncErrors < 10 ? 1000 : 3000;
+        await new Promise(r => setTimeout(r, delay));
     }
 }
 
