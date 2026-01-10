@@ -42,9 +42,9 @@ def get_now_br():
 load_dotenv()
 
 app = FastAPI(
-    title="PREDATOR v21.3 - APEX PROGENY",
-    version="21.3.0",
-    description="A Máquina de Lucro Definitiva para o Mercado Cripto 2026"
+    title="PREDATOR v21.4 - APEX SCALPER",
+    version="21.4.0",
+    description="A Máquina de Lucro Definitiva para o Mercado Cripto 2026 - Scalper Edition"
 )
 
 # ============================================================
@@ -88,8 +88,32 @@ class NomadBrain:
         self.btc_last_fetch = 0.0
         self.kelly_fraction = 0.20
         self.leverage_cache = {} 
-        self.last_balance = 0.0
-        self.last_balance_time = 0.0
+        # 📈 SCALPER MEMORY (Performance Tracking)
+        self.recent_trades = []  # [{"result": "WIN/LOSS", "pnl": float, "symbol": str}]
+        self.scalper_win_streak = 0
+        self.scalper_loss_streak = 0
+        self.adaptive_aggression = 1.0  # Multiplica risco quando ganhando
+        self.last_trade_time = 0
+        self.positions = {}  # {"BTCUSDT": {"side": "long", "entry": 50000, "tp": 50500, "sl": 49500}}
+        
+    def record_trade_result(self, result: str, pnl: float, symbol: str):
+        """Registra resultado do trade para adaptação de estratégia."""
+        self.recent_trades.append({"result": result, "pnl": pnl, "symbol": symbol, "time": time.time()})
+        if len(self.recent_trades) > 50:
+            self.recent_trades = self.recent_trades[-50:]
+        
+        if result == "WIN":
+            self.scalper_win_streak += 1
+            self.scalper_loss_streak = 0
+            self.adaptive_aggression = min(2.0, 1.0 + (self.scalper_win_streak * 0.1))
+            self.mutate(success=True)
+        else:
+            self.scalper_loss_streak += 1
+            self.scalper_win_streak = 0
+            self.adaptive_aggression = max(0.5, 1.0 - (self.scalper_loss_streak * 0.15))
+            self.mutate(success=False)
+        
+        print(f"🎯 [SCALPER] Resultado: {result} | Agressão: {self.adaptive_aggression:.2f}x | Streak: W{self.scalper_win_streak}/L{self.scalper_loss_streak}")
 
     async def scan_market(self):
         best_opportunity = None
@@ -125,8 +149,18 @@ class NomadBrain:
             
             for intel in results:
                 if not intel: continue
-                # Score Neural: OBP + Cinética + RSI
-                score = (abs(intel["obp"]) * 50) + (intel["kinetic"] * 50)
+                # 🎯 SCALPER SCORE: Volume Spike + Momentum + OBP + RSI Divergence
+                volume_weight = 1.5 if intel.get("volume_spike", False) else 1.0
+                divergence_bonus = 20 if intel.get("divergence", False) else 0
+                mtf_bonus = intel.get("mtf_confluence", 0) * 10  # Multi-Timeframe
+                
+                score = (
+                    (abs(intel["obp"]) * 40 * volume_weight) + 
+                    (intel["kinetic"] * 30) + 
+                    divergence_bonus +
+                    mtf_bonus
+                )
+                
                 if score > highest_score:
                     highest_score = score
                     best_opportunity = intel["symbol"]
@@ -233,6 +267,52 @@ class NomadBrain:
             std = math.sqrt(sum((x - mean)**2 for x in closes) / len(closes))
             z_score = (closes[-1] - mean) / (std if std > 0 else 1)
             
+            # ═══════════════════════════════════════════════════════════
+            # 🎯 SCALPER 2026 - INDICADORES AVANÇADOS
+            # ═══════════════════════════════════════════════════════════
+            
+            # 4. ATR (Average True Range) - Para Stop Loss / Take Profit dinâmicos
+            highs = [c[2] for c in ohlcv[-14:]]
+            lows = [c[3] for c in ohlcv[-14:]]
+            trs = [highs[i] - lows[i] for i in range(len(highs))]
+            atr = sum(trs) / len(trs) if trs else 0
+            
+            # 5. Volume Spike Detection (Volume atual vs média)
+            volumes = [c[5] for c in ohlcv]
+            avg_volume = sum(volumes[:-1]) / len(volumes[:-1]) if len(volumes) > 1 else 1
+            current_volume = volumes[-1]
+            volume_spike = current_volume > (avg_volume * 1.8)  # 80% acima da média
+            volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1
+            
+            # 6. RSI Divergence Detection (Preço faz novo high/low, RSI não)
+            price_making_high = closes[-1] > max(closes[-5:-1]) if len(closes) > 5 else False
+            price_making_low = closes[-1] < min(closes[-5:-1]) if len(closes) > 5 else False
+            
+            # RSI histórico simplificado
+            rsi_prev = 50  # Placeholder simplificado
+            if len(deltas) > 20:
+                prev_gains = [d if d > 0 else 0 for d in deltas[-20:-14]]
+                prev_losses = [-d if d < 0 else 0 for d in deltas[-20:-14]]
+                prev_rs = (sum(prev_gains)/6) / (sum(prev_losses)/6 + 0.00001)
+                rsi_prev = 100 - (100 / (1 + prev_rs))
+            
+            bearish_divergence = price_making_high and rsi < rsi_prev
+            bullish_divergence = price_making_low and rsi > rsi_prev
+            divergence = bearish_divergence or bullish_divergence
+            
+            # 7. Multi-Timeframe Confluence (1m + 5m concordando)
+            trend_1m = 1 if vel_1m > 0 else -1
+            trend_5m = 1 if vel_5m > 0 else -1
+            mtf_confluence = 2 if trend_1m == trend_5m else 0
+            
+            # 8. Scalper Entry Quality Score
+            scalper_score = (
+                (volume_ratio * 10) +
+                (20 if divergence else 0) +
+                (mtf_confluence * 15) +
+                (abs(obp) * 30)
+            )
+            
             return {
                 "obp": obp, 
                 "kinetic": kinetic, 
@@ -241,7 +321,19 @@ class NomadBrain:
                 "btc_corr": self.btc_momentum,
                 "price": closes[-1],
                 "rsi": rsi,
-                "trend_aligned": trend_aligned
+                "trend_aligned": trend_aligned,
+                # 🎯 SCALPER METRICS
+                "atr": atr,
+                "volume_spike": volume_spike,
+                "volume_ratio": volume_ratio,
+                "divergence": divergence,
+                "bearish_div": bearish_divergence,
+                "bullish_div": bullish_divergence,
+                "mtf_confluence": mtf_confluence,
+                "scalper_score": scalper_score,
+                # Dynamic SL/TP based on ATR
+                "suggested_sl": atr * 1.5,
+                "suggested_tp": atr * 2.5
             }
             
         except Exception as e:
@@ -1142,14 +1234,21 @@ async def autonomous_hunter_loop():
                                 "z_score": intel.get("z_score", 0),
                                 "obp_score": intel.get("obp", 0),
                                 "btc_momentum": intel.get("btc_corr", 0),
-                                "is_correlated": report["correlation"] == "SYNCED"
+                                "is_correlated": report["correlation"] == "SYNCED",
+                                "metadata": {
+                                    "atr": intel.get("atr"),
+                                    "volume_spike": intel.get("volume_spike"),
+                                    "divergence": intel.get("divergence"),
+                                    "mtf_confluence": intel.get("mtf_confluence"),
+                                    "scalper_score": intel.get("scalper_score")
+                                }
                             }).execute()
-                            print(f"💾 [SUPABASE] Trade registrado: {action} {symbol}")
+                            print(f"💾 [SUPABASE] Trade registrado: {action} {symbol} | Scalper Score: {intel.get('scalper_score', 0):.1f}")
                         except Exception as db_err:
                             print(f"⚠️ [DB-TRADE-ERROR] {db_err}")
             
-            # Intervalo de scan (Alta Frequência mas respeitando limites de API)
-            await asyncio.sleep(10) 
+            # Intervalo de scan (Alta Frequência: 3s para Scalping Agressivo)
+            await asyncio.sleep(3) 
         except Exception as e:
             print(f"📡 [HUNTER-ERROR] {e}")
             await asyncio.sleep(30)
