@@ -149,6 +149,25 @@ async function syncDashboard() {
     }
 }
 
+async function syncSupervisor() {
+    try {
+        const response = await fetch('/api/supervisor');
+        if (response.ok) {
+            const data = await response.json();
+            console.log("🛡️ SUPERVISOR REPORT:", data);
+
+            if (DOM.statusPill) {
+                const existing = DOM.statusPill.innerHTML;
+                if (!existing.includes('🛡️')) {
+                    DOM.statusPill.innerHTML += ` <span style="color:var(--neon-blue)">🛡️ SUP: ${data.ai_recommendation}</span>`;
+                }
+            }
+        }
+    } catch (e) {
+        console.warn("Supervisor silent.");
+    }
+}
+
 // ============================================================
 // UPDATE UI - Atualização Visual
 // ============================================================
@@ -288,7 +307,7 @@ function updateUI(data) {
 // INICIAR ENGINE
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🦅 PREDATOR v21.1 | NOMAD-INFINITY ENGINE");
+    console.log("🦅 PREDATOR v21.2 | APEX MUTATION");
     console.log(`📡 API: ${CONFIG.API_URL}`);
 
     initDOM();
@@ -299,7 +318,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Loop de alta frequência
     setInterval(syncDashboard, CONFIG.SYNC_INTERVAL_MS);
 
-    console.log("✅ PREDATOR v13.0 | CLOUD SYSTEMS ONLINE");
+    // Supervisor a cada 30 segundos (Serverless economiza)
+    setInterval(syncSupervisor, 30000);
+    syncSupervisor();
+
+    console.log("✅ PREDATOR v21.2 | CLOUD SYSTEMS ONLINE");
 });
 
 // ============================================================

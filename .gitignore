@@ -9,4 +9,6 @@ __pycache__/
 *.json
 !package.json
 !package-lock.json
+!vercel.json
+!render.yaml
 binary/
