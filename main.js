@@ -96,6 +96,9 @@ function initDOM() {
     DOM.entropyVal = document.getElementById('entropy-val');
     DOM.corrVal = document.getElementById('corr-val');
     DOM.hunterPill = document.getElementById('hunter-pill');
+    DOM.homeostasisVal = document.getElementById('homeostasis-val');
+    DOM.adrenalineVal = document.getElementById('adrenaline-val');
+    DOM.firingVal = document.getElementById('firing-val');
 
     // Iniciar Gráfico
     initChart();
@@ -238,8 +241,19 @@ function updateUI(data) {
         DOM.hunterPill.style.borderColor = hunting ? 'var(--neon-purple)' : 'var(--text-dim)';
     }
 
-    if (DOM.assetSymbol && data.last_order) {
+    if (DOM.assetSymbol && data.last_order && data.last_order.symbol) {
         DOM.assetSymbol.innerText = `${data.last_order.symbol} • NOMAD-INFINITY HUNTER`;
+    }
+
+    // Neuro-Biometrics
+    if (DOM.homeostasisVal) {
+        DOM.homeostasisVal.style.width = `${data.homeostasis || 100}%`;
+    }
+    if (DOM.adrenalineVal) {
+        DOM.adrenalineVal.style.width = `${(data.adrenaline || 0) * 100}%`;
+    }
+    if (DOM.firingVal) {
+        DOM.firingVal.innerText = `${(data.synaptic_firing || 0).toFixed(0)}Hz`;
     }
 
     // Status e Escudo APEX V16.0
