@@ -634,20 +634,20 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v37.0] ASCENSION: Calibração Final por Classe de Ativo
+        # [v38.0] TRINITY: Sincronização Final BTC/ETH/SOL
         is_major = any(m in (intel.get("symbol", "") or "") for m in ["BTC", "ETH"])
         
-        # [v37] BTC/ETH precisam de sensibilidade (0.22) vs SOL (0.32)
-        base_cons = 0.22 if is_major else 0.32
-        consensus_threshold = (base_cons + 0.06) if self.global_consciousness < 0.6 else base_cons
+        # [v38] Thresholds sob medida (BTC 0.15 vs SOL 0.32)
+        base_cons = 0.15 if is_major else 0.32
+        consensus_threshold = (base_cons + 0.05) if self.global_consciousness < 0.6 else base_cons
         
-        # Filtro de Volatilidade Específico (Majors: 3bp vs Mid: 6bp)
+        # Filtro de Volatilidade (Majors 2bp vs Mid 6bp)
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_floor = 0.0003 if is_major else 0.0006
+        vol_floor = 0.0002 if is_major else 0.0006
         vol_check = (atr / (price + 0.000001)) > vol_floor
         
-        # Filtro de Inércia [v37.0]
+        # Filtro de Inércia [v38.0]
         self.psi_history.append(psi)
         if len(self.psi_history) > 3: self.psi_history.pop(0)
         avg_psi = sum(self.psi_history) / len(self.psi_history)
@@ -656,7 +656,7 @@ class NomadBrain:
         bias = "NEUTRAL"
         if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
             bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
-        
+       
         # SINAPSE: Intensidade do disparo neural
         self.synaptic_firing = (abs(psi) * 100)
         confidence = min(100, self.synaptic_firing * (0.4 if not is_correlated else 1.0))
@@ -1124,7 +1124,7 @@ async def tradingview_webhook(payload: WebhookPayload, auth: None = Depends(sove
     # [SEGURANÇA] Validação de POSIÇÃO ZERO (Zero Overnight)
     if now.hour > POSICAO_ZERO_HOUR or (now.hour == POSICAO_ZERO_HOUR and now.minute >= POSICAO_ZERO_MIN):
         return {
-            "status": "REJECTED",
+            "status": "REJECTED", 
             "reason": "POSICAO_ZERO_PROTOCOL",
             "message": f"Fim de Pregão ({POSICAO_ZERO_HOUR}:{POSICAO_ZERO_MIN:02d}). Posições Fechadas.",
             "time": now.strftime("%H:%M:%S")
@@ -1732,18 +1732,19 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v37.0: Ascension Strike (Score > 55)
-                if report["bias"] != "NEUTRAL" and report["score"] > 55:
+                # Gatilho v38.0: Trinity Dynamic
+                # Sincroniza o Score com o Threshold para evitar filtragem dupla indesejada
+                sig_threshold = 15 if symbol in ["BTCUSDT", "ETHUSDT"] else 32
+                if report["bias"] != "NEUTRAL" and report["score"] > sig_threshold:
                     is_sol = symbol in ["SOLUSDT", "PEPEUSDT"]
                     is_major = symbol in ["BTCUSDT", "ETHUSDT"]
                     
-                    # RRR Sincronizado (v37)
+                    # RRR Trinity (Foco em Dominância)
                     sl_mult = 1.6 if is_sol else 1.3
                     tp_mult = 5.2 if is_sol else 3.8 
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
-                    
                     sl = close - sl_dist if report["bias"] == "GOD_LONG" else close + sl_dist
                     tp = close + tp_dist if report["bias"] == "GOD_LONG" else close - tp_dist
                     position = {"entry": close, "type": "long" if report["bias"] == "GOD_LONG" else "short", "sl": sl, "tp": tp, "time": timestamp}
