@@ -104,38 +104,47 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v190.0 "SCALPER-SOUL"
-    # Foco: Alta frequência, lucros rápidos na exaustão.
+    # 🧬 MASTER LOGIC v200.0 "QUANTUM SCALPER"
+    # Objetivo: Lucro Líquido Real (Net Profit) em Bybit Fees (0.06% round trip)
+    fee_round_trip = 0.08 # % total
+    
     if intel["is_compressed"]:
-        # Floor de Volatilidade reduzido para Scalping (0.25%)
-        # Mas exige Volume Intensity alto (> 1.5)
-        if intel["bb_width"] < 0.25:
-             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Dead Zone"}
+        # Filtro de Rentabilidade Real: BB_Width deve ser > 3x as taxas para valer o risco
+        # Movimento esperado é ~ bb_width / 2 (para a média)
+        expected_move = intel["bb_width"] / 2
+        if expected_move < (fee_round_trip * 2.5):
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Fee Trap Zone"}
 
-        # Exaustão RSI (Nível primário de scalper)
-        rsi_oversold = intel["rsi"] < 28
-        rsi_overbought = intel["rsi"] > 72
+        # Wick Rejection (Pin-bar) - Mais estrito que v190
+        candle_range = highs[-1] - lows[-1]
+        body_size = abs(closes[-1] - payload.ohlcv[-1][1])
+        body_ratio = (body_size / candle_range) if candle_range > 0 else 1.0
         
-        # Volume Shock (Nível secundário)
-        strong_flow = intel["vol_intensity"] > 1.8
+        # Filtro de Pin-bar Institucional
+        wick_rejection = 0.45 if "SOL" not in payload.symbol.upper() else 0.55
+        is_pin_bar = body_ratio < 0.40 # Corpo pequeno
         
-        if (intel["touch_low"] and rsi_oversold) or (rsi_oversold and strong_flow):
-            bias = "GOD_LONG"; score = 95
-        elif (intel["touch_high"] and rsi_overbought) or (rsi_overbought and strong_flow):
-            bias = "GOD_SHORT"; score = 95
+        rejection_low = (closes[-1] > lows[-1] + (candle_range * wick_rejection)) and is_pin_bar
+        rejection_high = (closes[-1] < highs[-1] - (candle_range * wick_rejection)) and is_pin_bar
+
+        # Scalper Triggers
+        if intel["touch_low"] and rejection_low and intel["rsi"] < 32: 
+            bias = "GOD_LONG"; score = 98
+        elif intel["touch_high"] and rejection_high and intel["rsi"] > 68: 
+            bias = "GOD_SHORT"; score = 98
             
     else:
-        # TREND SCALPING: Segue o fluxo se a PSI for explosiva
-        if abs(intel["psi"]) > 0.25 and intel["vol_intensity"] > 2.0: 
+        # TREND SCALPING (PSI + Volume)
+        if abs(intel["psi"]) > 0.28 and intel["vol_intensity"] > 2.2: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 90
+            score = 92
             
-    # Filtro de Divergência (Hard Reject para Scalper)
+    # Filtro de Divergência
     if intel["divergence"]: score = 0 
             
     decision = "EXECUTE" if score >= 85 else "REJECT"
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "version": "190.0-SCALPER"
+        "version": "200.0-QUANTUM"
     }

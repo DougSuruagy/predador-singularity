@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "190.0-SCALPER-SOUL",
+            "version": "200.0-QUANTUM-SCALPER",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -201,7 +201,7 @@ async def get_state(x_token: str = Header(None)):
 
 @app.get("/health")
 async def health():
-    return {"status": "alive", "version": "180.0"}
+    return {"status": "alive", "version": "200.0"}
 
 @app.get("/")
 async def root():
@@ -211,39 +211,39 @@ async def root():
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v190.0 SCALPER """
+    """ [BTC/ETH] SINGULARITY APEX - v200.0 QUANTUM """
     if is_compressed:
         return {
             "threshold": 0.08, 
-            "min_score": 85,  
-            "sl_mult": 1.0,   # Scalper Stop
-            "tp_mult": 1.5,   # Rapid Target
-            "leverage": 8,    
+            "min_score": 88,  
+            "sl_mult": 1.0,   
+            "tp_mult": 1.8,   # RRR 1:1.8
+            "leverage": 10,    # Scalper Overclock
             "shadow_trail": False
         }
     
     return {
-        "threshold": 0.20, 
+        "threshold": 0.22, 
         "min_score": 75, 
         "sl_mult": 1.5,
-        "tp_mult": 6.0,   
-        "leverage": 15,   
+        "tp_mult": 6.5,   
+        "leverage": 18,   
         "shadow_trail": True
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v190.0 SCALPER """
+    """ [SOL] SNIPER v200.0 QUANTUM """
     if is_compressed:
         return {
             "threshold": 0.10,
-            "min_score": 85,
+            "min_score": 90,
             "sl_mult": 1.2,
-            "tp_mult": 1.8, 
+            "tp_mult": 2.2, 
             "leverage": 6, 
             "shadow_trail": False
         }
     return {
-        "threshold": 0.25,
+        "threshold": 0.28,
         "min_score": 75,
         "sl_mult": 2.0,
         "tp_mult": 6.0,
@@ -305,31 +305,33 @@ async def run_strategy(symbol, mode):
             print(f"⚠️ [BRAIN FAILOVER] Vercel offline ou lento, usando Local Core: {e}")
 
     # 🧬 LOCAL FALLBACK (Se o Vercel falhar)
-    if not intel:
-        intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
-        if not intel: return
+    if not brain: return
+    intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
+    if not intel: return
+    
+    # 🕒 QUANTUM SCALPER v200.0 (Filtro Fee-Aware)
+    if intel["is_compressed"]:
+        if (intel["bb_width"] / 2) < 0.22: return # Expected move < 2.5x Fee
         
-        # 🕒 SCALPER SOUL v190.0 (Filtro de Exaustão)
-        if intel["is_compressed"] and intel["bb_width"] < 0.25: return
+        candle_range = ohlcv[-1][2] - ohlcv[-1][3]
+        body_size = abs(ohlcv[-1][4] - ohlcv[-1][1])
+        body_ratio = (body_size / candle_range) if candle_range > 0 else 1.0
         
-        if intel["is_compressed"]:
-            # Exaustão RSI (Nível primário de scalper)
-            rsi_oversold = intel["rsi"] < 28
-            rsi_overbought = intel["rsi"] > 72
-            strong_flow = intel["vol_intensity"] > 1.8
-            
-            if (intel["touch_low"] and rsi_oversold) or (rsi_oversold and strong_flow):
-                bias = "GOD_LONG"; score = 95
-            elif (intel["touch_high"] and rsi_overbought) or (rsi_overbought and strong_flow):
-                bias = "GOD_SHORT"; score = 95
-        else:
-            if abs(intel["psi"]) > 0.25 and intel["vol_intensity"] > 2.0:
-                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 90
+        pin_rejection = 0.45 if "SOL" not in symbol else 0.55
+        is_pin = body_ratio < 0.40
         
-        if intel["divergence"]: score = 0 
+        if intel["touch_low"] and (ohlcv[-1][4] > ohlcv[-1][3] + (candle_range * pin_rejection)) and is_pin and intel["rsi"] < 32:
+            bias = "GOD_LONG"; score = 98
+        elif intel["touch_high"] and (ohlcv[-1][4] < ohlcv[-1][2] - (candle_range * pin_rejection)) and is_pin and intel["rsi"] > 68:
+            bias = "GOD_SHORT"; score = 98
+    else:
+        if abs(intel["psi"]) > 0.28 and intel["vol_intensity"] > 2.2:
+            bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+            score = 92
+    
+    if intel["divergence"]: score = 0 
 
-        decision = "EXECUTE" if score >= 85 else "REJECT"
+    decision = "EXECUTE" if score >= 85 else "REJECT"
 
     engine_state.last_score = score
     
@@ -406,22 +408,23 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v190.0 "SCALPER-SOUL"
-        if intel["is_compressed"] and intel["bb_width"] < 0.25: i += 1; continue
-        
+        # 🧬 NEURAL SIMULATION v200.0 "QUANTUM SCALPER"
         if intel["is_compressed"]:
-            rsi_oversold = intel["rsi"] < 28
-            rsi_overbought = intel["rsi"] > 72
-            strong_flow = intel["vol_intensity"] > 1.8
+            if (intel["bb_width"] / 2) < 0.22: i += 1; continue
             
-            if (intel["touch_low"] and rsi_oversold) or (rsi_oversold and strong_flow):
-                bias = "GOD_LONG"; score = 95
-            elif (intel["touch_high"] and rsi_overbought) or (rsi_overbought and strong_flow):
-                bias = "GOD_SHORT"; score = 95
+            candle_range = ohlcv[i][2] - ohlcv[i][3]
+            body_size = abs(ohlcv[i][4] - ohlcv[i][1])
+            is_pin = (body_size / candle_range) < 0.40 if candle_range > 0 else False
+            pin_rejection = 0.45 if "SOL" not in symbol else 0.55
+            
+            if intel["touch_low"] and (ohlcv[i][4] > ohlcv[i][3] + (candle_range * pin_rejection)) and is_pin and intel["rsi"] < 32:
+                bias = "GOD_LONG"; score = 98
+            elif intel["touch_high"] and (ohlcv[i][4] < ohlcv[i][2] - (candle_range * pin_rejection)) and is_pin and intel["rsi"] > 68:
+                bias = "GOD_SHORT"; score = 98
         else:
-            if abs(intel["psi"]) > 0.25 and intel["vol_intensity"] > 2.0:
+            if abs(intel["psi"]) > 0.28 and intel["vol_intensity"] > 2.2:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 90
+                score = 92
         
         if intel["divergence"]: score = 0
             
