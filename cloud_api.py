@@ -76,9 +76,11 @@ class EngineState:
 
     def get_stats(self):
         return {
+            "version": "57.0-BIO-SAFETY",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
+            "wins": self.wins,
             "mode": self.mode,
             "bio": self.get_bio_metrics(),
             "kill_switch_active": self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
@@ -137,7 +139,8 @@ exchange = ccxt.bybit({'apiKey': os.environ.get('BYBIT_API_KEY'), 'secret': os.e
 
 @app.on_event("startup")
 async def startup_event():
-    print("🔋 [VALHALLA SUPREME] FUSÃO DINÂMICA INICIADA.")
+    print("🔋 [v57.0 BIO-SAFETY] NEURAL CORE INICIADO.")
+    print(f"🛡️ Homeostase: Loss Limit {engine_state.MAX_DAILY_LOSS}% | Profit Limit {engine_state.MAX_DAILY_PROFIT}%")
     asyncio.create_task(exchange.load_markets())
     asyncio.create_task(autonomous_hunter_loop())
 
