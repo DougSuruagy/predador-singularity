@@ -129,25 +129,25 @@ def get_supreme_config(symbol, is_trending):
     Trending (True) -> Valhalla (0.22) -> Agressivo
     Chop (False) -> Iron (0.35) -> Defensivo
     """
-    threshold = 0.22 if is_trending else 0.35 # O Pulso do Gato
+    threshold = 0.22 if is_trending else 0.30 # Reduzido de 0.35 (Mais agressivo)
     
     return {
         "threshold": threshold,
-        "min_score": 55 if is_trending else 60, # Mais frequente no lateral (Era 65)
-        "sl_mult": 1.8, # Padrão Valhalla
-        "tp_mult": 5.5 if is_trending else 2.5, # Iron: Profit curto para garantir caixa
+        "min_score": 55 if is_trending else 60,
+        "sl_mult": 1.8,
+        "tp_mult": 5.5 if is_trending else 2.5,
         "leverage": 10
     }
 
 def get_sniper_config(symbol):
-    """ [SOL] Junior Sniper v1.2Aggro """
+    """ [SOL] Junior Sniper v1.3Aggro """
     return {
         "min_score": 75,
         "sl_mult": 1.0,
-        "tp_mult": 1.5,
+        "tp_mult": 2.2, # Aumentado de 1.5 para bater as taxas
         "leverage": 5,
-        "rsi_long": 25, # Expandido de 20 para pegar reversões antes
-        "rsi_short": 75 # Expandido de 80
+        "rsi_long": 25,
+        "rsi_short": 75
     }
 
 async def autonomous_hunter_loop():
@@ -184,8 +184,12 @@ async def run_strategy(symbol, mode):
             score = 60 + (abs(intel["psi"]) * 10)
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
         
-        # Filtro RSI Blindado
-        if (bias == "GOD_LONG" and intel["rsi"] > 70) or (bias == "GOD_SHORT" and intel["rsi"] < 30): score = 0
+        # Filtro RSI Blindado (Adaptativo)
+        rsi_limit_high = 80 if intel["trend_strong"] else 70
+        rsi_limit_low = 20 if intel["trend_strong"] else 30
+        
+        if (bias == "GOD_LONG" and intel["rsi"] > rsi_limit_high) or (bias == "GOD_SHORT" and intel["rsi"] < rsi_limit_low): 
+            score = 0
         
     elif mode == "SNIPER":
         config = get_sniper_config(symbol)
@@ -244,7 +248,9 @@ async def run_backtest(payload: WebhookPayload):
             if abs(intel["psi"]) > config["threshold"]: 
                 score = 60 + (abs(intel["psi"])*10)
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            if (bias == "GOD_LONG" and intel["rsi"] > 70) or (bias == "GOD_SHORT" and intel["rsi"] < 30): score = 0
+            rsi_limit_high = 80 if intel["trend_strong"] else 70
+            rsi_limit_low = 20 if intel["trend_strong"] else 30
+            if (bias == "GOD_LONG" and intel["rsi"] > rsi_limit_high) or (bias == "GOD_SHORT" and intel["rsi"] < rsi_limit_low): score = 0
             
         elif mode == "SNIPER":
             config = get_sniper_config(symbol)
