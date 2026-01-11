@@ -1,12 +1,14 @@
-# PREDATOR v23.0 SENTINEL AGILITY - Dependencies
-# Render.com Compatible - Unpinned for Binary Wheel Support
-# Foco: Evitar compilação Rust (os error 30)
+# PREDATOR v25.0 SOVEREIGN ENGINE - Dependencies
+# Render.com Optimized Performance Stack
 
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
+gunicorn>=21.2.0
+httpx>=0.27.0
 pydantic>=2.7.0
 python-multipart
 supabase>=2.4.0
 ccxt>=4.3.0
 python-dotenv
 requests
+psutil

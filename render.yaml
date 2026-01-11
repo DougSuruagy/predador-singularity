@@ -1,5 +1,5 @@
-# PREDATOR v21.2 APEX MUTATION - Render Blueprint
-# Custo Zero | Deploy Automático
+# PREDATOR v25.0 SOVEREIGN ENGINE - Render Blueprint
+# Optimized for High-Concurrency & Power Backend
 
 services:
   - type: web
@@ -8,10 +8,14 @@ services:
     region: oregon
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn cloud_api:app --host 0.0.0.0 --port $PORT
+    # Usando Gunicorn com workers Uvicorn para potência real de backend
+    # -w 2 para manter uso de RAM dentro dos 512MB do plano Free
+    startCommand: gunicorn -w 2 -k uvicorn.workers.UvicornWorker cloud_api:app --bind 0.0.0.0:$PORT --timeout 120
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
       - key: TZ
         value: "America/Sao_Paulo"
+      - key: WEB_CONCURRENCY
+        value: "2"

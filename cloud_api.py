@@ -27,6 +27,9 @@ from dotenv import load_dotenv
 import asyncio
 import time
 import math
+import psutil
+import httpx
+from contextlib import asynccontextmanager
 
 # ============================================================
 # ⚙️ GLOBAL UTILS & TIMEZONE (Fix: Douglas -03:00)
@@ -49,11 +52,80 @@ def bybit_normalize_symbol(symbol: str) -> str:
 # Carregar variáveis de ambiente locais (.env) se existirem
 load_dotenv()
 
+# ============================================================
+# ⚡ ENGINE STATE & METRICS (Backend Potency)
+# ============================================================
+class EngineState:
+    def __init__(self):
+        self.uptime_start = time.time()
+        self.neural_tps = 0           # Trades Per Second
+        self.api_latency_ms = 0       # Média de latência de rede
+        self.cpu_usage = 0            # Uso de CPU local
+        self.ram_usage = 0            # Uso de RAM local
+        self.requests_handled = 0
+        self.errors_logged = 0
+        self.last_neural_pulse = time.time()
+
+    def get_stats(self):
+        process = psutil.Process(os.getpid())
+        self.cpu_usage = psutil.cpu_percent()
+        self.ram_usage = process.memory_info().rss / (1024 * 1024) # MB
+        uptime = time.time() - self.uptime_start
+        return {
+            "uptime_sec": int(uptime),
+            "cpu_percent": self.cpu_usage,
+            "ram_mb": round(self.ram_usage, 2),
+            "requests_total": self.requests_handled,
+            "latency_avg_ms": round(self.api_latency_ms, 1),
+            "pulse_rate_hz": round(1.0 / max(0.001, time.time() - self.last_neural_pulse), 2)
+        }
+
+engine_state = EngineState()
+
+# ============================================================
+# 🚀 LIFESPAN MANAGER (FastAPI 2026)
+# ============================================================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 🏁 STARTUP: Ativa motores principais
+    print("🔋 [ENGINE] Carregando Sistema de Alta Potência...")
+    # Recuperação prioritária do estado
+    await state.recover_daily_stats_async()
+    asyncio.create_task(exchange.load_markets())
+    
+    # Inicia loops em modo resiliente
+    bg_tasks = [
+        asyncio.create_task(maintain_sovereign_session()),
+        asyncio.create_task(autonomous_hunter_loop()),
+        asyncio.create_task(bybit_pnl_sync_loop()),
+        asyncio.create_task(evolution_watcher_loop())
+    ]
+    
+    yield
+    
+    # 🛑 SHUTDOWN: Desligamento gracioso
+    print("🔌 [ENGINE] Desligando Motores...")
+    for task in bg_tasks:
+        task.cancel()
+    await exchange.close()
+
 app = FastAPI(
-    title="PREDATOR v25.0 - BYBIT SOVEREIGN",
+    title="PREDATOR v25.0 - SOVEREIGN ENGINE",
     version="25.0.0",
-    description="Sovereign AI Trading System - Bybit V5 Exclusive High-Frequency Scalper."
+    description="Backend de Alta Potência - Bybit V5 Sovereign AI.",
+    lifespan=lifespan
 )
+
+# 📡 MIDDLEWARE: Quantum Latency Tracker
+@app.middleware("http")
+async def quantum_latency_middleware(request, call_next):
+    start_time = time.time()
+    engine_state.requests_handled += 1
+    response = await call_next(request)
+    latency = (time.time() - start_time) * 1000
+    engine_state.api_latency_ms = (engine_state.api_latency_ms * 0.9) + (latency * 0.1)
+    response.headers["X-Neural-Latency"] = f"{latency:.2f}ms"
+    return response
 
 # ============================================================
 # 🧠 NEURAL CORE 2026 - PREDATOR v21.3 'APEX-PROGENY'
@@ -1545,8 +1617,17 @@ async def autonomous_hunter_loop():
                         except Exception as db_err:
                             print(f"⚠️ [DB-TRADE-ERROR] {db_err}")
             
-            # Intervalo de scan (Alta Frequência: 3s para Scalping Agressivo)
-            await asyncio.sleep(3) 
+            # ⚡ METABOLISMO DINÂMICO (Hardware-Aware)
+            # Ajusta a velocidade de scan baseado na saúde do servidor (Render Free)
+            stats = engine_state.get_stats()
+            # Se RAM > 480MB, desacelera bruscamente para evitar crash
+            metabolism_delay = 3
+            if stats["ram_mb"] > 450:
+                metabolism_delay = 10
+                print(f"⚠️ [MEMORY-GUARD] RAM alta ({stats['ram_mb']}MB). Desacelerando metabolismo.")
+            
+            engine_state.last_neural_pulse = time.time()
+            await asyncio.sleep(metabolism_delay) 
         except Exception as e:
             print(f"📡 [HUNTER-ERROR] {e}")
             await asyncio.sleep(30)
@@ -1661,35 +1742,37 @@ async def evolution_watcher_loop():
             print(f"⚠️ [EVOLUTION-BUG] {e}")
             await asyncio.sleep(300)
 
-@app.on_event("startup")
-async def startup_event():
-    """Inicia a alma da máquina ao subir o servidor com Recuperação Rápida."""
-    print("🔥 PREDATOR BOOT: Iniciando Motores...")
-    
-    # 1. Recuperação prioritária do estado (Garante Dashboard correto após hibernation)
-    await state.recover_daily_stats_async()
-    
-    # 2. Carregamento de mercados em background para não travar o boot
-    asyncio.create_task(exchange.load_markets())
-    
-    # 3. Loops perpétuos
-    asyncio.create_task(maintain_sovereign_session())
-    asyncio.create_task(autonomous_hunter_loop())
-    asyncio.create_task(bybit_pnl_sync_loop())
-    asyncio.create_task(evolution_watcher_loop())
-    
-    print("🚀 SISTEMA ONLINE E RECUPERADO.")
+# ============================================================
+# 🩺 DIAGNÓSTICO DE POTÊNCIA (Performance Monitor)
+# ============================================================
+@app.get("/stats")
+async def get_performance_stats():
+    """Retorna o estado de saúde neural do backend."""
+    return {
+        "engine": engine_state.get_stats(),
+        "market": {
+            "regime": state.regime,
+            "monitored_assets": len(brain.monitored_symbols_cache),
+            "last_price": state.price
+        },
+        "neural": {
+            "homeostasis": state.homeostasis,
+            "adrenaline": state.adrenaline,
+            "quantum_entropy": state.quantum_entropy,
+            "brain_genes": brain.genes
+        }
+    }
 
 @app.get("/health")
 async def health_check():
-    """Health check para Render."""
+    """Health check para Render & Monitoramento."""
     return {
-        "status": "OK",
+        "status": "SOVEREIGN_ACTIVE",
         "version": "25.0.0",
-        "mode": "100% CLOUD | BYBIT SOVEREIGN",
-        "uptime_seconds": round(time.time() - state.session_start, 0),
-        "hunting": state.is_hunting,
-        "balance": state.balance
+        "uptime_sec": int(time.time() - engine_state.uptime_start),
+        "neural_pulse": True,
+        "mode": "100% CLOUD",
+        "load": engine_state.cpu_usage
     }
 
 @app.get("/ping")
@@ -1701,48 +1784,9 @@ async def ping():
 async def root():
     """Página inicial da API."""
     return {
-        "message": "🦅 PREDATOR v25.0 BYBIT SOVEREIGN",
-        "mode": "100% Cloud - Zero Local",
-        "docs": "/docs",
-        "status": "/state",
+        "message": "🦅 PREDATOR v25.0 SOVEREIGN ENGINE",
+        "mode": "100% Cloud - Power Backend Active",
+        "stats": "/stats",
+        "health": "/health",
         "webhook": "POST /webhook"
     }
-
-# ============================================================
-# INFORMAÇÕES DE USO
-# ============================================================
-"""
-═══════════════════════════════════════════════════════════════
-COMO USAR (100% Cloud - Sem MetaTrader Local):
-═══════════════════════════════════════════════════════════════
-
-1. DEPLOY NO RENDER:
-   - Conecte o repo GitHub ao Render
-   - Render detectará o render.yaml automaticamente
-   - Anote a URL: https://seu-app.onrender.com
-
-2. CONFIGURAR TRADINGVIEW:
-   - Crie/edite sua estratégia Pine Script
-   - Configure Alert com Webhook URL:
-     https://seu-app.onrender.com/webhook
-   
-   - Payload JSON:
-     {
-       "action": "{{strategy.order.action}}",
-       "symbol": "WING26",
-       "price": {{close}},
-       "confidence": 85
-     }
-
-3. DASHBOARD NA VERCEL:
-   - Conecte o repo GitHub à Vercel
-   - Atualize CONFIG.API_URL no main.js com a URL do Render
-   - Deploy automático!
-
-4. TESTAR:
-   - Acesse a API: https://seu-app.onrender.com/docs
-   - Use o endpoint POST /webhook para simular sinais
-   - Veja o Dashboard atualizar em tempo real!
-
-═══════════════════════════════════════════════════════════════
-"""
