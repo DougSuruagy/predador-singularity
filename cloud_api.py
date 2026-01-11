@@ -153,23 +153,29 @@ async def get_state(x_token: str = Header(None)):
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending):
-    """ [BTC/ETH] Configuração Valhalla Legacy """
+    """ 
+    [BTC/ETH] FUSÃO SINGULARITY 
+    Funde o DNA de 19% (Legacy) com Proteção Iron (Modern)
+    """
+    base_threshold = 0.22 if "BTC" in symbol or "ETH" in symbol else 0.30
+    buffer = 0.05
+    
     return {
-        "threshold": 0.22 + 0.05, # Base (0.22) + Buffer Consenso (0.05)
-        "min_score": 55, # Trigger Score Histórico
-        "sl_mult": 1.8,
-        "tp_mult": 5.5,
+        "threshold": base_threshold + buffer,
+        "min_score": 55, # DNA Legacy
+        "sl_mult": 1.8, # DNA Legacy
+        "tp_mult": 5.5 if is_trending else 2.8, # Híbrido: Longo em Trend, Curto em Chop
         "leverage": 10
     }
 
-def get_sniper_config(symbol):
-    """ [SOL] Valhalla Sniper Legacy """
+def get_sniper_config(symbol, is_trending):
+    """ [SOL] SNIPER SINGULARITY """
     return {
-        "threshold": 0.30 + 0.05, # Base (0.30) + Buffer Consenso (0.05)
-        "min_score": 55, # Trigger Score Histórico
-        "sl_mult": 1.8,
-        "tp_mult": 5.5,
-        "leverage": 10 # Alinhado com BTC/ETH para lucro agressivo
+        "threshold": 0.30 + 0.05,
+        "min_score": 55,
+        "sl_mult": 1.8 if is_trending else 1.2, # Proteção extra em lateral
+        "tp_mult": 5.5 if is_trending else 2.5, # Captura lucro rápido se sem tendência
+        "leverage": 10
     }
 
 async def autonomous_hunter_loop():
@@ -222,14 +228,16 @@ async def run_strategy(symbol, mode):
             score = 0
         
     elif mode == "SNIPER":
-        config = get_sniper_config(symbol)
-        # Unificando Lógica Sniper com o Threshold de PSI solicitado
+        config = get_sniper_config(symbol, intel["trend_strong"])
         if abs(intel["psi"]) > config["threshold"]:
             score = 55 + (abs(intel["psi"]) * 10)
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             
-        # Filtro Adicional RSI para Sniper
-        if (bias == "GOD_LONG" and intel["rsi"] > 75) or (bias == "GOD_SHORT" and intel["rsi"] < 25): score = 0
+        # Filtro RSI Adaptativo (SINGULARITY)
+        rsi_limit_high = 80 if intel["trend_strong"] else 75
+        rsi_limit_low = 20 if intel["trend_strong"] else 25
+        if (bias == "GOD_LONG" and intel["rsi"] > rsi_limit_high) or (bias == "GOD_SHORT" and intel["rsi"] < rsi_limit_low): 
+            score = 0
             
     if score >= config["min_score"]:
         current_threshold_name = "VALHALLA (Agro)" if (mode == "SUPREME" and intel["trend_strong"]) else "IRON (Safe)"
@@ -289,11 +297,14 @@ async def run_backtest(payload: WebhookPayload):
             if (bias == "GOD_LONG" and intel["rsi"] > rsi_limit_high) or (bias == "GOD_SHORT" and intel["rsi"] < rsi_limit_low): score = 0
             
         elif mode == "SNIPER":
-            config = get_sniper_config(symbol)
+            config = get_sniper_config(symbol, intel["trend_strong"])
             if abs(intel["psi"]) > config["threshold"]:
                 score = 55 + (abs(intel["psi"]) * 10)
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            if (bias == "GOD_LONG" and intel["rsi"] > 75) or (bias == "GOD_SHORT" and intel["rsi"] < 25): score = 0
+            
+            rsi_h = 80 if intel["trend_strong"] else 75
+            rsi_l = 20 if intel["trend_strong"] else 25
+            if (bias == "GOD_LONG" and intel["rsi"] > rsi_h) or (bias == "GOD_SHORT" and intel["rsi"] < rsi_l): score = 0
             
         if score >= config["min_score"]:
             entry = ohlcv[i][4]
