@@ -115,86 +115,156 @@ async def health():
     return {"status": "ALIVE", "version": "43.0.0"}
 
 # ============================================================
-# 🦅 AUTONOMOUS HUNTER (VALHALLA LOOP)
+# 🦅 AUTONOMOUS HUNTER (PREDATOR + JUNIOR)
 # ============================================================
-def get_valhalla_config(symbol):
+def get_predator_config(symbol):
     """
-    [v43.0] VALHALLA CONFIG: O Ponto Doce.
+    [PREDADOR v43.0] O Pai (BTC/ETH).
+    Estratégia: Trend Following (Alvos Longos).
     """
-    is_sol = "SOL" in symbol
     return {
-        "threshold": 0.30 if is_sol else 0.22, # ORIGINAL
-        "min_score": 55, # ORIGINAL
-        "sl_mult": 1.8, # ORIGINAL
-        "tp_mult": 5.5, # ORIGINAL
-        "leverage": 10 if "BTC" in symbol else 5
+        "threshold": 0.22,
+        "min_score": 55,
+        "sl_mult": 1.8,
+        "tp_mult": 5.5,
+        "leverage": 10
+    }
+
+def get_junior_config(symbol):
+    """
+    [JUNIOR RAPTOR v1.0] O Filho (SOL/PEPE).
+    Estratégia: Scalping Agressivo (Mordidas Rápidas).
+    """
+    return {
+        "threshold": 0.35, # Mais tolerância a ruído
+        "min_score": 50,   # Mais ativo
+        "sl_mult": 1.0,    # Stop curto (não segura trade ruim)
+        "tp_mult": 1.5,    # Realiza lucro rápido
+        "leverage": 7
     }
 
 async def autonomous_hunter_loop():
-    print("🦅 CAÇADOR VALHALLA v43.0 ATIVO.")
+    print("🦅 PREDADOR (BTC/ETH) & 🦖 JUNIOR (SOL/PEPE) ATIVOS.")
     while True:
         try:
-            await asyncio.sleep(5)
-            for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]:
-                ohlcv = await exchange.fetch_ohlcv(symbol, "1m", limit=30)
-                if not ohlcv: continue
+            await asyncio.sleep(4) 
+            
+            # 1. PREDADOR TARGETS (BTC, ETH)
+            for symbol in ["BTCUSDT", "ETHUSDT"]:
+                await run_strategy(symbol, "PREDATOR")
                 
-                closes = [x[4] for x in ohlcv]
-                intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv])
-                if not intel: continue
+            # 2. JUNIOR TARGETS (SOL, PEPE)
+            # PEPEUSDT ou SOLUSDT (Alta Volatilidade)
+            for symbol in ["SOLUSDT"]: 
+                await run_strategy(symbol, "JUNIOR")
                 
-                config = get_valhalla_config(symbol)
-                
-                bias = "NEUTRAL"
-                score = 0
-                
-                # PSI TRIGGER (Original Logic)
-                if abs(intel["psi"]) > config["threshold"]:
-                    score = 60 + (abs(intel["psi"]) * 10)
-                    bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                
-                # RSI Filter
-                if bias == "GOD_LONG" and intel["rsi"] > 70: score = 0
-                if bias == "GOD_SHORT" and intel["rsi"] < 30: score = 0
-                
-                if score >= config["min_score"]:
-                    print(f"⚡ [VALHALLA STRIKE] {symbol} | Bias: {bias}")
-                    
-                    price = intel["price"]
-                    atr = intel["atr"]
-                    sl = price - (atr*config["sl_mult"]) if bias == "GOD_LONG" else price + (atr*config["sl_mult"])
-                    tp = price + (atr*config["tp_mult"]) if bias == "GOD_LONG" else price - (atr*config["tp_mult"])
-                    
-                    if exchange.apiKey:
-                        qty = 0.001 if "BTC" in symbol else 0.01
-                         # Execução...
-                        pass 
-                        
         except Exception as e:
+            print(f"⚠️ Loop Error: {e}")
             await asyncio.sleep(5)
 
+async def run_strategy(symbol, mode):
+    ohlcv = await exchange.fetch_ohlcv(symbol, "1m", limit=35)
+    if not ohlcv: return
+    
+    closes = [x[4] for x in ohlcv]
+    intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv])
+    if not intel: return
+    
+    bias = "NEUTRAL"
+    score = 0
+    config = {}
+    
+    if mode == "PREDADOR":
+        config = get_predator_config(symbol)
+        # Lógica v43.0 (Trend Following)
+        if abs(intel["psi"]) > config["threshold"]:
+             score = 60 + (abs(intel["psi"])*10)
+             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+             
+        # Filtro RSI Padrão
+        if (bias == "GOD_LONG" and intel["rsi"] > 70) or (bias == "GOD_SHORT" and intel["rsi"] < 30): score = 0
+        
+    elif mode == "JUNIOR":
+        config = get_junior_config(symbol)
+        # Lógica Raptor (Mean Reversion + Momentum)
+        # Compra Fundo (RSI < 30) ou Vende Topo (RSI > 70) em tendência lateral
+        # OU Segue fluxo se PSI explodir
+        
+        # 1. Scalp de Reversão
+        if intel["rsi"] < 25: 
+            bias = "GOD_LONG"; score = 65
+        elif intel["rsi"] > 75: 
+            bias = "GOD_SHORT"; score = 65
+            
+        # 2. Scalp de Momentum (Rompimento)
+        elif abs(intel["psi"]) > 0.45: # Movimento muito forte
+            bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+            score = 70 # Alta convicção
+            
+    if score >= config["min_score"]:
+        print(f"⚡ [{mode} STRIKE] {symbol} | Score: {score:.1f} | Bias: {bias}")
+        
+        price = intel["price"]
+        atr = intel["atr"]
+        sl = price - (atr*config["sl_mult"]) if bias == "GOD_LONG" else price + (atr*config["sl_mult"])
+        tp = price + (atr*config["tp_mult"]) if bias == "GOD_LONG" else price - (atr*config["tp_mult"])
+        
+        if exchange.apiKey:
+            try:
+                qty = 0.001 if "BTC" in symbol else 0.01
+                if "SOL" in symbol: qty = 0.1
+                # PEPE adjustment logic would go here
+                
+                side = "buy" if bias == "GOD_LONG" else "sell"
+                params = {'stopLoss': float(exchange.price_to_precision(symbol, sl)), 
+                          'takeProfit': float(exchange.price_to_precision(symbol, tp))}
+                
+                order = await exchange.create_order(symbol, 'market', side, qty, params=params)
+                print(f"✅ ORDEM {mode}: {symbol}")
+                engine_state.last_order = order
+                engine_state.trades += 1
+            except Exception as e:
+                print(f"❌ ERRO EXEC {mode}: {e}")
+        
+        await asyncio.sleep(5) # Cooldown por ativo
+
+
 # ============================================================
-# 🔙 BACKTEST ENGINE (MATCHES v43.0 LOGIC)
+# 🔙 BACKTEST ENGINE (DUAL STRATEGY)
 # ============================================================
 @app.post("/backtest")
 async def run_backtest(payload: WebhookPayload):
     symbol = normalize_symbol(payload.symbol)
-    ohlcv = await exchange.fetch_ohlcv(symbol, "1m", limit=2000)
+    limit = 2000
+    ohlcv = await exchange.fetch_ohlcv(symbol, "1m", limit=limit)
     
     sim = {"pnl": 0.0, "trades": 0, "wins": 0}
-    config = get_valhalla_config(symbol)
     
-    for i in range(30, len(ohlcv)-1):
-        past_closes = [x[4] for x in ohlcv[i-30:i+1]]
-        intel = brain.calculate_indicators(past_closes, [x[2] for x in ohlcv[i-30:i+1]], [x[3] for x in ohlcv[i-30:i+1]])
+    # Define quem opera o que
+    mode = "JUNIOR" if "SOL" in symbol or "PEPE" in symbol else "PREDADOR"
+    config = get_junior_config(symbol) if mode == "JUNIOR" else get_predator_config(symbol)
+    
+    print(f"Testing {symbol} with {mode} Strategy...")
+    
+    for i in range(35, len(ohlcv)-1):
+        past_closes = [x[4] for x in ohlcv[i-35:i+1]]
+        intel = brain.calculate_indicators(past_closes, [x[2] for x in ohlcv[i-35:i+1]], [x[3] for x in ohlcv[i-35:i+1]])
         
         bias = "NEUTRAL"
         score = 0
-        if abs(intel["psi"]) > config["threshold"]: 
-             score = 60 + (abs(intel["psi"])*10)
-             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
         
-        if (bias == "GOD_LONG" and intel["rsi"] > 70) or (bias == "GOD_SHORT" and intel["rsi"] < 30): score = 0
+        if mode == "PREDADOR":
+            if abs(intel["psi"]) > config["threshold"]: 
+                 score = 60 + (abs(intel["psi"])*10)
+                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+            if (bias == "GOD_LONG" and intel["rsi"] > 70) or (bias == "GOD_SHORT" and intel["rsi"] < 30): score = 0
+
+        elif mode == "JUNIOR":
+             if intel["rsi"] < 25: bias = "GOD_LONG"; score = 65
+             elif intel["rsi"] > 75: bias = "GOD_SHORT"; score = 65
+             elif abs(intel["psi"]) > 0.45:
+                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+                 score = 70
         
         if score >= config["min_score"]:
             entry = ohlcv[i][4]
@@ -217,6 +287,6 @@ async def run_backtest(payload: WebhookPayload):
                 sim["pnl"] += pnl
                 sim["trades"] += 1
                 if pnl > 0: sim["wins"] += 1
-                i += 10 # Pula candles
+                i += 10 if mode == "PREDADOR" else 5 # Junior opera mais rápido
 
     return {"symbol": symbol, "total_pnl_percent": round(sim["pnl"], 2), "total_trades": sim["trades"]}
