@@ -49,13 +49,39 @@ class EngineState:
         self.is_healthy = True
         self.daily_pnl = 0.0
         self.trades = 0
-        self.last_order = {}
+        self.wins = 0
+        self.mode = "SUPREME"
+        
+        # 🛡️ TRAVAS DE SEGURANÇA
+        self.MAX_DAILY_LOSS = -2.0 # %
+        self.MAX_DAILY_PROFIT = 5.0 # %
+
+    def get_bio_metrics(self):
+        # Dopamina: Alta se o winrate ou trades estiverem bons
+        winrate = (self.wins / max(1, self.trades))
+        dopamine = min(1.0, winrate * 1.5)
+        
+        # Adrenalina: Alta se estiver operando em modo SUPREME
+        adrenaline = 0.8 if self.mode == "SUPREME" else 0.4
+        
+        # Cortisol: Stress baseado no PnL negativo
+        cortisol = abs(min(0, self.daily_pnl)) / 2.0
+        
+        return {
+            "dopamine": round(dopamine, 2),
+            "adrenaline": round(adrenaline, 2),
+            "cortisol": round(cortisol, 2),
+            "homeostasis": round(100 - (cortisol * 100), 1)
+        }
 
     def get_stats(self):
         return {
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
-            "trades": self.trades
+            "trades": self.trades,
+            "mode": self.mode,
+            "bio": self.get_bio_metrics(),
+            "kill_switch_active": self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         }
 
 engine_state = EngineState()
@@ -155,6 +181,14 @@ async def autonomous_hunter_loop():
     while True:
         try:
             await asyncio.sleep(1) # HFT Speed (Era 4s)
+            
+            # 🛡️ CHECK KILL SWITCH (Homeostase)
+            stats = engine_state.get_stats()
+            if stats["kill_switch_active"]:
+                print(f"🛑 [KILL SWITCH] Homeostase atingida: PnL {stats['pnl']}%")
+                await asyncio.sleep(60) 
+                continue
+
             # PREDADOR (BTC/ETH)
             for symbol in ["BTCUSDT", "ETHUSDT"]: await run_strategy(symbol, "SUPREME")
             # SNIPER (SOL)
@@ -219,6 +253,9 @@ async def run_strategy(symbol, mode):
                 order = await exchange.create_order(symbol, 'market', side, qty, params=params)
                 print(f"✅ ORDEM ENVIADA! ID: {order['id']}")
                 engine_state.trades += 1
+                # Simulação básica de PnL para monitoramento (v57.0)
+                # Na real, isso viria da confirmação da exchange
+                engine_state.last_order = order
             except Exception as ex:
                 print(f"❌ Erro Exec: {ex}")
         
