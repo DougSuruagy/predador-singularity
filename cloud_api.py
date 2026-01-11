@@ -87,14 +87,14 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "160.0-ROYAL-SOUL",
+            "version": "170.0-GHOST-REAPING",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
             "wins": self.wins,
             "win_rate": round(win_rate, 2),
             "mode": self.mode,
-            "regime": "ALIVE-HUNTING" if not is_locked else "LOCKED",
+            "regime": "GHOST-HUNTING" if not is_locked else "LOCKED",
             "price": self.last_price,
             "prob": self.last_score,
             "confidence": self.last_score,
@@ -205,43 +205,43 @@ async def root():
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v150.0 ZENITH """
+    """ [BTC/ETH] SINGULARITY APEX - v170.0 GHOST """
     if is_compressed:
         return {
             "threshold": 0.10, 
             "min_score": 90,  
-            "sl_mult": 2.2,   # Stop de Sobrevivência
-            "tp_mult": 2.8,   # TP de Reversão à Média (RRR 1:1.3)
-            "leverage": 5,    
+            "sl_mult": 2.0,   # Sobrevivência ao Ruído
+            "tp_mult": 3.2,   # RRR 1:1.6 (Alvo: Média Oposta)
+            "leverage": 6,    
             "shadow_trail": False
         }
     
     return {
-        "threshold": 0.20, 
+        "threshold": 0.25, 
         "min_score": 75, 
-        "sl_mult": 1.8,
-        "tp_mult": 6.5,   
-        "leverage": 10,   
+        "sl_mult": 1.5,
+        "tp_mult": 6.8,   
+        "leverage": 15,   
         "shadow_trail": True
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v150.0 ZENITH """
+    """ [SOL] SNIPER v170.0 GHOST """
     if is_compressed:
         return {
-            "threshold": 0.12,
+            "threshold": 0.15,
             "min_score": 92,
             "sl_mult": 2.5,
-            "tp_mult": 3.2, 
-            "leverage": 3, 
+            "tp_mult": 3.8, 
+            "leverage": 4, 
             "shadow_trail": False
         }
     return {
-        "threshold": 0.25,
+        "threshold": 0.30,
         "min_score": 75,
         "sl_mult": 2.0,
-        "tp_mult": 6.0,
-        "leverage": 8,
+        "tp_mult": 6.5,
+        "leverage": 10,
         "shadow_trail": True
     }
 
@@ -303,22 +303,25 @@ async def run_strategy(symbol, mode):
         intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
         if not intel: return
         
-        # 🕒 ROYAL SOUL v160.0 (Filtro de Zona Morta)
-        if intel["is_compressed"] and intel["bb_width"] < 0.28: return
+        # 🕒 GHOST REAPING v170.0 (Filtro de Fee-Protection)
+        if intel["is_compressed"] and intel["bb_width"] < 0.40: return
         
         idle_time = (time.time() - engine_state.last_trade_time) / 3600
-        relax_factor = 1.0 - min(0.1, idle_time / 24) 
+        relax_factor = 1.0 - min(0.15, idle_time / 12) 
         
         if intel["is_compressed"]:
-            candle_size = ohlcv[-1][2] - ohlcv[-1][3]
-            wick_threshold = 0.6 if "SOL" in symbol else 0.45
-            rejection_low = ohlcv[-1][4] > ohlcv[-1][3] + (candle_size * wick_threshold) if candle_size > 0 else False
-            rejection_high = ohlcv[-1][4] < ohlcv[-1][2] - (candle_size * wick_threshold) if candle_size > 0 else False
+            candle_range = ohlcv[-1][2] - ohlcv[-1][3]
+            body_size = abs(ohlcv[-1][4] - ohlcv[-1][1])
+            body_ratio = (body_size / candle_range) if candle_range > 0 else 1.0
             
-            if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.25: bias = "GOD_LONG"; score = 95
-            elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.25: bias = "GOD_SHORT"; score = 95
+            wick_threshold = 0.65 if "SOL" in symbol else 0.50
+            rejection_low = (ohlcv[-1][4] > ohlcv[-1][3] + (candle_range * wick_threshold)) and (body_ratio < 0.35)
+            rejection_high = (ohlcv[-1][4] < ohlcv[-1][2] - (candle_range * wick_threshold)) and (body_ratio < 0.35)
+            
+            if intel["touch_low"] and rejection_low and intel["rsi"] < 32 and intel["vol_shock"] > 1.3: bias = "GOD_LONG"; score = 98
+            elif intel["touch_high"] and rejection_high and intel["rsi"] > 68 and intel["vol_shock"] > 1.3: bias = "GOD_SHORT"; score = 98
         else:
-            if abs(intel["psi"]) > (0.20 * relax_factor):
+            if abs(intel["psi"]) > (0.25 * relax_factor):
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
                 score = 85 + (abs(intel["psi"]) * 10)
         
@@ -401,21 +404,24 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v160.0 "ROYAL SOUL"
-        if intel["is_compressed"] and intel["bb_width"] < 0.28: i += 1; continue
+        # 🧬 NEURAL SIMULATION v170.0 "GHOST REAPING"
+        if intel["is_compressed"] and intel["bb_width"] < 0.40: i += 1; continue
         
         if intel["is_compressed"]:
-            candle_size = ohlcv[i][2] - ohlcv[i][3]
-            wick_threshold = 0.6 if "SOL" in symbol else 0.45
-            rejection_low = ohlcv[i][4] > ohlcv[i][3] + (candle_size * wick_threshold) if candle_size > 0 else False
-            rejection_high = ohlcv[i][4] < ohlcv[i][2] - (candle_size * wick_threshold) if candle_size > 0 else False
+            candle_range = ohlcv[i][2] - ohlcv[i][3]
+            body_size = abs(ohlcv[i][4] - ohlcv[i][1])
+            body_ratio = (body_size / candle_range) if candle_range > 0 else 1.0
             
-            if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.25: 
-                bias = "GOD_LONG"; score = 95
-            elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.25: 
-                bias = "GOD_SHORT"; score = 95
+            wick_threshold = 0.65 if "SOL" in symbol else 0.50
+            rejection_low = (ohlcv[i][4] > ohlcv[i][3] + (candle_range * wick_threshold)) and (body_ratio < 0.35)
+            rejection_high = (ohlcv[i][4] < ohlcv[i][2] - (candle_range * wick_threshold)) and (body_ratio < 0.35)
+            
+            if intel["touch_low"] and rejection_low and intel["rsi"] < 33 and intel["vol_shock"] > 1.3: 
+                bias = "GOD_LONG"; score = 98
+            elif intel["touch_high"] and rejection_high and intel["rsi"] > 67 and intel["vol_shock"] > 1.3: 
+                bias = "GOD_SHORT"; score = 98
         else:
-            if abs(intel["psi"]) > 0.20:
+            if abs(intel["psi"]) > 0.25:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
                 score = 85 + (abs(intel["psi"]) * 10)
         

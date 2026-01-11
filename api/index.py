@@ -102,27 +102,32 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v160.0 "ROYAL SOUL"
+    # 🧬 MASTER LOGIC v170.0 "GHOST REAPING"
     if intel["is_compressed"]:
-        # Volatility Floor: Evita "fee-bleeding" em volatilidade quase nula
-        if intel["bb_width"] < 0.28:
-             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Dead Zone"}
+        # Volatility Floor: Mínimo 0.40% para garantir que o movimento cubra taxas e sobre lucro
+        if intel["bb_width"] < 0.40:
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Vol Zone (Fee Trap)"}
 
-        # Spring/Upthrust Detection
-        candle_size = highs[-1] - lows[-1]
+        # Body Ratio Check (Rejeição Pin-bar)
+        candle_range = highs[-1] - lows[-1]
+        body_size = abs(closes[-1] - payload.ohlcv[-1][1]) # close - open
+        body_ratio = (body_size / candle_range) if candle_range > 0 else 1.0
         
-        # SOL precisa de precisão cirúrgica (60% rejeição)
-        wick_threshold = 0.6 if "SOL" in symbol else 0.45
-        rejection_low = closes[-1] > lows[-1] + (candle_size * wick_threshold) if candle_size > 0 else False
-        rejection_high = closes[-1] < highs[-1] - (candle_size * wick_threshold) if candle_size > 0 else False
+        # SOL precisa de precisão cirúrgica (Wick Longo, Corpo Pequeno)
+        wick_threshold = 0.65 if "SOL" in payload.symbol.upper() else 0.50
+        body_max = 0.35 # Corpo deve ser no máximo 35% do range total
         
-        # Filtro de Exaustão (RSI 30/70)
-        if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.25: 
+        rejection_low = (closes[-1] > lows[-1] + (candle_range * wick_threshold)) and (body_ratio < body_max)
+        rejection_high = (closes[-1] < highs[-1] - (candle_range * wick_threshold)) and (body_ratio < body_max)
+        
+        # Filtro de Exaustão Extrema (RSI 32/68)
+        if intel["touch_low"] and rejection_low and intel["rsi"] < 32 and intel["vol_shock"] > 1.3: 
             bias = "GOD_LONG"; score = 98
-        elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.25: 
+        elif intel["touch_high"] and rejection_high and intel["rsi"] > 68 and intel["vol_shock"] > 1.3: 
             bias = "GOD_SHORT"; score = 98
     else:
-        if abs(intel["psi"]) > 0.20: 
+        # Modo TREND: Aumentamos exigência para evitar topos e fundos em tendências fracas
+        if abs(intel["psi"]) > 0.25: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 85 + (abs(intel["psi"]) * 10)
             
@@ -132,8 +137,6 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     decision = "EXECUTE" if score >= 90 else "REJECT"
 
     return {
-        "bias": bias,
-        "score": score,
-        "intel": intel,
-        "decision": decision
+        "bias": bias, "score": score, "intel": intel, "decision": decision,
+        "version": "170.0"
     }
