@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "150.0-ZENITH",
+            "version": "160.0-ROYAL-SOUL",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -195,7 +195,7 @@ async def get_state(x_token: str = Header(None)):
 
 @app.get("/health")
 async def health():
-    return {"status": "alive", "version": "150.0"}
+    return {"status": "alive", "version": "160.0"}
 
 @app.get("/")
 async def root():
@@ -303,24 +303,25 @@ async def run_strategy(symbol, mode):
         intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
         if not intel: return
         
-        # 🕒 ROYAL GUARD v140.0 (Seletividade Extrema)
+        # 🕒 ROYAL SOUL v160.0 (Filtro de Zona Morta)
+        if intel["is_compressed"] and intel["bb_width"] < 0.28: return
+        
         idle_time = (time.time() - engine_state.last_trade_time) / 3600
-        relax_factor = 1.0 - min(0.1, idle_time / 24) # Relaxamento limitado a 10%
+        relax_factor = 1.0 - min(0.1, idle_time / 24) 
         
         if intel["is_compressed"]:
             candle_size = ohlcv[-1][2] - ohlcv[-1][3]
-            # Rejeição de 50% do pavio
-            rejection_low = ohlcv[-1][4] > ohlcv[-1][3] + (candle_size * 0.5) if candle_size > 0 else False
-            rejection_high = ohlcv[-1][4] < ohlcv[-1][2] - (candle_size * 0.5) if candle_size > 0 else False
+            wick_threshold = 0.6 if "SOL" in symbol else 0.45
+            rejection_low = ohlcv[-1][4] > ohlcv[-1][3] + (candle_size * wick_threshold) if candle_size > 0 else False
+            rejection_high = ohlcv[-1][4] < ohlcv[-1][2] - (candle_size * wick_threshold) if candle_size > 0 else False
             
-            if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.2: bias = "GOD_LONG"; score = 95
-            elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.2: bias = "GOD_SHORT"; score = 95
+            if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.25: bias = "GOD_LONG"; score = 95
+            elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.25: bias = "GOD_SHORT"; score = 95
         else:
-            if abs(intel["psi"]) > (0.18 * relax_factor):
+            if abs(intel["psi"]) > (0.20 * relax_factor):
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
                 score = 85 + (abs(intel["psi"]) * 10)
         
-        # Hard Divergence Filter
         if intel["divergence"]: score = 0 
 
         decision = "EXECUTE" if score >= 90 else "REJECT"
@@ -400,20 +401,21 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v140.0 "ROYAL GUARD"
-        relax_factor = 0.95 # Simulação conservadora
+        # 🧬 NEURAL SIMULATION v160.0 "ROYAL SOUL"
+        if intel["is_compressed"] and intel["bb_width"] < 0.28: i += 1; continue
         
         if intel["is_compressed"]:
             candle_size = ohlcv[i][2] - ohlcv[i][3]
-            rejection_low = ohlcv[i][4] > ohlcv[i][3] + (candle_size * 0.5) if candle_size > 0 else False
-            rejection_high = ohlcv[i][4] < ohlcv[i][2] - (candle_size * 0.5) if candle_size > 0 else False
+            wick_threshold = 0.6 if "SOL" in symbol else 0.45
+            rejection_low = ohlcv[i][4] > ohlcv[i][3] + (candle_size * wick_threshold) if candle_size > 0 else False
+            rejection_high = ohlcv[i][4] < ohlcv[i][2] - (candle_size * wick_threshold) if candle_size > 0 else False
             
-            if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.3: 
+            if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.25: 
                 bias = "GOD_LONG"; score = 95
-            elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.3: 
+            elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.25: 
                 bias = "GOD_SHORT"; score = 95
         else:
-            if abs(intel["psi"]) > 0.18:
+            if abs(intel["psi"]) > 0.20:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
                 score = 85 + (abs(intel["psi"]) * 10)
         

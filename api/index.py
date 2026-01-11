@@ -102,20 +102,27 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v140.0 "ROYAL GUARD"
+    # 🧬 MASTER LOGIC v160.0 "ROYAL SOUL"
     if intel["is_compressed"]:
+        # Volatility Floor: Evita "fee-bleeding" em volatilidade quase nula
+        if intel["bb_width"] < 0.28:
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Dead Zone"}
+
         # Spring/Upthrust Detection
         candle_size = highs[-1] - lows[-1]
-        rejection_low = closes[-1] > lows[-1] + (candle_size * 0.45) if candle_size > 0 else False
-        rejection_high = closes[-1] < highs[-1] - (candle_size * 0.45) if candle_size > 0 else False
         
-        # Filtro de Exaustão Real (RSI < 30 ou > 70) + Volume
-        if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.2: 
+        # SOL precisa de precisão cirúrgica (60% rejeição)
+        wick_threshold = 0.6 if "SOL" in symbol else 0.45
+        rejection_low = closes[-1] > lows[-1] + (candle_size * wick_threshold) if candle_size > 0 else False
+        rejection_high = closes[-1] < highs[-1] - (candle_size * wick_threshold) if candle_size > 0 else False
+        
+        # Filtro de Exaustão (RSI 30/70)
+        if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.25: 
             bias = "GOD_LONG"; score = 98
-        elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.2: 
+        elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.25: 
             bias = "GOD_SHORT"; score = 98
     else:
-        if abs(intel["psi"]) > 0.18: 
+        if abs(intel["psi"]) > 0.20: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 85 + (abs(intel["psi"]) * 10)
             
