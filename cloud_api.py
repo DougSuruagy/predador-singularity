@@ -127,17 +127,26 @@ class NomadBrain:
         tr = max(highs[-1] - lows[-1], abs(highs[-1] - closes[-2]), abs(lows[-1] - closes[-2]))
         atr = tr 
         
-        # Trend Strength (The Fusion Key)
+        # Volatility Check (Bollinger Width)
         ma20 = sum(closes[-20:]) / 20
+        variance = sum((x - ma20)**2 for x in closes[-20:]) / 20
+        std_dev = variance**0.5
+        bb_width = (std_dev * 4) / ma20 * 100 # Em %
+        
+        # Trend Strength
         ma50 = sum(closes[-30:]) / 30 
-        # Se as médias estão afastadas > 0.1%, temos tendência clara -> Modo Valhalla
         trend_strong = abs(ma20 - ma50) > (closes[-1] * 0.001)
+        
+        # Is Compressed? (The Living Filter)
+        is_compressed = bb_width < 0.50 
         
         return {
             "rsi": rsi,
             "psi": psi,
             "atr": atr,
             "trend_strong": trend_strong,
+            "is_compressed": is_compressed,
+            "bb_width": bb_width,
             "price": closes[-1]
         }
 
@@ -170,29 +179,45 @@ async def get_state(x_token: str = Header(None)):
 # ============================================================
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
-def get_supreme_config(symbol, is_trending):
-    """ [BTC/ETH] SINGULARITY APEX - v66.0 CATALYST """
-    # Se não houver tendência forte, reduzimos o threshold para capturar mini-movimentos
-    base_threshold = 0.18 if not is_trending else 0.22
-    buffer = 0.05
+def get_supreme_config(symbol, is_trending, is_compressed):
+    """ [BTC/ETH] SINGULARITY APEX - v68.5 CHOP-WINNER """
+    if is_compressed:
+        return {
+            "threshold": 0.10, 
+            "min_score": 50,  
+            "sl_mult": 2.5,   # Stop mais largo para evitar violino em chop
+            "tp_mult": 0.8,   # Hyper-Scalp para bater taxas e sair rápido
+            "leverage": 3,    # Alavancagem baixa para sobrevivência em lateralidade
+            "shadow_trail": False
+        }
     
     return {
-        "threshold": base_threshold + buffer,
-        "min_score": 60 if not is_trending else 70, # Mais agressivo em lateralidade
-        "sl_mult": 1.2 if not is_trending else 1.8, # Stop curto em lateral
-        "tp_mult": 2.2 if not is_trending else 5.5, # Alvo cirúrgico em lateral
+        "threshold": 0.25, 
+        "min_score": 70, 
+        "sl_mult": 1.8,
+        "tp_mult": 5.5,   
         "leverage": 10,
         "shadow_trail": True
     }
 
-def get_sniper_config(symbol, is_trending):
-    """ [SOL] SNIPER SINGULARITY - OTIMIZADO 7x """
+def get_sniper_config(symbol, is_trending, is_compressed):
+    """ [SOL] SNIPER v68.2 """
+    if is_compressed:
+        return {
+            "threshold": 0.20,
+            "min_score": 55,
+            "sl_mult": 1.2,
+            "tp_mult": 1.1, # Micro-scalp na SOL (Volátil)
+            "leverage": 3,  # Preservação de capital
+            "shadow_trail": False
+        }
     return {
-        "threshold": 0.30 + 0.05,
-        "min_score": 70, # Elevado de 55 para filtrar ruído (Elite)
-        "sl_mult": 1.8 if is_trending else 1.2,
-        "tp_mult": 5.5 if is_trending else 2.5,
-        "leverage": 7
+        "threshold": 0.35,
+        "min_score": 70,
+        "sl_mult": 1.8,
+        "tp_mult": 5.5,
+        "leverage": 7,
+        "shadow_trail": True
     }
 
 async def autonomous_hunter_loop():
@@ -230,36 +255,34 @@ async def run_strategy(symbol, mode):
     config = {}
     
     if mode == "SUPREME":
-        config = get_supreme_config(symbol, intel["trend_strong"])
+        config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"])
         threshold = config["threshold"]
         engine_state.last_score = 0
         
-        # MEAN REVERSION FILTER (REAPER v67.0)
-        # Só permite compra se o preço estiver abaixo da média da barra atual (ou vice-versa)
-        if abs(intel["psi"]) > threshold:
-            price_now = intel["price"]
-            # Simulação simples de média: price vs closes[-5]
-            if intel["psi"] > 0 and price_now < (sum(closes[-5:])/5): # GOD_LONG
-                score = 65 + (abs(intel["psi"]) * 10)
-                bias = "GOD_LONG"
-            elif intel["psi"] < 0 and price_now > (sum(closes[-5:])/5): # GOD_SHORT
-                score = 65 + (abs(intel["psi"]) * 10)
-                bias = "GOD_SHORT"
+        # Lógica Dual-DNA
+        if intel["is_compressed"]:
+            # Em modo CHOP, usamos RSI como trigger principal (Range Trading)
+            if intel["rsi"] < 30: bias = "GOD_LONG"; score = 75
+            elif intel["rsi"] > 70: bias = "GOD_SHORT"; score = 75
+        else:
+            # Em modo TREND, usamos Intensidade (Valhalla)
+            if abs(intel["psi"]) > threshold:
+                score = 70 + (abs(intel["psi"]) * 10)
+                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             
-            engine_state.last_score = score
-        
-        # Filtro de Exaustão aprimorado
-        if not intel["trend_strong"]:
-            if (bias == "GOD_LONG" and intel["rsi"] > 60) or (bias == "GOD_SHORT" and intel["rsi"] < 40):
-                score = 0
+        engine_state.last_score = score
         
     elif mode == "SNIPER":
-        config = get_sniper_config(symbol, intel["trend_strong"])
+        config = get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
         engine_state.last_score = 0
-        if abs(intel["psi"]) > config["threshold"]:
-            score = 65 + (abs(intel["psi"]) * 10)
-            engine_state.last_score = score
-            bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+        if intel["is_compressed"]:
+            if intel["rsi"] < 25: bias = "GOD_LONG"; score = 80
+            elif intel["rsi"] > 75: bias = "GOD_SHORT"; score = 80
+        else:
+            if abs(intel["psi"]) > config["threshold"]:
+                score = 70 + (abs(intel["psi"]) * 10)
+                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+        engine_state.last_score = score
             
         # Filtro RSI Adaptativo (SINGULARITY)
         rsi_limit_high = 80 if intel["trend_strong"] else 75
@@ -325,7 +348,8 @@ async def run_backtest(payload: WebhookPayload):
     sim = {"pnl": 0.0, "trades": 0, "wins": 0}
     mode = "SNIPER" if "SOL" in symbol else "SUPREME"
     
-    for i in range(35, len(ohlcv)-1):
+    i = 35
+    while i < len(ohlcv) - 1:
         past_closes = [x[4] for x in ohlcv[i-35:i+1]]
         intel = brain.calculate_indicators(past_closes, [x[2] for x in ohlcv[i-35:i+1]], [x[3] for x in ohlcv[i-35:i+1]])
         
@@ -334,23 +358,24 @@ async def run_backtest(payload: WebhookPayload):
         config = {}
         
         if mode == "SUPREME":
-            config = get_supreme_config(symbol, intel["trend_strong"])
-            if abs(intel["psi"]) > config["threshold"]: 
-                score = 60 + (abs(intel["psi"])*10)
-                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            rsi_limit_high = 80 if intel["trend_strong"] else 70
-            rsi_limit_low = 20 if intel["trend_strong"] else 30
-            if (bias == "GOD_LONG" and intel["rsi"] > rsi_limit_high) or (bias == "GOD_SHORT" and intel["rsi"] < rsi_limit_low): score = 0
+            config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"])
+            if intel["is_compressed"]:
+                if intel["rsi"] < 30: bias = "GOD_LONG"; score = 85
+                elif intel["rsi"] > 70: bias = "GOD_SHORT"; score = 85
+            else:
+                if abs(intel["psi"]) > config["threshold"]: 
+                    score = 70 + (abs(intel["psi"])*10)
+                    bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             
         elif mode == "SNIPER":
-            config = get_sniper_config(symbol, intel["trend_strong"])
-            if abs(intel["psi"]) > config["threshold"]:
-                score = 55 + (abs(intel["psi"]) * 10)
-                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            
-            rsi_h = 80 if intel["trend_strong"] else 75
-            rsi_l = 20 if intel["trend_strong"] else 25
-            if (bias == "GOD_LONG" and intel["rsi"] > rsi_h) or (bias == "GOD_SHORT" and intel["rsi"] < rsi_l): score = 0
+            config = get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
+            if intel["is_compressed"]:
+                if intel["rsi"] < 25: bias = "GOD_LONG"; score = 85
+                elif intel["rsi"] > 75: bias = "GOD_SHORT"; score = 85
+            else:
+                if abs(intel["psi"]) > config["threshold"]:
+                    score = 70 + (abs(intel["psi"]) * 10)
+                    bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             
         if score >= config["min_score"]:
             entry = ohlcv[i][4]
@@ -363,19 +388,20 @@ async def run_backtest(payload: WebhookPayload):
             for j in range(i+1, min(i+120, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
-                    if f[2] >= entry + tp_dist: pnl = config["tp_mult"] * (atr/entry) * 100; break
-                    if f[3] <= entry - sl_dist: pnl = -config["sl_mult"] * (atr/entry) * 100; break
+                    if f[2] >= entry + tp_dist: pnl = config["tp_mult"] * (atr/entry) * 100; i = j; break
+                    if f[3] <= entry - sl_dist: pnl = -config["sl_mult"] * (atr/entry) * 100; i = j; break
                 else:
-                    if f[3] <= entry - tp_dist: pnl = config["tp_mult"] * (atr/entry) * 100; break
-                    if f[2] >= entry + sl_dist: pnl = -config["sl_mult"] * (atr/entry) * 100; break
+                    if f[3] <= entry - tp_dist: pnl = config["tp_mult"] * (atr/entry) * 100; i = j; break
+                    if f[2] >= entry + sl_dist: pnl = -config["sl_mult"] * (atr/entry) * 100; i = j; break
             
-            # Taxa realista Bybit Taker (0.06% x 2 = 0.12%)
+            # Taxa realista Bybit Taker (0.12%)
             fee = 0.12
             if pnl != 0:
                 pnl_leveraged = (pnl - fee) * config["leverage"]
                 sim["pnl"] += pnl_leveraged
                 sim["trades"] += 1
                 if pnl > 0: sim["wins"] += 1
-                i += 10 # Pula candles para evitar redundância
+        
+        i += 1
 
     return {"symbol": symbol, "total_pnl_percent": round(sim["pnl"], 2), "total_trades": sim["trades"]}
