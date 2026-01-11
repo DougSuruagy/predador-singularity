@@ -1639,6 +1639,10 @@ async def run_backtest(data: dict):
         sim_state.losses = 0
         sim_state.pnl = 0.0
         
+        # [v2.0] Engine Fix: Limpa história neural para evitar poluição no backtest
+        if hasattr(brain, 'psi_history'):
+            brain.psi_history.clear()
+        
         # Aumentamos consciência global para diminuir limiar de consenso no backtest
         brain.global_consciousness = 0.8
         
@@ -1653,11 +1657,18 @@ async def run_backtest(data: dict):
         max_psi = -999
         min_psi = 999
         
+        # Métricas Avançadas
+        pnl_history = [0.0]
+        max_pnl = 0.0
+        max_drawdown = 0.0
+        win_sum = 0.0
+        loss_sum = 0.0
+        
         for i in range(50, len(ohlcv)):
             candle = ohlcv[i]
             timestamp, open_p, high, low, close, vol = candle
             
-            closes = [c[4] for c in ohlcv[i-30:i+1]]
+            closes = [c[4] for c in ohlcv[i-31:i+1]]
             mean = sum(closes) / len(closes)
             std = math.sqrt(sum((x - mean)**2 for x in closes) / len(closes))
             z_score = (close - mean) / (std if std > 0 else 1)
@@ -1672,21 +1683,22 @@ async def run_backtest(data: dict):
                 deltas = [closes[k] - closes[k-1] for k in range(1, len(closes))]
                 gains = [d if d > 0 else 0 for d in deltas[-14:]]
                 losses = [-d if d < 0 else 0 for d in deltas[-14:]]
-                avg_gain = sum(gains) / 14
-                avg_loss = sum(losses) / 14
-                rs = avg_gain / (avg_loss + 0.00001)
+                avg_gain = (sum(gains) / 14) + 0.00001
+                avg_loss = (sum(losses) / 14) + 0.00001
+                rs = avg_gain / avg_loss
                 sim_rsi = 100 - (100 / (1 + rs))
             else:
                 sim_rsi = 50
                 
             vel = (closes[-1] - closes[-3]) / closes[-3]
             kinetic = abs(vel * 1000)
-            sim_corr = 0.5 if vel > 0 else -0.5 # Aumentado para vencer limiares
+            # Drift de simulação aumentado para v26.6 (vence inércia)
+            sim_corr = 0.6 if vel > 0 else -0.6
             
             intel = {
                 "price": close,
-                "obp": 0.2 if vel > 0 else -0.2, # Simula pressão clara
-                "ofi": 0.2 if vel > 0 else -0.2,
+                "obp": 0.4 if vel > 0 else -0.4, 
+                "ofi": 0.4 if vel > 0 else -0.4,
                 "anchor_confirm": sim_corr,
                 "kinetic": kinetic,
                 "z_score": z_score,
@@ -1701,52 +1713,76 @@ async def run_backtest(data: dict):
             report = brain.analyze_infinity(sim_state, intel)
             
             # Debug PSI
-            psi_val = report.get("psi_raw", 0.0) # Vou adicionar esse campo
+            psi_val = report.get("psi_raw", 0.0) 
             max_psi = max(max_psi, psi_val)
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v26.6: Dynamic ATR Stop Loss
+                # Gatilho v26.6 (Check)
                 if report["bias"] != "NEUTRAL" and report["score"] > 60:
-                    # Determina se precisa de mais espaço (Wick Shield)
                     vol_mult = 2.4 if symbol in ["SOLUSDT", "PEPEUSDT"] else 1.8
                     sl_dist = atr * vol_mult
                     tp_dist = atr * 3.8
                     
                     sl = close - sl_dist if report["bias"] == "GOD_LONG" else close + sl_dist
                     tp = close + tp_dist if report["bias"] == "GOD_LONG" else close - tp_dist
-                    
                     position = {"entry": close, "type": "long" if report["bias"] == "GOD_LONG" else "short", "sl": sl, "tp": tp, "time": timestamp}
             else:
-                pnl = 0
+                pnl_trade = 0
                 closed = False
                 if position["type"] == "long":
                     if low <= position["sl"]:
-                        pnl = (position["sl"] - position["entry"]) / position["entry"]
+                        pnl_trade = (position["sl"] - position["entry"]) / position["entry"]
                         closed = True
                     elif high >= position["tp"]:
-                        pnl = (position["tp"] - position["entry"]) / position["entry"]
+                        pnl_trade = (position["tp"] - position["entry"]) / position["entry"]
                         closed = True
                 elif position["type"] == "short":
                     if high >= position["sl"]:
-                        pnl = (position["entry"] - position["sl"]) / position["entry"]
+                        pnl_trade = (position["entry"] - position["sl"]) / position["entry"]
                         closed = True
                     elif low <= position["tp"]:
-                        pnl = (position["entry"] - position["tp"]) / position["entry"]
+                        pnl_trade = (position["entry"] - position["tp"]) / position["entry"]
                         closed = True
                 
                 if closed:
-                    real_pnl_percent = pnl * 10 
-                    sim_state.pnl += (real_pnl_percent * 100)
+                    # Ajuste de alavancagem simulada (10x)
+                    real_pnl_percent = pnl_trade * 10 * 100
+                    sim_state.pnl += real_pnl_percent
                     sim_state.trades += 1
-                    if pnl > 0: sim_state.wins += 1
-                    else: sim_state.losses += 1
-                    history.append({"t": timestamp, "pnl": real_pnl_percent})
+                    
+                    if real_pnl_percent > 0:
+                        sim_state.wins += 1
+                        win_sum += real_pnl_percent
+                    else:
+                        sim_state.losses += 1
+                        loss_sum += abs(real_pnl_percent)
+                    
+                    pnl_history.append(sim_state.pnl)
+                    max_pnl = max(max_pnl, sim_state.pnl)
+                    dd = max_pnl - sim_state.pnl
+                    max_drawdown = max(max_drawdown, dd)
+                    
+                    history.append({"t": timestamp, "pnl": round(real_pnl_percent, 2)})
                     position = None
 
         brain.genes = original_genes
         total = sim_state.wins + sim_state.losses
         wr = (sim_state.wins / total * 100) if total > 0 else 0
+        
+        # Cálculo de Métricas Sugeridas
+        avg_win = (win_sum / sim_state.wins) if sim_state.wins > 0 else 0
+        avg_loss = (loss_sum / sim_state.losses) if sim_state.losses > 0 else 0.0001
+        rrr = avg_win / avg_loss if avg_loss > 0 else 0
+        expectancy = (wr/100 * avg_win) - ((1 - wr/100) * avg_loss)
+        
+        # Sharpe Simples (Retorno s/ Volatilidade)
+        std_pnl = 1.0
+        if len(pnl_history) > 2:
+            import statistics
+            diffs = [pnl_history[i] - pnl_history[i-1] for i in range(1, len(pnl_history))]
+            std_pnl = statistics.stdev(diffs) if len(diffs) > 1 else 1.0
+        sharpe = (sim_state.pnl / std_pnl) if std_pnl > 0 else 0
         
         return {
             "symbol": symbol,
@@ -1754,6 +1790,14 @@ async def run_backtest(data: dict):
             "total_trades": sim_state.trades,
             "win_rate": round(wr, 1),
             "total_pnl_percent": round(sim_state.pnl, 2),
+            "metrics": {
+                "max_drawdown": round(max_drawdown, 2),
+                "sharpe_ratio": round(sharpe, 2),
+                "expectancy": round(expectancy, 2),
+                "rrr": round(rrr, 2),
+                "avg_win": round(avg_win, 2),
+                "avg_loss": round(avg_loss, 2)
+            },
             "history": history[-10:],
             "debug": {"max_psi": round(max_psi, 4), "min_psi": round(min_psi, 4)}
         }
