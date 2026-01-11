@@ -96,23 +96,20 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v90.0 "LIVING REVERSION"
+    # 🧬 MASTER LOGIC v95.0 "INSTITUTIONAL REAPING"
     if intel["is_compressed"]:
-        # Reversão à Média com Toque de Banda + RSI
-        if intel["touch_low"] and intel["rsi"] < 35: 
-            bias = "GOD_LONG"; score = 90
-        elif intel["touch_high"] and intel["rsi"] > 65: 
-            bias = "GOD_SHORT"; score = 90
-            
-        # Reforço por Volume Shock
-        if intel["vol_shock"] > 1.3: score += 5
+        # Só entra se houver VOLUME institucional + Exaustão RSI + Toque de Banda
+        if intel["touch_low"] and intel["rsi"] < 25 and intel["vol_shock"] > 1.4: 
+            bias = "GOD_LONG"; score = 95
+        elif intel["touch_high"] and intel["rsi"] > 75 and intel["vol_shock"] > 1.4: 
+            bias = "GOD_SHORT"; score = 95
     else:
         # Modo TREND (Valhalla)
-        if abs(intel["psi"]) > 0.15:
+        if abs(intel["psi"]) > 0.18:
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 75 + (abs(intel["psi"]) * 15)
             
-    decision = "EXECUTE" if score >= 90 else "REJECT"
+    decision = "EXECUTE" if score >= 95 else "REJECT"
 
     return {
         "bias": bias,
