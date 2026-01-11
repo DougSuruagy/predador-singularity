@@ -20,7 +20,10 @@ const CONFIG = {
 
     // Supabase (opcional - para persistência)
     SUPABASE_URL: "https://sua-url.supabase.co",
-    SUPABASE_KEY: "sua-chave-anonima"
+    SUPABASE_KEY: "sua-chave-anonima",
+
+    // 🛡️ SECURITY TOKEN (Deve coincidir com INTERNAL_SECRET_TOKEN no Render)
+    API_TOKEN: "predador_secret_2026"
 };
 
 // ============================================================
@@ -119,6 +122,9 @@ async function syncDashboard() {
 
         const response = await fetch(`${CONFIG.API_URL}/state`, {
             method: 'GET',
+            headers: {
+                'X-Token': CONFIG.API_TOKEN
+            },
             signal: controller.signal
         });
 
@@ -386,7 +392,10 @@ window.terminateAll = async function () {
 
     try {
         const response = await fetch(`${CONFIG.API_URL}/command/panic`, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'X-Token': CONFIG.API_TOKEN
+            }
         });
 
         if (response.ok) {

@@ -14,7 +14,7 @@ Características:
   ✅ Pronto para integrar com API de corretora
 ═══════════════════════════════════════════════════════════════
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -51,6 +51,17 @@ def bybit_normalize_symbol(symbol: str) -> str:
 
 # Carregar variáveis de ambiente locais (.env) se existirem
 load_dotenv()
+
+# ============================================================
+# 🛡️ SOVEREIGN SECURITY LAYER (SSL-2026)
+# ============================================================
+INTERNAL_SECRET_TOKEN = os.environ.get("INTERNAL_SECRET_TOKEN", "predador_secret_2026")
+
+async def sovereign_auth(x_token: Optional[str] = Header(None)):
+    """Valida se a requisição possui a assinatura de soberania do PREDATOR."""
+    if not INTERNAL_SECRET_TOKEN: return # Se não configurado, ignora (Modo Dev)
+    if x_token != INTERNAL_SECRET_TOKEN:
+        raise HTTPException(status_code=401, detail="Unauthorized - Sovereign Security Block")
 
 # ============================================================
 # ⚡ ENGINE STATE & METRICS (Backend Potency)
@@ -832,7 +843,7 @@ state = MarketState()
 # ENDPOINT: COMANDOS REMOTOS (PANIC BUTTON)
 # ============================================================
 @app.post("/command/panic")
-async def trigger_panic():
+async def trigger_panic(auth: None = Depends(sovereign_auth)):
     """Aciona o modo PÂNICO: Fecha tudo e trava o sistema."""
     state.pending_command = "PANIC"
     state.is_locked = True
@@ -841,7 +852,7 @@ async def trigger_panic():
     return {"status": "PANIC_TRIGGERED"}
 
 @app.post("/command/clear")
-async def clear_command():
+async def clear_command(auth: None = Depends(sovereign_auth)):
     """Limpa comandos pendentes."""
     state.pending_command = ""
     state.is_locked = False
@@ -932,11 +943,8 @@ async def mql5_update(data: MQL5Update):
 # ENDPOINT: Webhook do TradingView (Automação de Repasse)
 # ============================================================
 @app.post("/webhook")
-async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None):
-    """
-    Recebe sinais do TradingView e processa.
-    O parâmetro intel_cache evita chamadas repetidas à API da Bybit.
-    """
+async def tradingview_webhook(payload: WebhookPayload, auth: None = Depends(sovereign_auth)):
+    """Recebe sinais do TradingView e executa na Bybit."""
     # 🩹 Bybit V5 Fix: Remove barras dos símbolos
     payload.symbol = bybit_normalize_symbol(payload.symbol)
     
@@ -1226,7 +1234,7 @@ async def update_daily_stats_in_db():
 # ENDPOINT: Registrar Resultado de Trade
 # ============================================================
 @app.post("/trade-result")
-async def register_trade_result(result: TradeResult):
+async def register_trade_result(result: TradeResult, auth: None = Depends(sovereign_auth)):
     """
     Registra o resultado de um trade (WIN ou LOSS).
     Usado para calcular estatísticas e ativar 3-Strikes.
@@ -1294,7 +1302,7 @@ async def register_trade_result(result: TradeResult):
 # ENDPOINT: Estado do Sistema (Dashboard)
 # ============================================================
 @app.get("/state")
-async def get_state():
+async def get_state(auth: None = Depends(sovereign_auth)):
     """
     Retorna o estado atual do sistema para o Dashboard.
     O Dashboard chama este endpoint a cada 500ms.
@@ -1353,7 +1361,7 @@ async def get_state():
 # ENDPOINT: Atualizar Preço Manualmente (opcional)
 # ============================================================
 @app.post("/update-price")
-async def update_price(data: dict):
+async def update_price(data: dict, auth: None = Depends(sovereign_auth)):
     """Atualiza o preço manualmente se necessário."""
     if "price" in data:
         state.price = data["price"]
@@ -1366,7 +1374,7 @@ async def update_price(data: dict):
 # ENDPOINT: Reset Diário
 # ============================================================
 @app.post("/reset")
-async def reset_daily():
+async def reset_daily(auth: None = Depends(sovereign_auth)):
     """Reseta contadores para um novo dia de trading."""
     state.daily_pnl = 0.0
     state.trades = 0
@@ -1387,7 +1395,7 @@ async def reset_daily():
 # ENDPOINT: Desbloquear Sistema
 # ============================================================
 @app.post("/unlock")
-async def unlock_system():
+async def unlock_system(auth: None = Depends(sovereign_auth)):
     """Desbloqueia o sistema após 3-strikes."""
     state.is_locked = False
     state.consecutive_losses = 0
@@ -1801,7 +1809,7 @@ async def evolution_watcher_loop():
 # 🩺 DIAGNÓSTICO DE POTÊNCIA (Performance Monitor)
 # ============================================================
 @app.get("/stats")
-async def get_performance_stats():
+async def get_performance_stats(auth: None = Depends(sovereign_auth)):
     """Retorna o estado de saúde neural do backend."""
     return {
         "engine": engine_state.get_stats(),
