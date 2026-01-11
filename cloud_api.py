@@ -187,9 +187,12 @@ class NomadBrain:
         self.last_trade_time = 0
         self.positions = {}  # {"BTCUSDT": {"side": "long", "entry": 50000, "tp": 50500, "sl": 49500}}
         
-        # 🧠 PATTERN MEMORY (Pattern Recognition v25.0)
-        self.synaptic_cache = {}        # { "pattern_hash": {"wins": 0, "losses": 0, "pnl": 0.0} }
+        # 🧠 PATTERN MEMORY & GLOBAL CONSCIOUSNESS (v26.0)
+        self.synaptic_cache = {}
         self.pulse_anchor = {"ETHUSDT": 0.0, "SOLUSDT": 0.0}
+        self.global_consciousness = 0.5 # 0 (Chaos) to 1 (Harmony)
+        self.plasticity_index = 0.1     # Learning Rate
+        self.sector_resonance = {k: 0.0 for k in self.eyes.keys()}
         
         # ⚡ CACHE DE SÍMBOLOS MONITORADOS
         self.monitored_symbols_cache = []
@@ -249,8 +252,25 @@ class NomadBrain:
                                 break
 
                     if ticker and (ticker.get('quoteVolume', 0) or 0) > 1000000:
-                        score_v = abs(ticker.get('percentage', 0))
-                        candidates.append((sym, score_v, sector))
+                        change = ticker.get('percentage', 0)
+                        score_v = abs(change)
+                        candidates.append((sym, score_v, sector, change))
+            
+            # 🧬 SYMPATHETIC RESONANCE & GLOBAL CONSCIOUSNESS
+            pos_changes = [c[3] for c in candidates if c[3] > 0]
+            neg_changes = [c[3] for c in candidates if c[3] < 0]
+            
+            # Global Consciousness: 1.0 (All Harmony) to 0.0 (Pure Chaos)
+            if len(candidates) > 0:
+                harmony = max(len(pos_changes), len(neg_changes)) / len(candidates)
+                self.global_consciousness = (harmony * 0.7) + (self.global_consciousness * 0.3)
+            
+            for sector in self.sector_resonance:
+                sector_changes = [c[3] for c in candidates if c[2] == sector]
+                if sector_changes:
+                    # Resonance: Força direcional do setor (-1 a 1)
+                    avg_c = sum(sector_changes) / len(sector_changes)
+                    self.sector_resonance[sector] = max(-1, min(1, avg_c / 5.0)) # Normalizado
             
             # Ordena por volatilidade setorial
             candidates.sort(key=lambda x: x[1], reverse=True)
@@ -275,16 +295,24 @@ class NomadBrain:
             
             for intel in results:
                 if not intel: continue
-                # 🎯 SCALPER SCORE: Volume Spike + Momentum + OBP + RSI Divergence
-                volume_weight = 1.5 if intel.get("volume_spike", False) else 1.0
-                divergence_bonus = 20 if intel.get("divergence", False) else 0
-                mtf_bonus = intel.get("mtf_confluence", 0) * 10  # Multi-Timeframe
+                # 🧬 SYMPATHETIC BONUS: Se o setor está em harmonia, aumenta o score
+                resonance = self.sector_resonance.get(intel.get("sector", ""), 0)
+                resonance_bonus = abs(resonance) * 15 if (resonance > 0 and intel["ofi"] > 0) or (resonance < 0 and intel["ofi"] < 0) else -10
+                
+                # 🧠 OMNISCIENT BIAS: Momentum do BTC/ETH/SOL impacta o score individual
+                anchor_bias = (self.btc_momentum + sum(self.pulse_anchor.values())) * 20
+                
+                volume_weight = 1.6 if intel.get("volume_spike", False) else 1.0
+                divergence_bonus = 25 if intel.get("divergence", False) else 0
+                mtf_bonus = intel.get("mtf_confluence", 0) * 12
                 
                 score = (
-                    (abs(intel["obp"]) * 40 * volume_weight) + 
-                    (intel["kinetic"] * 30) + 
+                    (abs(intel["ofi"]) * 45 * volume_weight) + 
+                    (intel["kinetic"] * 25) + 
                     divergence_bonus +
-                    mtf_bonus
+                    mtf_bonus +
+                    resonance_bonus +
+                    anchor_bias
                 )
                 
                 if score > highest_score:
@@ -299,17 +327,27 @@ class NomadBrain:
 
     def mutate(self, success: bool):
         """MOTOR DE MUTAÇÃO GENÉTICA: Evolui os pesos neurais baseados no lucro."""
-        mutation_rate = 0.05
+
+        # NEUROPLASTICITY: O robô aprende mais rápido no início ou após falhas
+        if not success:
+            self.plasticity_index = min(0.3, self.plasticity_index + 0.05)
+        else:
+            self.plasticity_index = max(0.05, self.plasticity_index - 0.01)
+            
+        mutation_rate = self.plasticity_index
+        
         if success:
-            # Se deu lucro, reforça os lobos frontais e occipitais (Análise Fria)
+            # Omnipotent Growth: Se está ganhando, foca em Visão e Lógica
             self.genes["frontal_weight"] += mutation_rate
             self.genes["occipital_weight"] += mutation_rate
-            self.genes["amygdala_weight"] -= mutation_rate
+            self.genes["parietal_weight"] += mutation_rate * 0.5
+            self.genes["amygdala_weight"] -= mutation_rate * 1.5
         else:
-            # Se deu prejuízo, reforça a Amígdala (Risco/Instinto)
-            self.genes["amygdala_weight"] += mutation_rate
+            # Self-Preservation: Se está perdendo, a Amígdala domina (Fear/Safety)
+            self.genes["amygdala_weight"] += mutation_rate * 2
             self.genes["frontal_weight"] -= mutation_rate
             self.genes["occipital_weight"] -= mutation_rate
+            self.genes["parietal_weight"] -= mutation_rate
         
         # Normalização dos Genes com Guard (Evita NaN)
         total = sum(self.genes.values())
@@ -541,8 +579,17 @@ class NomadBrain:
              
         reality_trap = (abs(z_score) > 2.8) or (not is_correlated) or (entropy > 6.0) or rsi_trap or (self.homeostasis < 40)
         
+        # 🧬 SYMPATHETIC REINFORCEMENT
+        # Se o ativo está em sintonia com seu setor (Resonância), ganhamos bônus de confiança
+        resonance = self.sector_resonance.get(intel.get("sector", ""), 0)
+        resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
+        
+        # 🔱 GLOBAL CONSCIOUSNESS FILTER
+        # Se o mercado está caótico (consciência baixa), o limiar de consenso sobe
+        consensus_threshold = 0.25 if self.global_consciousness < 0.6 else 0.15
+        if resonance_align: consensus_threshold *= 0.7 # Mais fácil entrar se houver ressonância
+        
         bias = "NEUTRAL"
-        consensus_threshold = 0.15  # Reduzido para mais oportunidades
         if psi > consensus_threshold and is_correlated: bias = "GOD_LONG"
         if psi < -consensus_threshold and is_correlated: bias = "GOD_SHORT"
         
@@ -1368,6 +1415,10 @@ async def get_state(auth: None = Depends(sovereign_auth)):
         "bias": state.bias,
         "kinetic": round(state.kinetic, 6),
         "obp": round(state.obp, 4),
+        "ofi": round(state.ofi, 4),
+        "global_consciousness": round(brain.global_consciousness, 4),
+        "plasticity": round(brain.plasticity_index, 4),
+        "sector_resonance": {k: round(v, 3) for k, v in brain.sector_resonance.items()},
         "z_score": round(state.z_score, 3),
         "entropy": round(getattr(state, 'entropy', 0.0), 2), 
         "rsi": round(state.rsi, 1),

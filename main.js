@@ -98,6 +98,7 @@ function initDOM() {
     DOM.ofiBar = document.getElementById('ofi-bar');
     DOM.statusPill = document.querySelector('.status-pill');
     DOM.levVal = document.getElementById('lev-val');
+    DOM.consciousnessVal = document.getElementById('consciousness-val');
     DOM.feedLog = document.getElementById('feed');
     DOM.regimeLabel = document.querySelector('.regime-label');
     DOM.assetSymbol = document.getElementById('asset-symbol');
@@ -289,6 +290,12 @@ function updateUI(data) {
 
     if (DOM.inertiaVal) {
         DOM.inertiaVal.innerText = (data.kinetic || 0).toFixed(4);
+    }
+
+    if (DOM.consciousnessVal) {
+        const harmony = (data.global_consciousness || 0.5) * 100;
+        DOM.consciousnessVal.style.width = `${harmony}%`;
+        DOM.consciousnessVal.style.background = harmony > 70 ? 'var(--neon-green)' : (harmony < 40 ? 'var(--neon-pink)' : 'var(--neon-blue)');
     }
 
     if (DOM.entropyVal) {
