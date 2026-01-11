@@ -1,9 +1,11 @@
 """
-PREDATOR v55.0 IRON SNIPER - Cloud API (Render)
+PREDATOR v56.0 VALHALLA SUPREME - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-STRATEGY 1: IRON FORTRESS (BTC/ETH) -> Trend Following Seguro
-STRATEGY 2: JUNIOR SNIPER (SOL) -> Mean Reversion Extremo
-GOAL: ZERO LOSS IN CHOPPY MARKETS + SURGICAL PROFIT
+THE ULTIMATE FUSION:
+1. DYNAMIC THRESHOLD: Adapts Aggression based on Market Trend.
+   - Trending? Be Valhalla (0.22) -> Catch Big Moves.
+   - Ranging? Be Iron (0.35) -> Avoid Chop.
+2. JUNIOR SNIPER: Surgical Scalping on SOL.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -59,7 +61,7 @@ class EngineState:
 engine_state = EngineState()
 
 # ============================================================
-# 🚀 PREDATOR BRAIN v55.0 (IRON LOGIC)
+# 🚀 PREDATOR BRAIN v56.0 (SUPREME LOGIC)
 # ============================================================
 class NomadBrain:
     def calculate_indicators(self, closes, highs, lows):
@@ -76,13 +78,13 @@ class NomadBrain:
         
         psi = (closes[-1] - closes[-5]) / closes[-5] * 100
         
-        # Volatility
         tr = max(highs[-1] - lows[-1], abs(highs[-1] - closes[-2]), abs(lows[-1] - closes[-2]))
         atr = tr 
         
-        # Trend Strength (Iron Filter)
+        # Trend Strength (The Fusion Key)
         ma20 = sum(closes[-20:]) / 20
         ma50 = sum(closes[-30:]) / 30 
+        # Se as médias estão afastadas > 0.1%, temos tendência clara -> Modo Valhalla
         trend_strong = abs(ma20 - ma50) > (closes[-1] * 0.001)
         
         return {
@@ -104,12 +106,12 @@ class WebhookPayload(BaseModel):
     price: Optional[float] = None
     qty: Optional[float] = 0.01
 
-app = FastAPI(title="PREDATOR v55.0 IRON SNIPER")
+app = FastAPI(title="PREDATOR v56.0 VALHALLA SUPREME")
 exchange = ccxt.bybit({'apiKey': os.environ.get('BYBIT_API_KEY'), 'secret': os.environ.get('BYBIT_API_SECRET'), 'options': {'defaultType': 'future'}})
 
 @app.on_event("startup")
 async def startup_event():
-    print("🔋 [IRON SNIPER v55] SISTEMA BLINDADO INICIADO.")
+    print("🔋 [VALHALLA SUPREME] FUSÃO DINÂMICA INICIADA.")
     asyncio.create_task(exchange.load_markets())
     asyncio.create_task(autonomous_hunter_loop())
 
@@ -119,34 +121,40 @@ async def get_state(x_token: str = Header(None)):
     return engine_state.get_stats()
 
 # ============================================================
-# 🦅 AUTONOMOUS HUNTER (DUAL LOGIC)
+# 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
-def get_iron_config(symbol):
-    """ [IRON FORTRESS] BTC/ETH - Trend Following Seguro """
+def get_supreme_config(symbol, is_trending):
+    """ 
+    [BTC/ETH] Configuração Dinâmica 
+    Trending (True) -> Valhalla (0.22) -> Agressivo
+    Chop (False) -> Iron (0.35) -> Defensivo
+    """
+    threshold = 0.22 if is_trending else 0.35 # O Pulso do Gato
+    
     return {
-        "threshold": 0.25, # Alto para filtrar ruído
-        "min_score": 60,
-        "sl_mult": 1.8,
-        "tp_mult": 5.5,
+        "threshold": threshold,
+        "min_score": 55 if is_trending else 65, # Mais exigente se lateral
+        "sl_mult": 1.8, # Padrão Valhalla
+        "tp_mult": 5.5, # Padrão Valhalla
         "leverage": 10
     }
 
 def get_sniper_config(symbol):
-    """ [JUNIOR SNIPER] SOL - Reversão Extrema """
+    """ [SOL] Junior Sniper v1.1 """
     return {
-        "min_score": 70,
+        "min_score": 75,
         "sl_mult": 1.0,
         "tp_mult": 1.5,
         "leverage": 5
     }
 
 async def autonomous_hunter_loop():
-    print("🦅 IRON PREDATOR & 🦖 SNIPER JUNIOR ATIVOS.")
+    print("🦅 PREDADOR SUPREMO & 🦖 SNIPER JUNIOR ATIVOS.")
     while True:
         try:
             await asyncio.sleep(4)
             # PREDADOR (BTC/ETH)
-            for symbol in ["BTCUSDT", "ETHUSDT"]: await run_strategy(symbol, "IRON")
+            for symbol in ["BTCUSDT", "ETHUSDT"]: await run_strategy(symbol, "SUPREME")
             # SNIPER (SOL)
             await run_strategy("SOLUSDT", "SNIPER")
         except Exception as e:
@@ -165,27 +173,28 @@ async def run_strategy(symbol, mode):
     score = 0
     config = {}
     
-    if mode == "IRON":
-        config = get_iron_config(symbol)
-        # SÓ ENTRA SE TENDÊNCIA FOR FORTE (Filtro v54)
-        if intel["trend_strong"]:
-            if abs(intel["psi"]) > config["threshold"]:
-                score = 65 
-                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+    if mode == "SUPREME":
+        # AQUI ESTÁ A MÁGICA DINÂMICA
+        config = get_supreme_config(symbol, intel["trend_strong"])
         
-        # Filtro RSI
-        if (bias == "GOD_LONG" and intel["rsi"] > 68) or (bias == "GOD_SHORT" and intel["rsi"] < 32): score = 0
+        threshold = config["threshold"]
+        if abs(intel["psi"]) > threshold:
+            score = 60 + (abs(intel["psi"]) * 10)
+            bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+        
+        # Filtro RSI Blindado
+        if (bias == "GOD_LONG" and intel["rsi"] > 70) or (bias == "GOD_SHORT" and intel["rsi"] < 30): score = 0
         
     elif mode == "SNIPER":
         config = get_sniper_config(symbol)
-        # SÓ ENTRA EM EXTREMOS (Filtro v1.1)
         if intel["rsi"] < 20: 
-            bias = "GOD_LONG"; score = 75
+            bias = "GOD_LONG"; score = 80
         elif intel["rsi"] > 80: 
-            bias = "GOD_SHORT"; score = 75
+            bias = "GOD_SHORT"; score = 80
             
     if score >= config["min_score"]:
-        print(f"⚡ [{mode} STRIKE] {symbol} | Score: {score} | Bias: {bias}")
+        current_threshold_name = "VALHALLA (Agro)" if (mode == "SUPREME" and intel["trend_strong"]) else "IRON (Safe)"
+        print(f"⚡ [{mode}-{current_threshold_name}] {symbol} | Score: {score:.1f} | Bias: {bias}")
         
         price = intel["price"]
         atr = intel["atr"]
@@ -202,15 +211,15 @@ async def run_strategy(symbol, mode):
                           'takeProfit': float(exchange.price_to_precision(symbol, tp))}
                 
                 order = await exchange.create_order(symbol, 'market', side, qty, params=params)
-                print(f"✅ ORDEM {mode}: {symbol} ID: {order['id']}")
+                print(f"✅ ORDEM ENVIADA! ID: {order['id']}")
                 engine_state.trades += 1
             except Exception as ex:
                 print(f"❌ Erro Exec: {ex}")
         
-        await asyncio.sleep(5)
+        await asyncio.sleep(10)
 
 # ============================================================
-# 🔙 BACKTEST (DUAL IRON/SNIPER)
+# 🔙 BACKTEST (DUAL DYNAMIC)
 # ============================================================
 @app.post("/backtest")
 async def run_backtest(payload: WebhookPayload):
@@ -218,8 +227,7 @@ async def run_backtest(payload: WebhookPayload):
     ohlcv = await exchange.fetch_ohlcv(symbol, "1m", limit=2000)
     
     sim = {"pnl": 0.0, "trades": 0, "wins": 0}
-    mode = "SNIPER" if "SOL" in symbol else "IRON" # Define modo por ativo
-    config = get_sniper_config(symbol) if mode == "SNIPER" else get_iron_config(symbol)
+    mode = "SNIPER" if "SOL" in symbol else "SUPREME"
     
     for i in range(35, len(ohlcv)-1):
         past_closes = [x[4] for x in ohlcv[i-35:i+1]]
@@ -227,17 +235,19 @@ async def run_backtest(payload: WebhookPayload):
         
         bias = "NEUTRAL"
         score = 0
+        config = {}
         
-        if mode == "IRON":
-            if intel["trend_strong"]:
-                if abs(intel["psi"]) > config["threshold"]: 
-                    score = 65
-                    bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            if (bias == "GOD_LONG" and intel["rsi"] > 68) or (bias == "GOD_SHORT" and intel["rsi"] < 32): score = 0
+        if mode == "SUPREME":
+            config = get_supreme_config(symbol, intel["trend_strong"])
+            if abs(intel["psi"]) > config["threshold"]: 
+                score = 60 + (abs(intel["psi"])*10)
+                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+            if (bias == "GOD_LONG" and intel["rsi"] > 70) or (bias == "GOD_SHORT" and intel["rsi"] < 30): score = 0
             
         elif mode == "SNIPER":
-            if intel["rsi"] < 20: bias = "GOD_LONG"; score = 75
-            elif intel["rsi"] > 80: bias = "GOD_SHORT"; score = 75
+            config = get_sniper_config(symbol)
+            if intel["rsi"] < 20: bias = "GOD_LONG"; score = 80
+            elif intel["rsi"] > 80: bias = "GOD_SHORT"; score = 80
             
         if score >= config["min_score"]:
             entry = ohlcv[i][4]
@@ -246,7 +256,7 @@ async def run_backtest(payload: WebhookPayload):
             tp_dist = atr * config["tp_mult"]
             
             pnl = 0
-            # Simula futuro
+            # Simula futuro (120 min)
             for j in range(i+1, min(i+120, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
