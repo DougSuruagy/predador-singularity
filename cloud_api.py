@@ -23,6 +23,7 @@ import time
 import math
 import psutil
 import statistics
+import httpx
 
 # ============================================================
 # ⚙️ GLOBAL CONFIG
@@ -254,47 +255,62 @@ async def run_strategy(symbol, mode):
     
     closes = [x[4] for x in ohlcv]
     engine_state.last_price = closes[-1]
-    intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv])
-    if not intel: return
     
+    # 🧠 DISTRIBUTED BRAIN (Vercel Shadow)
+    vercel_url = os.environ.get("VERCEL_BRAIN_URL")
+    intel = None
     bias = "NEUTRAL"
     score = 0
-    config = {}
+    decision = "REJECT"
     
-    if mode == "SUPREME":
-        config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"])
-        threshold = config["threshold"]
-        engine_state.last_score = 0
+    if vercel_url:
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                resp = await client.post(
+                    f"{vercel_url}/api/hunt",
+                    json={"symbol": symbol, "mode": mode, "ohlcv": ohlcv},
+                    headers={"x-token": INTERNAL_SECRET_TOKEN}
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    intel = data.get("intel")
+                    bias = data.get("bias")
+                    score = data.get("score")
+                    decision = data.get("decision")
+                    print(f"🧠 [VERCEL BRAIN] {symbol}: {bias} ({score})")
+        except Exception as e:
+            print(f"⚠️ [BRAIN FAILOVER] Vercel offline ou lento, usando Local Core: {e}")
+
+    # 🧬 LOCAL FALLBACK (Se o Vercel falhar)
+    if not intel:
+        intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv])
+        if not intel: return
         
-        if intel["is_compressed"]:
-            # Exaustão Ultra-Fina (v71.0)
-            if intel["rsi"] < 18: bias = "GOD_LONG"; score = 95
-            elif intel["rsi"] > 82: bias = "GOD_SHORT"; score = 95
-        else:
-            if abs(intel["psi"]) > threshold:
-                score = 75 + (abs(intel["psi"]) * 10)
-                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-        engine_state.last_score = score
+        config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
         
-    elif mode == "SNIPER":
-        config = get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
-        engine_state.last_score = 0
-        if intel["is_compressed"]:
-            if intel["rsi"] < 15: bias = "GOD_LONG"; score = 95
-            elif intel["rsi"] > 85: bias = "GOD_SHORT"; score = 95
-        else:
-            if abs(intel["psi"]) > config["threshold"]:
-                score = 75 + (abs(intel["psi"]) * 10)
-                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-        engine_state.last_score = score
-            
-        # Filtro RSI Adaptativo (SINGULARITY)
-        rsi_limit_high = 80 if intel["trend_strong"] else 75
-        rsi_limit_low = 20 if intel["trend_strong"] else 25
-        if (bias == "GOD_LONG" and intel["rsi"] > rsi_limit_high) or (bias == "GOD_SHORT" and intel["rsi"] < rsi_limit_low): 
-            score = 0
-            
-    if score >= config["min_score"]:
+        if mode == "SUPREME":
+            if intel["is_compressed"]:
+                if intel["rsi"] < 18: bias = "GOD_LONG"; score = 95
+                elif intel["rsi"] > 82: bias = "GOD_SHORT"; score = 95
+            else:
+                if abs(intel["psi"]) > config["threshold"]:
+                    score = 75 + (abs(intel["psi"]) * 10)
+                    bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+        elif mode == "SNIPER":
+            if intel["is_compressed"]:
+                if intel["rsi"] < 15: bias = "GOD_LONG"; score = 95
+                elif intel["rsi"] > 85: bias = "GOD_SHORT"; score = 95
+            else:
+                if abs(intel["psi"]) > config["threshold"]:
+                    score = 75 + (abs(intel["psi"]) * 10)
+                    bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+        
+        decision = "EXECUTE" if score >= 75 else "REJECT"
+
+    engine_state.last_score = score
+    
+    if decision == "EXECUTE":
+        config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
         current_threshold_name = "VALHALLA (Agro)" if (mode == "SUPREME" and intel["trend_strong"]) else "IRON (Safe)"
         print(f"⚡ [{mode}-{current_threshold_name}] {symbol} | Score: {score:.1f} | Bias: {bias}")
         
