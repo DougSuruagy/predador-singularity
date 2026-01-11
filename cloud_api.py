@@ -1757,11 +1757,13 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v43.0: Valhalla Strike (Score > 55)
-                if report["bias"] != "NEUTRAL" and report["score"] > 55:
-                    # RRR Restaurado (1.8x / 5.5x) - O segredo do lucro líquido real
-                    sl_mult = 1.8
-                    tp_mult = 5.5 
+                # [v45.0] ADAPTIVE BACKTEST SYNC
+                config = get_asset_config(symbol)
+                
+                if report["bias"] != "NEUTRAL" and report["score"] > config["min_score"]:
+                    # RRR from Config (2.0x / 6.0x)
+                    sl_mult = config["sl_mult"]
+                    tp_mult = config["tp_mult"] 
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
@@ -1868,21 +1870,22 @@ async def run_backtest(data: dict):
 # ============================================================
 def get_asset_config(symbol):
     """
-    [v43.0] VALHALLA: Configuração Institucional Sincronizada com o Backtest Vencedor.
-    Garante que o lucro real replique a simulação de +12.7% do ETH.
+    [v45.0] ADAPTIVE STRIKE: Otimização de Qualidade e Robustez.
+    SL mais largo (2.0x) para evitar ruído, TP (6.0x) para RRR 3:1.
+    Filtro de Score (60) mais rigoroso para trades de alta probabilidade.
     """
     is_sol = "SOL" in symbol or "PEPE" in symbol
     is_major = "BTC" in symbol or "ETH" in symbol
     
-    # Thresholds Vencedores
-    threshold = 0.30 if is_sol else 0.22
+    # Thresholds Mais Rigorosos (Qualidade > Quantidade)
+    threshold = 0.32 if is_sol else 0.24
     
-    # RRR Estrutural (O Segredo do Lucro Líquido)
+    # RRR 3:1 Estrutural (2.0x / 6.0x)
     return {
         "threshold": threshold,
-        "sl_mult": 1.8, # Espaço vital para vencer o ruído
-        "tp_mult": 5.5, # Alvo longo para dominar as taxas
-        "min_score": 55, # Gatilho Sniper
+        "sl_mult": 2.0, # Mais espaço para o trade respirar
+        "tp_mult": 6.0, # Alvo longo mantendo RRR 3:1
+        "min_score": 60, # Apenas sinais fortes (A-Class)
         "leverage": 10 if is_major else 5
     }
 
