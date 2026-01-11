@@ -77,6 +77,8 @@ class EngineState:
         self.errors_logged = 0
         self.last_neural_pulse = time.time()
         self.is_healthy = True # Deadman Switch status
+        self.daily_max_drawdown = 5.0 # Trava de segurança 5%
+        self.is_shielded = False
 
     def get_stats(self):
         process = psutil.Process(os.getpid())
@@ -1178,14 +1180,23 @@ async def tradingview_webhook(payload: WebhookPayload, auth: None = Depends(sove
         state.trade_log = state.trade_log[:50]
     
     state.trades += 1
-    state.regime = "ACTIVE"
-    state.last_update = time.time()
-    state.last_order = trade_entry
+    # 🛡️ SOVEREIGN SHIELD (v43.0)
+    if state.is_shielded:
+        return {"status": "SHIELD_ACTIVE", "reason": "Daily Stop Loss Reached"}
+        
+    # [v43.0] VALHALLA SYNC
+    config = get_asset_config(payload.symbol)
     
     # 💫 SINGULARIDADE v21.1 - Busca Inteligência se não estiver em cache
     intel = intel_cache if intel_cache else await brain.fetch_god_intelligence(payload.symbol)
     
     report = brain.analyze_infinity(state, intel=intel)
+    
+    # Calculo de Safety Rating em Tempo Real (Baseado em Performance Diária)
+    wr = (state.wins / (state.trades + 0.0001)) * 100
+    rating = "D-CLASS (Risco Alto)" if state.daily_pnl <= 0 else "B-CLASS (Sólido)"
+    if state.daily_pnl > 10.0: rating = "A-CLASS (Profissional)"
+    
     state.confidence = report["score"]
     state.bias = report["bias"]
     state.kinetic = report["physics"]
@@ -1211,12 +1222,16 @@ async def tradingview_webhook(payload: WebhookPayload, auth: None = Depends(sove
     # EXECUÇÃO GOD-MODE (R$100 - BANK PROTECTION)
     # ═══════════════════════════════════════════════════════════
     if exchange.apiKey and exchange.secret:
-        if state.trap_detected and state.confidence < 98:
+        if state.trap_detected and state.confidence < 90:
             return {"status": "GOD_SHIELD_ACTIVE", "reason": "Trap Detected"}
             
-        # [MATEMÁTICA AGRESSIVA] Kelly Criterion + Alpha Scale (MUTANTE v21.2)
-        # Rendimento Curto Prazo: Se adrenalina > 0.8, dobramos a agressividade.
-        yield_boost = 1.0 + (state.adrenaline * 1.5) if state.adrenaline > 0.5 else 1.0
+        # [v43.0] VALHALLA: Sincronia Real com Backtest
+        config = get_asset_config(payload.symbol)
+        
+        if state.confidence < config["min_score"]:
+            return {"status": "SKIPPED", "reason": f"LOW_CONFIDENCE ({state.confidence:.1f})"}
+            
+        print(f"🦅 [PREDATOR v43.0] Lançando Ataque em {payload.symbol} | RRR {config['tp_mult']/config['sl_mult']:.2f}:1")
         
         capital_usd = 20.0 # Aproximadamente R$ 100
         if state.daily_pnl > 0:
@@ -1227,17 +1242,13 @@ async def tradingview_webhook(payload: WebhookPayload, auth: None = Depends(sove
         
         # [SEGURANÇA] Usa Auto-Compounding com preço real
         entry_price = intel["price"] if intel else state.price
-        
-        # 🎯 Dynamic TP/SL from Intel
-        sl, tp = None, None
-        if intel:
-            sl_dist = intel.get("suggested_sl", entry_price * 0.01)
-            tp_dist = intel.get("suggested_tp", entry_price * 0.02)
-            sl = entry_price - sl_dist if payload.action.upper() == "BUY" else entry_price + sl_dist
-            tp = entry_price + tp_dist if payload.action.upper() == "BUY" else entry_price - tp_dist
+        # 🎯 Dynamic TP/SL from Intel (v43.0 - ATR-based)
+        atr_value = intel.get("atr", 0.01 * entry_price) # Fallback para 1% do preço
+        sl = entry_price - (atr_value * config["sl_mult"]) if payload.action.upper() == "BUY" else entry_price + (atr_value * config["sl_mult"])
+        tp = entry_price + (atr_value * config["tp_mult"]) if payload.action.upper() == "BUY" else entry_price - (atr_value * config["tp_mult"])
 
         payload.qty = 0.001 
-        asyncio.create_task(execute_bybit_order(payload, use_compounding=True, entry_price=entry_price, sl=sl, tp=tp))
+        asyncio.create_task(execute_bybit_order(payload, use_compounding=True, entry_price=entry_price, sl=sl, tp=tp, atr=atr_value))
     # ═══════════════════════════════════════════════════════════
     
     return {
@@ -1426,6 +1437,13 @@ async def update_daily_stats_in_db():
     try:
         today = get_today_iso()
         
+        # 🛡️ Trava de Segurança Institucional (v43.0)
+        # Se o PnL diário cair abaixo de -5% (baseado em capital_usd), ativa o Shield
+        capital_base = 20.0 # R$100
+        if state.daily_pnl < -(capital_base * 0.05):
+            state.is_shielded = True
+            print(f"🚨 [SHIELD ACTIVE] Stop Loss Diário atingido! Operações bloqueadas.")
+            
         # Upsert baseado no estado em tempo real (Cache-First)
         supabase.table("daily_stats").upsert({
             "date": today,
@@ -1925,17 +1943,30 @@ async def autonomous_hunter_loop():
             if symbol and score >= 85: # Aumentamos o threshold para maior qualidade
                 print(f"💎 OPORTUNIDADE GOD-LEVEL: {symbol} (SCORE: {score:.1f})")
                 
+                # [v43.0] VALHALLA SYNC
+                config = get_asset_config(symbol)
+                
+                # Só executa se o Score Neural passar pelo filtro sniper
+                if report["score"] < config["min_score"]:
+                    return {"status": "SKIPPED", "reason": f"LOW_SCORE ({report['score']:.1f} < {config['min_score']})"}
+
+                # Direção e Alvos
+                action = "BUY" if report["bias"] == "GOD_LONG" else "SELL"
+                side = "buy" if report["bias"] == "GOD_LONG" else "sell"
+                sl_dist = atr * config["sl_mult"]
+                tp_dist = atr * config["tp_mult"]
+                
+                sl_price = price - sl_dist if side == "buy" else price + sl_dist
+                tp_price = price + tp_dist if side == "buy" else price - tp_dist
+                
+                print(f"🦅 [PREDATOR v43.0] Lançando Ataque em {symbol} | RRR: {config['tp_mult']/config['sl_mult']:.2f}:1")
+
                 # Sincroniza estado para análise final
                 report = brain.analyze_infinity(state, intel)
                 if not report["trap"]:
-                    action = "BUY" if report["bias"] == "GOD_LONG" else "SELL"
-                    
                     # 🎯 Dynamic TP/SL from Intel
-                    sl_dist = intel.get("suggested_sl", intel["price"] * 0.01)
-                    tp_dist = intel.get("suggested_tp", intel["price"] * 0.02)
-                    
-                    sl = intel["price"] - sl_dist if action == "BUY" else intel["price"] + sl_dist
-                    tp = intel["price"] + tp_dist if action == "BUY" else intel["price"] - tp_dist
+                    sl = sl_price
+                    tp = tp_price
 
                     # 🛡️ POSITION GUARD & SAFETY LOCKS (Active Position Management)
                     if not hasattr(brain, 'active_positions'): brain.active_positions = set()
