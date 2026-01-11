@@ -22,7 +22,7 @@ def run_remote_backtest(symbol="SOLUSDT", period="1d"):
     }
     
     try:
-        response = requests.post(endpoint, json=payload, headers=headers, timeout=60)
+        response = requests.post(endpoint, json=payload, headers=headers, timeout=180)
         if response.status_code == 200:
             return response.json()
         else:

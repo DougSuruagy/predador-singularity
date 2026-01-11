@@ -193,6 +193,14 @@ async def get_state(x_token: str = Header(None)):
     await sovereign_auth(x_token)
     return engine_state.get_stats()
 
+@app.get("/health")
+async def health():
+    return {"status": "alive", "version": "140.0"}
+
+@app.get("/")
+async def root():
+    return {"status": "alive", "message": "PREDATOR API ACTIVE"}
+
 # ============================================================
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
