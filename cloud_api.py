@@ -1660,13 +1660,15 @@ async def run_backtest(data: dict):
         
         intel = {
             "price": close,
-            "obp": 0.0, # Sem dados históricos de OB
+            "obp": 0.0,
             "kinetic": kinetic,
             "z_score": z_score,
-            "trend_aligned": True, # Simplificação
-            "rsi": 50, # Recalculo seria pesado, usando neutro
+            "trend_aligned": True,
+            "btc_corr": 0.0, # Neutro para simulação simplificada
+            "sector": "",
+            "rsi": 50,
             "atr": atr,
-            "volume_spike": vol > (mean * 1.5) # Simplificação
+            "volume_spike": vol > (mean * 1.5)
         }
         
         # Analisa
