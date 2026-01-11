@@ -1626,9 +1626,22 @@ async def run_backtest(data: dict):
         
         print(f"🧪 INICIANDO BACKTEST GENÉTICO: {symbol} ({period})...")
         
-        # 1. Buscar dados históricos (Deep Space Stress Test)
-        limit = data.get("limit", 2000)
-        ohlcv = await exchange.fetch_ohlcv(symbol, '1m', limit=limit)
+        # 1. Buscar dados históricos Pagina da Bybit (Deep Data Fetch)
+        target_limit = data.get("limit", 2000)
+        ohlcv = []
+        last_ts = None
+        
+        while len(ohlcv) < target_limit:
+            batch_limit = min(1000, target_limit - len(ohlcv))
+            params = {}
+            if last_ts: params['since'] = last_ts + 1
+            
+            batch = await exchange.fetch_ohlcv(symbol, '1m', limit=batch_limit, params=params)
+            if not batch: break
+            ohlcv.extend(batch)
+            last_ts = batch[-1][0]
+            if len(batch) < batch_limit: break
+            
         if not ohlcv:
             return {"error": "Sem dados históricos."}
             
@@ -1718,11 +1731,13 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v26.6 (Check)
+                # Gatilho v26.9: Dynamic Golden RRR
                 if report["bias"] != "NEUTRAL" and report["score"] > 60:
-                    vol_mult = 2.4 if symbol in ["SOLUSDT", "PEPEUSDT"] else 1.8
+                    # Determina se precisa de mais espaço (Wick Shield)
+                    is_sol = symbol in ["SOLUSDT", "PEPEUSDT"]
+                    vol_mult = 2.2 if is_sol else 1.8
                     sl_dist = atr * vol_mult
-                    tp_dist = atr * 3.8
+                    tp_dist = atr * (5.0 if is_sol else 3.8) # TP Agressivo no SOL
                     
                     sl = close - sl_dist if report["bias"] == "GOD_LONG" else close + sl_dist
                     tp = close + tp_dist if report["bias"] == "GOD_LONG" else close - tp_dist
