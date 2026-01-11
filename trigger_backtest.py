@@ -54,6 +54,7 @@ def run_remote_backtest(symbol="SOLUSDT", period="1d"):
                 print("\n📊 MÉTRICAS DE PERFORMANCE:")
                 print(f"  - Drawdown Máximo:  {metrics.get('max_drawdown')}%")
                 print(f"  - Sharpe Ratio:     {metrics.get('sharpe_ratio')}")
+                print(f"  - SAFETY RATING:    {metrics.get('safety_rating')}")
                 print(f"  - Expectativa/Trade: {metrics.get('expectancy')}%")
                 print(f"  - Relação RRR:      {metrics.get('rrr')}:1")
                 print(f"  - Ganho Médio:      {metrics.get('avg_win')}%")

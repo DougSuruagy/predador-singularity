@@ -1761,8 +1761,10 @@ async def run_backtest(data: dict):
                         closed = True
                 
                 if closed:
-                    # Ajuste de alavancagem simulada (10x)
-                    real_pnl_percent = pnl_trade * 10 * 100
+                    # [v27.0] Friction Cost Simulation (0.05% Fee + Slippage)
+                    friction = 0.0005 
+                    
+                    real_pnl_percent = (pnl_trade - friction) * 10 * 100
                     sim_state.pnl += real_pnl_percent
                     sim_state.trades += 1
                     
@@ -1780,6 +1782,14 @@ async def run_backtest(data: dict):
                     
                     history.append({"t": timestamp, "pnl": round(real_pnl_percent, 2)})
                     position = None
+                else:
+                    # [v27.0] Breakeven Guard: Proteção de Capital
+                    # Se atingir 50% do caminho para o TP, move SL para o Breakeven
+                    target_move = (position["tp"] - position["entry"]) * 0.5
+                    if position["type"] == "long" and (close - position["entry"]) > target_move:
+                         position["sl"] = max(position["sl"], position["entry"] + (atr * 0.2))
+                    elif position["type"] == "short" and (position["entry"] - close) > target_move:
+                         position["sl"] = min(position["sl"], position["entry"] - (atr * 0.2))
 
         brain.genes = original_genes
         total = sim_state.wins + sim_state.losses
@@ -1799,6 +1809,13 @@ async def run_backtest(data: dict):
             std_pnl = statistics.stdev(diffs) if len(diffs) > 1 else 1.0
         sharpe = (sim_state.pnl / std_pnl) if std_pnl > 0 else 0
         
+        # [v27.0] Safety Rating
+        rating = "D-CLASS (Risco Alto)"
+        if sharpe > 1.5: rating = "C-CLASS (Aceitável)"
+        if sharpe > 3.0: rating = "B-CLASS (Sólido)"
+        if sharpe > 5.0: rating = "A-CLASS (Profissional)"
+        if sharpe > 10.0: rating = "S-CLASS (IA Soberana)"
+        
         return {
             "symbol": symbol,
             "candles_analyzed": len(ohlcv),
@@ -1808,13 +1825,14 @@ async def run_backtest(data: dict):
             "metrics": {
                 "max_drawdown": round(max_drawdown, 2),
                 "sharpe_ratio": round(sharpe, 2),
+                "safety_rating": rating,
                 "expectancy": round(expectancy, 2),
                 "rrr": round(rrr, 2),
                 "avg_win": round(avg_win, 2),
                 "avg_loss": round(avg_loss, 2)
             },
             "history": history[-10:],
-            "debug": {"max_psi": round(max_psi, 4), "min_psi": round(min_psi, 4)}
+            "debug": {"max_psi": round(max_psi, 4), "min_psi": round(min_psi, 0)}
         }
     except Exception as e:
         print(f"❌ [BACKTEST-ERROR] {e}")
