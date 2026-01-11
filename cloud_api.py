@@ -634,19 +634,20 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v36.0] HOLY GRAIL: O Equilíbrio de Ouro entre Frequência e Lucro
+        # [v37.0] ASCENSION: Calibração Final por Classe de Ativo
         is_major = any(m in (intel.get("symbol", "") or "") for m in ["BTC", "ETH"])
         
-        # Threshold Sincronizado para 1m (v36)
-        base_cons = 0.30 if is_major else 0.32
-        consensus_threshold = (base_cons + 0.05) if self.global_consciousness < 0.6 else base_cons
+        # [v37] BTC/ETH precisam de sensibilidade (0.22) vs SOL (0.32)
+        base_cons = 0.22 if is_major else 0.32
+        consensus_threshold = (base_cons + 0.06) if self.global_consciousness < 0.6 else base_cons
         
-        # Filtro de Volatilidade "Fee-Cover" (0.05% mínimo)
+        # Filtro de Volatilidade Específico (Majors: 3bp vs Mid: 6bp)
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_check = (atr / (price + 0.000001)) > 0.0005
+        vol_floor = 0.0003 if is_major else 0.0006
+        vol_check = (atr / (price + 0.000001)) > vol_floor
         
-        # Filtro de Inércia [v36.0]
+        # Filtro de Inércia [v37.0]
         self.psi_history.append(psi)
         if len(self.psi_history) > 3: self.psi_history.pop(0)
         avg_psi = sum(self.psi_history) / len(self.psi_history)
@@ -1731,14 +1732,14 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v36.0: Holy Grail Strike (Score > 65)
-                if report["bias"] != "NEUTRAL" and report["score"] > 65:
+                # Gatilho v37.0: Ascension Strike (Score > 55)
+                if report["bias"] != "NEUTRAL" and report["score"] > 55:
                     is_sol = symbol in ["SOLUSDT", "PEPEUSDT"]
                     is_major = symbol in ["BTCUSDT", "ETHUSDT"]
                     
-                    # RRR Santo Graal (Foco em Expectativa Positiva)
-                    sl_mult = 1.6 if is_sol else 1.2
-                    tp_mult = 5.5 if is_sol else 4.0 
+                    # RRR Sincronizado (v37)
+                    sl_mult = 1.6 if is_sol else 1.3
+                    tp_mult = 5.2 if is_sol else 3.8 
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
