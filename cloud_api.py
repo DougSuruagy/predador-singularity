@@ -634,17 +634,17 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v31.0] OMEGA SNIPER: Qualidade acima de quantidade
-        consensus_threshold = 0.42 if self.global_consciousness < 0.6 else 0.36
+        # [v32.0] EQUILIBRIUM: Calibração soberana para lucro e segurança
+        consensus_threshold = 0.35 if self.global_consciousness < 0.6 else 0.28
         
-        # Filtro de Volatilidade "Taxa-Zero"
+        # Filtro de Volatilidade Realista (v32.0)
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_check = (atr / (price + 0.0001)) > 0.0010 # 0.10% mínimo para pagar as taxas (v31.0)
+        vol_check = (atr / (price + 0.0001)) > 0.0004 # 0.04% mínimo
         
-        # Filtro de Inércia [v31.0] - Exige 4 confirmações seguidas
+        # Filtro de Inércia [v32.0]
         self.psi_history.append(psi)
-        if len(self.psi_history) > 5: self.psi_history.pop(0)
+        if len(self.psi_history) > 3: self.psi_history.pop(0)
         avg_psi = sum(self.psi_history) / len(self.psi_history)
         inertia_ok = (psi > 0 and avg_psi > 0) or (psi < 0 and avg_psi < 0)
         
@@ -1726,11 +1726,11 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v31.0: Omega Sniper (Score > 75)
-                if report["bias"] != "NEUTRAL" and report["score"] > 75:
+                # Gatilho v32.0: Equilibrium Strike (Score > 50)
+                if report["bias"] != "NEUTRAL" and report["score"] > 50:
                     is_sol = symbol in ["SOLUSDT", "PEPEUSDT"]
-                    sl_mult = 1.6 if is_sol else 1.4
-                    tp_mult = 7.0 if is_sol else 5.0 # TP Muito alto para pagar taxas (v31.0)
+                    sl_mult = 1.8 if is_sol else 1.5
+                    tp_mult = 4.8 if is_sol else 3.8 # RRR Ideal para compensar taxas
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
