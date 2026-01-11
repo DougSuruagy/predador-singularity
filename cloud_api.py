@@ -636,18 +636,23 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v43.0] VALHALLA: A Restauração do Lucro (Standard ETH Protocol)
+        # [v44.0] TURBO PROFIT: Lucro Acelerado a Curto Prazo
         symbol = intel.get("symbol", "")
-        # Unificando BTC/ETH no 'ponto doce' do ETH que rendeu +12.7%
-        if "SOL" in symbol: base_cons = 0.30
-        else: base_cons = 0.22 # Ponto de convergência Majors
+        # Thresholds AGRESSIVOS para capturar mais oportunidades
+        if "SOL" in symbol: base_cons = 0.25  # Reduzido de 0.30
+        else: base_cons = 0.18  # Reduzido de 0.22 (mais trades)
         
-        consensus_threshold = (base_cons + 0.05) if self.global_consciousness < 0.6 else base_cons
+        consensus_threshold = (base_cons + 0.03) if self.global_consciousness < 0.6 else base_cons
         
-        # Filtro de Volatilidade "Valhalla"
+        # [v44.0] FILTRO DE MOMENTUM EXPLOSIVO
+        kinetic = intel.get("kinetic", 0.0) if intel else 0.0
+        volume_spike = intel.get("volume_spike", False) if intel else False
+        momentum_boost = 1.2 if kinetic > 1.5 else 1.0  # Bonus para movimentos fortes
+        
+        # Filtro de Volatilidade otimizado
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_floor = 0.0002 if "BTC" in symbol or "ETH" in symbol else 0.0006 
+        vol_floor = 0.00015 if "BTC" in symbol or "ETH" in symbol else 0.0004  # Mais sensível
         vol_check = (atr / (price + 0.000001)) > vol_floor
         
         # Filtro de Inércia [v43.0]
@@ -663,12 +668,15 @@ class NomadBrain:
             if psi < 0 and rsi < 30: rsi_penalty = 0.5 
             
         bias = "NEUTRAL"
-        if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
+        # [v44.0] Gatilho mais sensível - precisa de menos confirmações
+        if abs(psi) > consensus_threshold and vol_check and (is_correlated or kinetic > 2.0):
             bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
        
-        # SINAPSE: Intensidade do disparo neural
-        self.synaptic_firing = (abs(psi) * 100)
-        confidence = min(100, self.synaptic_firing * (0.4 if not is_correlated else 1.0) * rsi_penalty)
+        # SINAPSE: Intensidade do disparo neural com boost de momentum
+        self.synaptic_firing = (abs(psi) * 100) * momentum_boost
+        # [v44.0] Bônus de volume spike (+10 score)
+        volume_bonus = 10 if volume_spike else 0
+        confidence = min(100, (self.synaptic_firing * (0.5 if not is_correlated else 1.0) * rsi_penalty) + volume_bonus)
         
         # 🧬 MUTAÇÃO ALPHA: Ajuste de Potência Bio-Mecânica
         alpha = 4.0 if confidence > 92 and not reality_trap else 1.0
@@ -1757,11 +1765,11 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v43.0: Valhalla Strike (Score > 55)
-                if report["bias"] != "NEUTRAL" and report["score"] > 55:
-                    # RRR Restaurado (1.8x / 5.5x) - O segredo do lucro líquido real
+                # [v44.0] TURBO PROFIT: Score mínimo 45 (mais trades)
+                if report["bias"] != "NEUTRAL" and report["score"] > 45:
+                    # [v44.0] RRR AGRESSIVO (1.8x / 7.0x) - Máximo lucro por trade
                     sl_mult = 1.8
-                    tp_mult = 5.5 
+                    tp_mult = 7.0  # Aumentado de 5.5 para 7.0 (RRR ~3.9:1)
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
