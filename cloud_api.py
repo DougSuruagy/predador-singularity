@@ -656,8 +656,13 @@ exchange = ccxt.bybit({
         'adjustForTimeDifference': True,
         'recvWindow': 10000,      # Aumentado para evitar Timeouts
     },
-    'proxies': proxies
+    'proxies': proxies,
+    'enableRateLimit': True,
+    'options': {'defaultType': 'linear'}
 })
+
+# 🛡️ GLOBAL EXECUTION LOCK (Prevenção de Ordem Duplicada)
+execution_locks = {}
 
 # Task para manter a sessão da exchange viva e monitorar LIQUIDEZ (Gatekeeper)
 async def maintain_sovereign_session():
@@ -693,10 +698,29 @@ async def maintain_sovereign_session():
                     if state.funding_locked:
                         print(f"💰 [FUEL DETECTED] Saldo Bybit UTA ${usdt_total:.2f}. Reativando PREDATOR.")
                         state.funding_locked = False
-                        # Só reativa se não estiver travado por perdas ou pânico
-                        if not state.is_locked and state.consecutive_losses < MAX_CONSECUTIVE_LOSSES:
-                             state.is_hunting = True
-                             state.regime = "ACTIVE"
+                        
+                    # 🔄 AUTO-RECOVERY: Sincroniza posições ativas da Bybit com a memória da IA
+                    try:
+                        positions = await exchange.fetch_positions()
+                        active_syms = set()
+                        for pos in positions:
+                            size = float(pos.get('contracts', 0) or 0)
+                            if size != 0:
+                                norm_s = normalize_symbol(pos.get('symbol', ''))
+                                active_syms.add(norm_s)
+                        
+                        # Se encontramos posições que não estavam na memória, recuperamos
+                        if hasattr(brain, 'active_positions'):
+                            for s in active_syms:
+                                if s not in brain.active_positions:
+                                    print(f"🔗 [RECOVERY] Posição aberta detectada em {s}. Sincronizando...")
+                                    brain.active_positions.add(s)
+                    except: pass
+
+                    # Só reativa se não estiver travado por perdas ou pânico
+                    if not state.is_locked and state.consecutive_losses < MAX_CONSECUTIVE_LOSSES:
+                            state.is_hunting = True
+                            if state.regime == "NO_CASH": state.regime = "ACTIVE"
                              
             await asyncio.sleep(15) # Intervalo maior para economizar Rate Limit
         except Exception as e:
@@ -1229,49 +1253,62 @@ async def execute_bybit_order(payload: WebhookPayload, use_compounding=True, ent
         if use_compounding and action != "CLOSE":
             amount = await get_compounded_amount(symbol, kelly=brain.kelly_fraction, price=entry_price, atr=atr)
             if amount <= 0: return 
-        
-        # ⚡ BYBIT PRECISION & FILTERS
-        params = {}
-        if symbol in exchange.markets:
-            market = exchange.market(symbol)
-            amount = float(exchange.amount_to_precision(symbol, amount))
             
-            # Verifica limites mínimos
-            min_amount = float(market['limits']['amount']['min'] or 0)
-            if amount < min_amount:
-                amount = min_amount
+        # 🔐 LOCK GUARD: Evita abrir duas ordens no mesmo símbolo simultaneamente
+        if action != "CLOSE":
+            if symbol in execution_locks and execution_locks[symbol]:
+                print(f"🚫 [LOCK] Já existe uma execução em curso para {symbol}. Abortando.")
+                return
+            execution_locks[symbol] = True
+            
+        try:
+            # ⚡ BYBIT V5 PRECISION & FILTERS
+            params = {}
+            if symbol in exchange.markets:
+                market = exchange.market(symbol)
+                # Bybit V5 exige precisão cirúrgica
+                amount = float(exchange.amount_to_precision(symbol, amount))
+                
+                # Verifica limites mínimos
+                min_amount = float(market['limits']['amount']['min'] or 0)
+                if amount < min_amount:
+                    amount = min_amount
 
-            # 🛡️ PROTEÇÃO: Adiciona TP/SL se fornecidos (Bybit V5 suporta no create_order)
-            if sl: params['stopLoss'] = float(exchange.price_to_precision(symbol, sl))
-            if tp: params['takeProfit'] = float(exchange.price_to_precision(symbol, tp))
+                # 🛡️ PROTEÇÃO: Adiciona TP/SL se fornecidos (Bybit V5 suporta no create_order)
+                if sl: params['stopLoss'] = float(exchange.price_to_precision(symbol, sl))
+                if tp: params['takeProfit'] = float(exchange.price_to_precision(symbol, tp))
 
-        print(f"🚀 [BYBIT] Executando {action} {amount} @ {symbol} (SL: {sl}, TP: {tp})")
+            print(f"🚀 [BYBIT] Executando {action} {amount} @ {symbol} (SL: {sl}, TP: {tp})")
 
-        if action == "BUY":
-            await exchange.create_order(symbol, 'market', 'buy', amount, params=params)
-            print(f"✅ [BYBIT] COMPRA EXECUTADA @ {symbol}")
-        elif action == "SELL":
-            await exchange.create_order(symbol, 'market', 'sell', amount, params=params)
-            print(f"✅ [BYBIT] VENDA EXECUTADA @ {symbol}")
-        elif action == "CLOSE":
-            # 🩹 Bybit V5 Perpetual Close Logic
-            try:
-                positions = await exchange.fetch_positions([symbol])
-                for pos in positions:
-                    size = float(pos.get('contracts', 0) or 0)
-                    if size != 0:
-                        side = pos.get('side', '').lower()
-                        close_side = 'sell' if side == 'long' or side == 'buy' else 'buy'
-                        await exchange.create_order(symbol, 'market', close_side, abs(size), params={'reduceOnly': True})
-                        print(f"✅ [BYBIT] POSIÇÃO ZERADA: {abs(size)} {symbol}")
-            except Exception as e:
-                print(f"⚠️ [CLOSE-ERROR] {symbol}: {e}")
-        
-        # ⚡ Sync Balance pós-trade
-        asyncio.create_task(state.recover_daily_stats_async())
+            if action == "BUY":
+                await exchange.create_order(symbol, 'market', 'buy', amount, params=params)
+                print(f"✅ [BYBIT] COMPRA EXECUTADA @ {symbol}")
+            elif action == "SELL":
+                await exchange.create_order(symbol, 'market', 'sell', amount, params=params)
+                print(f"✅ [BYBIT] VENDA EXECUTADA @ {symbol}")
+            elif action == "CLOSE":
+                # 🩹 Bybit V5 Perpetual Close Logic
+                try:
+                    positions = await exchange.fetch_positions([symbol])
+                    for pos in positions:
+                        size = float(pos.get('contracts', 0) or 0)
+                        if size != 0:
+                            side = pos.get('side', '').lower()
+                            close_side = 'sell' if side == 'long' or side == 'buy' else 'buy'
+                            await exchange.create_order(symbol, 'market', close_side, abs(size), params={'reduceOnly': True})
+                            print(f"✅ [BYBIT] POSIÇÃO ZERADA: {abs(size)} {symbol}")
+                except Exception as e:
+                    print(f"⚠️ [CLOSE-ERROR] {symbol}: {e}")
+            
+            # ⚡ Sync Balance pós-trade
+            asyncio.create_task(state.recover_daily_stats_async())
                     
-    except Exception as e:
-        print(f"❌ [BYBIT ERROR] {e}")
+        except Exception as e:
+            print(f"❌ [BYBIT ERROR] {e}")
+    finally:
+        # 🔓 Libera o lock de execução
+        if symbol in execution_locks:
+            execution_locks[symbol] = False
 
 # 📊 HELPER: Atualizar Daily Stats no DB
 async def log_event_to_db(level: str, module: str, message: str, data: dict = None):
@@ -1637,7 +1674,21 @@ async def autonomous_hunter_loop():
     print("🎯 NOMAD GOD-MODE: CAÇADOR AUTÔNOMO INICIADO.")
     while True:
         try:
-            # Garante que os mercados estão carregados antes de caçar (Crucial para precisão de lotes)
+            # 🧪 HARDWARE-AWARE METABOLISM (Render Stability)
+            # Se a RAM do Render estiver > 85%, descansa mais para evitar crash (OOM)
+            mem = psutil.virtual_memory()
+            sleep_time = state.metabolism
+            if mem.percent > 85:
+                print(f"⚠️ [HARDWARE-STRESS] RAM em {mem.percent}%. Reduzindo metabolismo...")
+                sleep_time = max(5.0, state.metabolism * 2)
+            
+            await asyncio.sleep(sleep_time)
+            
+            if state.is_locked:
+                state.regime = "3-STRIKE-LOCK"
+                continue
+                
+            # Garante que os mercados estão carregados antes de caçar
             if not exchange.markets:
                 print("⏳ [WAIT] Carregando mercados de câmbio...")
                 await exchange.load_markets()
@@ -1760,20 +1811,10 @@ async def autonomous_hunter_loop():
                         except Exception as db_err:
                             print(f"⚠️ [DB-TRADE-ERROR] {db_err}")
             
-            # ⚡ METABOLISMO DINÂMICO (Hardware-Aware)
-            # Ajusta a velocidade de scan baseado na saúde do servidor (Render Free)
-            stats = engine_state.get_stats()
-            # Se RAM > 480MB, desacelera bruscamente para evitar crash
-            metabolism_delay = 3
-            if stats["ram_mb"] > 450:
-                metabolism_delay = 10
-                print(f"⚠️ [MEMORY-GUARD] RAM alta ({stats['ram_mb']}MB). Desacelerando metabolismo.")
-            
-            engine_state.last_neural_pulse = time.time()
-            await asyncio.sleep(metabolism_delay) 
+            # Ciclo concluído
         except Exception as e:
-            print(f"📡 [HUNTER-ERROR] {e}")
-            await asyncio.sleep(30)
+            print(f"⚠️ [HUNTER-ERROR] {e}")
+            await asyncio.sleep(5)
 
 async def bybit_pnl_sync_loop():
     """
@@ -1803,11 +1844,14 @@ async def bybit_pnl_sync_loop():
                 elif hasattr(exchange, 'fetchClosedPnl'):
                     closed_pnl = await exchange.fetchClosedPnl(since=since)
                 
-                # Atualiza o ponteiro de tempo para a próxima execução
-                brain.last_pnl_sync_time = int(time.time() * 1000)
+                # Atualiza o ponteiro de tempo apenas se tiver sucesso ou se o window for muito antigo
+                max_timestamp = since
                 
                 if closed_pnl:
                     for trade in closed_pnl:
+                        trade_ts = trade.get('timestamp', 0)
+                        if trade_ts > max_timestamp: max_timestamp = trade_ts
+                        
                         trade_id = trade.get('id')
                         symbol = trade.get('symbol')
                         norm_symbol = normalize_symbol(symbol)
@@ -1842,7 +1886,7 @@ async def bybit_pnl_sync_loop():
                             # Limpa cache antigo (> 100 itens)
                             if len(brain.synced_trades) > 100:
                                 brain.synced_trades = set(list(brain.synced_trades)[-50:])
-                            
+                    
                             # Salva no Supabase (Opcional, mas recomendado)
                             if supabase:
                                 try:
@@ -1855,6 +1899,9 @@ async def bybit_pnl_sync_loop():
                                         "metadata": {"bybit_id": trade_id, "type": "auto_close"}
                                     }).execute()
                                 except: pass
+                    
+                    # Atualiza o ponteiro para o timestamp do último trade processado + 1ms
+                    brain.last_pnl_sync_time = max_timestamp + 1
                 
                 # Sincroniza stats agregados no DB
                 await update_daily_stats_in_db()
