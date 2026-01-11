@@ -197,43 +197,43 @@ async def get_state(x_token: str = Header(None)):
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v120.0 SOUL """
+    """ [BTC/ETH] SINGULARITY APEX - v140.0 KING """
     if is_compressed:
         return {
             "threshold": 0.10, 
-            "min_score": 90,  
-            "sl_mult": 1.2,   # Mais folga para o ruído
-            "tp_mult": 3.0,   # RRR 1:2.5 (Busca o topo/fundo oposto)
-            "leverage": 4,    # Alavancagem segura
+            "min_score": 92,  
+            "sl_mult": 1.5,   # Folga técnica
+            "tp_mult": 3.8,   # RRR 1:2.5+ Neto
+            "leverage": 3,    # Alavancagem conservadora para precisão
             "shadow_trail": False
         }
     
     return {
-        "threshold": 0.20, 
+        "threshold": 0.22, 
         "min_score": 75, 
         "sl_mult": 1.5,
-        "tp_mult": 6.0,   
-        "leverage": 12,   
+        "tp_mult": 6.5,   
+        "leverage": 10,   
         "shadow_trail": True
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v120.0 SOUL """
+    """ [SOL] SNIPER v140.0 KING """
     if is_compressed:
         return {
             "threshold": 0.12,
-            "min_score": 92,
+            "min_score": 95,
             "sl_mult": 1.5,
-            "tp_mult": 3.5, 
-            "leverage": 3, 
+            "tp_mult": 4.0, 
+            "leverage": 2, 
             "shadow_trail": False
         }
     return {
-        "threshold": 0.25,
+        "threshold": 0.28,
         "min_score": 75,
-        "sl_mult": 1.8,
+        "sl_mult": 2.0,
         "tp_mult": 6.0,
-        "leverage": 8,
+        "leverage": 7,
         "shadow_trail": True
     }
 
@@ -295,32 +295,27 @@ async def run_strategy(symbol, mode):
         intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
         if not intel: return
         
-        # 🕒 ADAPTIVE HUNTER v130.0 (Auto-Relax Filter if Idle)
-        idle_time = (time.time() - engine_state.last_trade_time) / 3600 # horas
-        relax_factor = 1.0 - min(0.3, idle_time / 12) # Relaxa até 30% em 12 horas
-        
-        min_vol_shock = 1.1 * relax_factor
-        min_rsi_low = 40 / relax_factor # Aumenta a zona de caça
-        min_rsi_high = 60 * relax_factor
+        # 🕒 ROYAL GUARD v140.0 (Seletividade Extrema)
+        idle_time = (time.time() - engine_state.last_trade_time) / 3600
+        relax_factor = 1.0 - min(0.1, idle_time / 24) # Relaxamento limitado a 10%
         
         if intel["is_compressed"]:
             candle_size = ohlcv[-1][2] - ohlcv[-1][3]
-            rejection_low = ohlcv[-1][4] > ohlcv[-1][3] + (candle_size * 0.3) if candle_size > 0 else False
-            rejection_high = ohlcv[-1][4] < ohlcv[-1][2] - (candle_size * 0.3) if candle_size > 0 else False
+            # Rejeição de 50% do pavio
+            rejection_low = ohlcv[-1][4] > ohlcv[-1][3] + (candle_size * 0.5) if candle_size > 0 else False
+            rejection_high = ohlcv[-1][4] < ohlcv[-1][2] - (candle_size * 0.5) if candle_size > 0 else False
             
-            if intel["touch_low"] and rejection_low and intel["rsi"] < min_rsi_low and intel["vol_shock"] > min_vol_shock: 
-                bias = "GOD_LONG"; score = 95
-            elif intel["touch_high"] and rejection_high and intel["rsi"] > min_rsi_high and intel["vol_shock"] > min_vol_shock: 
-                bias = "GOD_SHORT"; score = 95
+            if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.2: bias = "GOD_LONG"; score = 95
+            elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.2: bias = "GOD_SHORT"; score = 95
         else:
-            if abs(intel["psi"]) > (0.15 * relax_factor):
+            if abs(intel["psi"]) > (0.18 * relax_factor):
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 80 + (abs(intel["psi"]) * 10)
+                score = 85 + (abs(intel["psi"]) * 10)
         
-        # Filtro de Divergência para evitar fakeouts
-        if intel["divergence"]: score -= 15
+        # Hard Divergence Filter
+        if intel["divergence"]: score = 0 
 
-        decision = "EXECUTE" if score >= 85 else "REJECT"
+        decision = "EXECUTE" if score >= 90 else "REJECT"
 
     engine_state.last_score = score
     
@@ -397,27 +392,26 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v130.0 "EVER-ALIVE"
-        # Relaxamento adaptativo simulado por janela de tempo
-        relax_factor = 1.0 - min(0.3, (i / len(ohlcv)) * 0.5) 
+        # 🧬 NEURAL SIMULATION v140.0 "ROYAL GUARD"
+        relax_factor = 0.95 # Simulação conservadora
         
         if intel["is_compressed"]:
             candle_size = ohlcv[i][2] - ohlcv[i][3]
-            rejection_low = ohlcv[i][4] > ohlcv[i][3] + (candle_size * 0.3) if candle_size > 0 else False
-            rejection_high = ohlcv[i][4] < ohlcv[i][2] - (candle_size * 0.3) if candle_size > 0 else False
+            rejection_low = ohlcv[i][4] > ohlcv[i][3] + (candle_size * 0.5) if candle_size > 0 else False
+            rejection_high = ohlcv[i][4] < ohlcv[i][2] - (candle_size * 0.5) if candle_size > 0 else False
             
-            if intel["touch_low"] and rejection_low and intel["rsi"] < (45/relax_factor) and intel["vol_shock"] > (1.0*relax_factor): 
+            if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.3: 
                 bias = "GOD_LONG"; score = 95
-            elif intel["touch_high"] and rejection_high and intel["rsi"] > (55*relax_factor) and intel["vol_shock"] > (1.0*relax_factor): 
+            elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.3: 
                 bias = "GOD_SHORT"; score = 95
         else:
-            if abs(intel["psi"]) > (0.12 * relax_factor):
+            if abs(intel["psi"]) > 0.18:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 80 + (abs(intel["psi"]) * 10)
+                score = 85 + (abs(intel["psi"]) * 10)
         
-        if intel["divergence"]: score -= 15
+        if intel["divergence"]: score = 0
             
-        if score >= 85:
+        if score >= 90:
             config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
             entry = ohlcv[i][4]
             atr = intel["atr"]

@@ -102,27 +102,27 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v130.0 "SOVEREIGN KING"
+    # 🧬 MASTER LOGIC v140.0 "ROYAL GUARD"
     if intel["is_compressed"]:
         # Spring/Upthrust Detection
         candle_size = highs[-1] - lows[-1]
-        rejection_low = closes[-1] > lows[-1] + (candle_size * 0.3) if candle_size > 0 else False
-        rejection_high = closes[-1] < highs[-1] - (candle_size * 0.3) if candle_size > 0 else False
+        rejection_low = closes[-1] > lows[-1] + (candle_size * 0.45) if candle_size > 0 else False
+        rejection_high = closes[-1] < highs[-1] - (candle_size * 0.45) if candle_size > 0 else False
         
-        # Sensibilidade Adaptativa (Relaxamento controlado via RSI)
-        if intel["touch_low"] and rejection_low and intel["rsi"] < 45 and intel["vol_shock"] > 1.1: 
+        # Filtro de Exaustão Real (RSI < 30 ou > 70) + Volume
+        if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.2: 
             bias = "GOD_LONG"; score = 98
-        elif intel["touch_high"] and rejection_high and intel["rsi"] > 55 and intel["vol_shock"] > 1.1: 
+        elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.2: 
             bias = "GOD_SHORT"; score = 98
     else:
-        if abs(intel["psi"]) > 0.12: # Threshold reduzido para manter atividade
+        if abs(intel["psi"]) > 0.18: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 80 + (abs(intel["psi"]) * 10)
+            score = 85 + (abs(intel["psi"]) * 10)
             
-    # Filtro Final de Segurança: Divergência anula o score
-    if intel["divergence"]: score -= 15
+    # Hard Divergence Filter
+    if intel["divergence"]: score = 0 
             
-    decision = "EXECUTE" if score >= 85 else "REJECT"
+    decision = "EXECUTE" if score >= 90 else "REJECT"
 
     return {
         "bias": bias,
