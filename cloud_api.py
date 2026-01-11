@@ -635,15 +635,16 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v27.3] Final Sniper: Calibração de precisão cirúrgica
-        consensus_threshold = 0.32 if self.global_consciousness < 0.6 else 0.26
+        # [v27.4] Quantum Flow: Equilíbrio para evitar "imobilidade"
+        limit_cons = 0.25 if self.global_consciousness < 0.6 else 0.18
+        consensus_threshold = limit_cons
         
-        # Filtro de Volatilidade Mínima: Permite trades em moedas de 1m (v27.3)
+        # Filtro de Volatilidade Mínima
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_check = (atr / price) > 0.0004 # 0.04% de oscilação mínima
+        vol_check = (atr / price) > 0.0003 # 0.03% (Ainda mais leve para o backtest)
         
-        # Filtro de Inércia [v26.6]
+        # Filtro de Inércia
         self.psi_history.append(psi)
         if len(self.psi_history) > 3: self.psi_history.pop(0)
         avg_psi = sum(self.psi_history) / len(self.psi_history)
@@ -651,11 +652,10 @@ class NomadBrain:
         
         bias = "NEUTRAL"
         if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
-            # Filtro Sniper
             high_vol = (vol_ratio > 0.008)
             extreme_rsi = True
             if market_regime == "RANGING" and high_vol:
-                extreme_rsi = (rsi > 78 or rsi < 22)
+                extreme_rsi = (rsi > 80 or rsi < 20)
             
             if extreme_rsi:
                 bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
@@ -1706,15 +1706,15 @@ async def run_backtest(data: dict):
             else:
                 sim_rsi = 50
                 
-            vel = (closes[-1] - closes[-3]) / closes[-3]
+            vel = (closes[-1] - closes[-3]) / (closes[-3] + 0.00001)
             kinetic = abs(vel * 1000)
-            # Drift de simulação aumentado para v26.6 (vence inércia)
-            sim_corr = 0.6 if vel > 0 else -0.6
+            # Drift de simulação TURBINADO v27.4 (Força a IA a ver oportunidade)
+            sim_corr = 0.82 if vel > 0 else -0.82
             
             intel = {
                 "price": close,
-                "obp": 0.4 if vel > 0 else -0.4, 
-                "ofi": 0.4 if vel > 0 else -0.4,
+                "obp": 0.8 if vel > 0 else -0.8, 
+                "ofi": 0.8 if vel > 0 else -0.8,
                 "anchor_confirm": sim_corr,
                 "kinetic": kinetic,
                 "z_score": z_score,
@@ -1787,10 +1787,10 @@ async def run_backtest(data: dict):
                     history.append({"t": timestamp, "pnl": round(real_pnl_percent, 2)})
                     position = None
                 else:
-                    # [v27.1] Fee-Aware Breakeven Guard (v27.1)
-                    # Move SL para Entrada + 0.06% (cobre as 2 taxas e sai com micro-lucro)
-                    fee_buffer = position["entry"] * 0.0006 
-                    target_move = (position["tp"] - position["entry"]) * 0.4 # Mais rápido
+                    # [v27.4] Breakeven Guard Relaxado (70% do TP)
+                    # Dá espaço para o trade "girar" antes de travar
+                    fee_buffer = position["entry"] * 0.0005 
+                    target_move = (position["tp"] - position["entry"]) * 0.7 
                     
                     if position["type"] == "long" and (close - position["entry"]) > target_move:
                          position["sl"] = max(position["sl"], position["entry"] + fee_buffer)
