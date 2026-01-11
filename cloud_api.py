@@ -992,6 +992,19 @@ async def get_compounded_amount(symbol, kelly=0.20, price=None):
         # 🎰 APEX LEVERAGE MATRIX (10x - 20x Dinâmico)
         leverage = 20 if state.homeostasis > 80 else 10
         
+        # ⚡ ZERO-LATENCY: Só faz fetch_balance se o cache estiver muito antigo (> 30s)
+        now = time.time()
+        if not hasattr(state, 'last_balance_fetch'): state.last_balance_fetch = 0
+        
+        if (now - state.last_balance_fetch) > 30 or available_balance <= 0:
+            try:
+                bal = await exchange.fetch_balance()
+                available_balance = float(bal['total'].get('USDT', 0))
+                state.balance = available_balance
+                state.last_balance_fetch = now
+            except Exception as e:
+                print(f"⚠️ [BALANCE-STALE] Usando cache: {available_balance}")
+
         # Otimização: Cache de alavancagem inteligente
         try:
             if symbol not in getattr(brain, 'leverage_cache', {}):
@@ -1491,16 +1504,21 @@ async def autonomous_hunter_loop():
                     tp = intel["price"] + tp_dist if action == "BUY" else intel["price"] - tp_dist
 
                     # Cria payload
+                    if not hasattr(brain, 'active_positions'): brain.active_positions = set()
+                    
+                    # 🛡️ POSITION GUARD: Evita duplicidade no mesmo ativo
+                    if symbol in brain.active_positions:
+                        continue
+
                     payload = WebhookPayload(
-                        action=action,
                         symbol=symbol,
-                        price=intel["price"], 
-                        qty=0.001,
-                        confidence=report["score"]
+                        action=action,
+                        qty=0 # Será calculado pelo auto-compounding
                     )
                     
                     # Dispara execução com TP/SL
                     await execute_bybit_order(payload, use_compounding=True, entry_price=intel["price"], sl=sl, tp=tp)
+                    brain.active_positions.add(symbol)
                     
                     # [CRITICAL] Registra o trade no Supabase
                     if supabase:
@@ -1546,24 +1564,31 @@ async def bybit_pnl_sync_loop():
             if exchange.apiKey:
                 # Busca pnl fechado nos últimos 15 minutos
                 # Usamos check de atributo para evitar crash em versões antigas/instáveis do CCXT
+                since = int((time.time() - 900) * 1000)
                 closed_pnl = []
+                
+                # 🛡️ AUTH GUARD: Se a chave falhou no boot, não bombardeia a API
+                if not exchange.markets:
+                    await asyncio.sleep(60)
+                    continue
+
                 if hasattr(exchange, 'fetch_closed_pnl'):
                     closed_pnl = await exchange.fetch_closed_pnl(since=since)
                 elif hasattr(exchange, 'fetchClosedPnl'):
                     closed_pnl = await exchange.fetchClosedPnl(since=since)
-                else:
-                    # Fallback para fetch_my_trades se PnL direto não estiver disponível
-                    # Bybit V5 costuma expor via trades também
-                    pass 
                 
                 if closed_pnl:
                     for trade in closed_pnl:
                         trade_id = trade.get('id')
                         symbol = trade.get('symbol')
+                        norm_symbol = normalize_symbol(symbol)
                         pnl = float(trade.get('closedPnl', 0))
                         
+                        # Remove de posições ativas se estiver lá
+                        if hasattr(brain, 'active_positions') and norm_symbol in brain.active_positions:
+                            brain.active_positions.remove(norm_symbol)
+
                         # Verifica se já registramos esse trade no estado local para evitar duplicidade
-                        # Usamos um cache simples no cérebro
                         if not hasattr(brain, 'synced_trades'): brain.synced_trades = set()
                         
                         if trade_id not in brain.synced_trades:
@@ -1590,7 +1615,7 @@ async def bybit_pnl_sync_loop():
                             if supabase:
                                 try:
                                     supabase.table("trades").insert({
-                                        "symbol": normalize_symbol(symbol),
+                                        "symbol": norm_symbol,
                                         "action": "CLOSE",
                                         "result": "WIN" if pnl > 0 else "LOSS",
                                         "pnl": pnl,
@@ -1604,8 +1629,12 @@ async def bybit_pnl_sync_loop():
                 
             await asyncio.sleep(60) # Checa a cada minuto
         except Exception as e:
-            print(f"⚠️ [PNL-SYNC-ERROR] {e}")
-            await asyncio.sleep(60)
+            if "10003" in str(e):
+                print("❌ [PNL-SYNC] API Key Inválida. Pausando Sync.")
+                await asyncio.sleep(300)
+            else:
+                print(f"⚠️ [PNL-SYNC-ERROR] {e}")
+                await asyncio.sleep(60)
 
 async def evolution_watcher_loop():
     """O Senior observa os descendentes gerados pelo Junior no Supabase."""
