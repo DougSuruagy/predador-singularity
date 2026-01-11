@@ -133,14 +133,18 @@ class NomadBrain:
         ma20 = sum(closes[-20:]) / 20
         variance = sum((x - ma20)**2 for x in closes[-20:]) / 20
         std_dev = variance**0.5
-        bb_width = (std_dev * 4) / ma20 * 100 # Em %
+        bb_width = (std_dev * 4) / ma20 * 100 
         
         # Trend Strength
         ma50 = sum(closes[-30:]) / 30 
         trend_strong = abs(ma20 - ma50) > (closes[-1] * 0.001)
         
-        # Is Compressed? (The Living Filter)
-        is_compressed = bb_width < 0.50 
+        # Living Indicators: Entropy & Momentum Curl
+        # Entropia simples: variação da direção dos últimos 10 candles
+        direction_changes = sum(1 for i in range(len(deltas)-10, len(deltas)) if (deltas[i] > 0) != (deltas[i-1] > 0))
+        entropy = direction_changes / 10.0 # 1.0 é chop total, 0.0 é trend pura
+        
+        is_compressed = bb_width < 0.60 or entropy > 0.7
         
         return {
             "rsi": rsi,
@@ -148,6 +152,7 @@ class NomadBrain:
             "atr": atr,
             "trend_strong": trend_strong,
             "is_compressed": is_compressed,
+            "entropy": entropy,
             "bb_width": bb_width,
             "price": closes[-1]
         }
@@ -182,20 +187,20 @@ async def get_state(x_token: str = Header(None)):
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v68.5 CHOP-WINNER """
+    """ [BTC/ETH] SINGULARITY APEX - v70.0 CHOP MASTER """
     if is_compressed:
         return {
             "threshold": 0.10, 
-            "min_score": 50,  
-            "sl_mult": 2.5,   # Stop mais largo para evitar violino em chop
-            "tp_mult": 0.8,   # Hyper-Scalp para bater taxas e sair rápido
-            "leverage": 3,    # Alavancagem baixa para sobrevivência em lateralidade
+            "min_score": 85,  # Exclamação: Exige perfeição
+            "sl_mult": 3.5,   # Stop de Sobrevivência (Antivioleta)
+            "tp_mult": 1.8,   # TP confortável que vence taxas + lucro real
+            "leverage": 2,    # Conservadorismo extremo em lateralidade
             "shadow_trail": False
         }
     
     return {
         "threshold": 0.25, 
-        "min_score": 70, 
+        "min_score": 75, # Máxima seletividade em trend
         "sl_mult": 1.8,
         "tp_mult": 5.5,   
         "leverage": 10,
@@ -203,19 +208,19 @@ def get_supreme_config(symbol, is_trending, is_compressed):
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v68.2 """
+    """ [SOL] SNIPER v70.0 CHOP MASTER """
     if is_compressed:
         return {
-            "threshold": 0.20,
-            "min_score": 55,
-            "sl_mult": 1.2,
-            "tp_mult": 1.1, # Micro-scalp na SOL (Volátil)
-            "leverage": 3,  # Preservação de capital
+            "threshold": 0.15,
+            "min_score": 88,
+            "sl_mult": 3.0,
+            "tp_mult": 1.6, 
+            "leverage": 2, 
             "shadow_trail": False
         }
     return {
         "threshold": 0.35,
-        "min_score": 70,
+        "min_score": 75,
         "sl_mult": 1.8,
         "tp_mult": 5.5,
         "leverage": 7,
@@ -261,15 +266,14 @@ async def run_strategy(symbol, mode):
         threshold = config["threshold"]
         engine_state.last_score = 0
         
-        # Lógica Dual-DNA
+        # Lógica Dual-DNA v70.0 Deep-Liquidity
         if intel["is_compressed"]:
-            # Em modo CHOP, usamos RSI como trigger principal (Range Trading)
-            if intel["rsi"] < 30: bias = "GOD_LONG"; score = 75
-            elif intel["rsi"] > 70: bias = "GOD_SHORT"; score = 75
+            # Só dispara em exaustão extrema para garantir reversão
+            if intel["rsi"] < 22: bias = "GOD_LONG"; score = 90
+            elif intel["rsi"] > 78: bias = "GOD_SHORT"; score = 90
         else:
-            # Em modo TREND, usamos Intensidade (Valhalla)
             if abs(intel["psi"]) > threshold:
-                score = 70 + (abs(intel["psi"]) * 10)
+                score = 75 + (abs(intel["psi"]) * 10)
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             
         engine_state.last_score = score
@@ -278,11 +282,12 @@ async def run_strategy(symbol, mode):
         config = get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
         engine_state.last_score = 0
         if intel["is_compressed"]:
-            if intel["rsi"] < 25: bias = "GOD_LONG"; score = 80
-            elif intel["rsi"] > 75: bias = "GOD_SHORT"; score = 80
+            # Exaustão máxima na SOL
+            if intel["rsi"] < 20: bias = "GOD_LONG"; score = 92
+            elif intel["rsi"] > 80: bias = "GOD_SHORT"; score = 92
         else:
             if abs(intel["psi"]) > config["threshold"]:
-                score = 70 + (abs(intel["psi"]) * 10)
+                score = 75 + (abs(intel["psi"]) * 10)
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
         engine_state.last_score = score
             
@@ -362,21 +367,22 @@ async def run_backtest(payload: WebhookPayload):
         if mode == "SUPREME":
             config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"])
             if intel["is_compressed"]:
-                if intel["rsi"] < 30: bias = "GOD_LONG"; score = 85
-                elif intel["rsi"] > 70: bias = "GOD_SHORT"; score = 85
+                # Deep Liquidity Hunt em modo CHOP
+                if intel["rsi"] < 22: bias = "GOD_LONG"; score = 90
+                elif intel["rsi"] > 78: bias = "GOD_SHORT"; score = 90
             else:
                 if abs(intel["psi"]) > config["threshold"]: 
-                    score = 70 + (abs(intel["psi"])*10)
+                    score = 75 + (abs(intel["psi"])*10)
                     bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             
         elif mode == "SNIPER":
             config = get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
             if intel["is_compressed"]:
-                if intel["rsi"] < 25: bias = "GOD_LONG"; score = 85
-                elif intel["rsi"] > 75: bias = "GOD_SHORT"; score = 85
+                if intel["rsi"] < 20: bias = "GOD_LONG"; score = 90
+                elif intel["rsi"] > 80: bias = "GOD_SHORT"; score = 90
             else:
                 if abs(intel["psi"]) > config["threshold"]:
-                    score = 70 + (abs(intel["psi"]) * 10)
+                    score = 75 + (abs(intel["psi"]) * 10)
                     bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             
         if score >= config["min_score"]:
@@ -386,8 +392,8 @@ async def run_backtest(payload: WebhookPayload):
             tp_dist = atr * config["tp_mult"]
             
             pnl = 0
-            # Simula futuro (120 min)
-            for j in range(i+1, min(i+120, len(ohlcv))):
+            # Simula futuro longo (300 min) para dar tempo de bater o alvo no chop
+            for j in range(i+1, min(i+300, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
                     if f[2] >= entry + tp_dist: pnl = config["tp_mult"] * (atr/entry) * 100; i = j; break
