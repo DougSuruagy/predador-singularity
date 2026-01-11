@@ -634,23 +634,21 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v35.0] EXCALIBRIUM: Seletividade Extrema para Lucro Real
+        # [v36.0] HOLY GRAIL: O Equilíbrio de Ouro entre Frequência e Lucro
         is_major = any(m in (intel.get("symbol", "") or "") for m in ["BTC", "ETH"])
         
-        # [v35] Aumentado drasticamente o threshold para evitar overtrading (0.42+)
-        base_cons = 0.42 if is_major else 0.45
-        consensus_threshold = (base_cons + 0.08) if self.global_consciousness < 0.6 else base_cons
+        # Threshold Sincronizado para 1m (v36)
+        base_cons = 0.30 if is_major else 0.32
+        consensus_threshold = (base_cons + 0.05) if self.global_consciousness < 0.6 else base_cons
         
-        # Filtro de Volatilidade "Elite"
+        # Filtro de Volatilidade "Fee-Cover" (0.05% mínimo)
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        # Exige pelo menos 0.10% de movimento para BTC e 0.15% para SOL para pagar taxas com folga
-        vol_floor = 0.0010 if is_major else 0.0015
-        vol_check = (atr / (price + 0.000001)) > vol_floor
+        vol_check = (atr / (price + 0.000001)) > 0.0005
         
-        # Filtro de Inércia [v35.0] - Exige 4 confirmações seguidas da inércia
+        # Filtro de Inércia [v36.0]
         self.psi_history.append(psi)
-        if len(self.psi_history) > 4: self.psi_history.pop(0)
+        if len(self.psi_history) > 3: self.psi_history.pop(0)
         avg_psi = sum(self.psi_history) / len(self.psi_history)
         inertia_ok = (psi > 0 and avg_psi > 0) or (psi < 0 and avg_psi < 0)
         
@@ -1733,14 +1731,14 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v35.0: Excalibur Strike (Score > 75)
-                if report["bias"] != "NEUTRAL" and report["score"] > 75:
+                # Gatilho v36.0: Holy Grail Strike (Score > 65)
+                if report["bias"] != "NEUTRAL" and report["score"] > 65:
                     is_sol = symbol in ["SOLUSDT", "PEPEUSDT"]
                     is_major = symbol in ["BTCUSDT", "ETHUSDT"]
                     
-                    # RRR Institucional Blindado (v35: 2.5+:1)
-                    sl_mult = 2.0 if is_sol else 1.8
-                    tp_mult = 6.5 if is_sol else 4.5 
+                    # RRR Santo Graal (Foco em Expectativa Positiva)
+                    sl_mult = 1.6 if is_sol else 1.2
+                    tp_mult = 5.5 if is_sol else 4.0 
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
