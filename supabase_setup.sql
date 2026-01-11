@@ -123,17 +123,21 @@ CREATE POLICY "APEX_READ_GENETICS" ON public.genetics FOR SELECT USING (true);
 
 -- Restringe escrita apenas para o SISTEMA (Authenticated / Service Role)
 -- Otimizado com (SELECT auth.role()) para performance máxima
-CREATE POLICY "APEX_WRITE_TRADES" ON public.trades FOR INSERT WITH CHECK (true);
-CREATE POLICY "APEX_WRITE_STATS" ON public.daily_stats FOR INSERT WITH CHECK (true);
-CREATE POLICY "APEX_UPDATE_STATS" ON public.daily_stats FOR UPDATE USING (true);
+-- Políticas de Escrita Segura (Elimina avisos do Linter)
+CREATE POLICY "APEX_WRITE_TRADES" ON public.trades 
+FOR INSERT WITH CHECK (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+
+CREATE POLICY "APEX_WRITE_STATS" ON public.daily_stats 
+FOR INSERT WITH CHECK (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+
+CREATE POLICY "APEX_UPDATE_STATS" ON public.daily_stats 
+FOR UPDATE USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
 
 CREATE POLICY "APEX_WRITE_GENETICS" ON public.genetics 
-FOR INSERT 
-WITH CHECK (true);
+FOR INSERT WITH CHECK (auth.role() = 'authenticated' OR auth.role() = 'service_role');
 
 CREATE POLICY "APEX_WRITE_LOGS" ON public.system_logs 
-FOR INSERT 
-WITH CHECK (true);
+FOR INSERT WITH CHECK (auth.role() = 'authenticated' OR auth.role() = 'service_role');
 
 -- 5. INTELLIGENCE (VIEW)
 DROP VIEW IF EXISTS public.nomad_health_check;
