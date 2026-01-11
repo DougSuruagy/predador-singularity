@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "130.0-EVER-ALIVE",
+            "version": "150.0-ZENITH",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -195,7 +195,7 @@ async def get_state(x_token: str = Header(None)):
 
 @app.get("/health")
 async def health():
-    return {"status": "alive", "version": "140.0"}
+    return {"status": "alive", "version": "150.0"}
 
 @app.get("/")
 async def root():
