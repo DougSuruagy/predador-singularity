@@ -187,13 +187,13 @@ async def get_state(x_token: str = Header(None)):
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v95.0 REAPING """
+    """ [BTC/ETH] SINGULARITY APEX - v100.0 PREDATOR """
     if is_compressed:
         return {
             "threshold": 0.10, 
-            "min_score": 95,  
-            "sl_mult": 1.0,   
-            "tp_mult": 2.5,   # RRR 1:2.5 (Alvo Longo em Chop)
+            "min_score": 90,  
+            "sl_mult": 0.8,   # Stop Cirúrgico
+            "tp_mult": 1.8,   # TP Curto para Chop
             "leverage": 5,    
             "shadow_trail": False
         }
@@ -208,14 +208,14 @@ def get_supreme_config(symbol, is_trending, is_compressed):
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v95.0 REAPING """
+    """ [SOL] SNIPER v100.0 PREDATOR """
     if is_compressed:
         return {
             "threshold": 0.15,
-            "min_score": 95,
-            "sl_mult": 1.2,
-            "tp_mult": 2.2, 
-            "leverage": 3, 
+            "min_score": 90,
+            "sl_mult": 1.0,
+            "tp_mult": 2.0, 
+            "leverage": 4, 
             "shadow_trail": False
         }
     return {
@@ -286,14 +286,18 @@ async def run_strategy(symbol, mode):
         if not intel: return
         
         if intel["is_compressed"]:
-            if intel["touch_low"] and intel["rsi"] < 25 and intel["vol_shock"] > 1.4: bias = "GOD_LONG"; score = 95
-            elif intel["touch_high"] and intel["rsi"] > 75 and intel["vol_shock"] > 1.4: bias = "GOD_SHORT"; score = 95
+            candle_size = ohlcv[-1][2] - ohlcv[-1][3]
+            rejection_low = ohlcv[-1][4] > ohlcv[-1][3] + (candle_size * 0.4) if candle_size > 0 else False
+            rejection_high = ohlcv[-1][4] < ohlcv[-1][2] - (candle_size * 0.4) if candle_size > 0 else False
+            
+            if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.2: bias = "GOD_LONG"; score = 95
+            elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.2: bias = "GOD_SHORT"; score = 95
         else:
-            if abs(intel["psi"]) > 0.18:
+            if abs(intel["psi"]) > 0.15:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 75 + (abs(intel["psi"]) * 15)
+                score = 80 + (abs(intel["psi"]) * 10)
         
-        decision = "EXECUTE" if score >= 95 else "REJECT"
+        decision = "EXECUTE" if score >= 90 else "REJECT"
 
     engine_state.last_score = score
     
@@ -364,18 +368,22 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v95.0 "INSTITUTIONAL REAPING"
+        # 🧬 NEURAL SIMULATION v100.0 "CYBER-PREDATOR"
         if intel["is_compressed"]:
-            if intel["touch_low"] and intel["rsi"] < 25 and intel["vol_shock"] > 1.4: 
+            candle_size = ohlcv[i][2] - ohlcv[i][3]
+            rejection_low = ohlcv[i][4] > ohlcv[i][3] + (candle_size * 0.4) if candle_size > 0 else False
+            rejection_high = ohlcv[i][4] < ohlcv[i][2] - (candle_size * 0.4) if candle_size > 0 else False
+            
+            if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.2: 
                 bias = "GOD_LONG"; score = 95
-            elif intel["touch_high"] and intel["rsi"] > 75 and intel["vol_shock"] > 1.4: 
+            elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.2: 
                 bias = "GOD_SHORT"; score = 95
         else:
-            if abs(intel["psi"]) > 0.18:
+            if abs(intel["psi"]) > 0.15:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 75 + (abs(intel["psi"]) * 15)
+                score = 80 + (abs(intel["psi"]) * 10)
             
-        if score >= 95:
+        if score >= 90:
             config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
             entry = ohlcv[i][4]
             atr = intel["atr"]

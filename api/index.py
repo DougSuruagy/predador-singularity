@@ -96,20 +96,25 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v95.0 "INSTITUTIONAL REAPING"
+    # 🧬 MASTER LOGIC v100.0 "CYBER-PREDATOR"
     if intel["is_compressed"]:
-        # Só entra se houver VOLUME institucional + Exaustão RSI + Toque de Banda
-        if intel["touch_low"] and intel["rsi"] < 25 and intel["vol_shock"] > 1.4: 
-            bias = "GOD_LONG"; score = 95
-        elif intel["touch_high"] and intel["rsi"] > 75 and intel["vol_shock"] > 1.4: 
-            bias = "GOD_SHORT"; score = 95
+        # Spring/Upthrust Detection (Rejeição de Pavio)
+        candle_size = highs[-1] - lows[-1]
+        rejection_low = closes[-1] > lows[-1] + (candle_size * 0.4) if candle_size > 0 else False
+        rejection_high = closes[-1] < highs[-1] - (candle_size * 0.4) if candle_size > 0 else False
+        
+        # Só entra se houver VOLUME + TOQUE + REJEIÇÃO
+        if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.2: 
+            bias = "GOD_LONG"; score = 98
+        elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.2: 
+            bias = "GOD_SHORT"; score = 98
     else:
         # Modo TREND (Valhalla)
-        if abs(intel["psi"]) > 0.18:
+        if abs(intel["psi"]) > 0.15:
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 75 + (abs(intel["psi"]) * 15)
+            score = 80 + (abs(intel["psi"]) * 10)
             
-    decision = "EXECUTE" if score >= 95 else "REJECT"
+    decision = "EXECUTE" if score >= 90 else "REJECT"
 
     return {
         "bias": bias,
