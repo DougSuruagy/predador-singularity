@@ -197,12 +197,12 @@ class NomadBrain:
         self.market_watchlist = []
         for v in self.eyes.values(): self.market_watchlist.extend(v)
         
-        # 🧠 MULTI-CEREBRAL CORTEX (CÉREBROS EXPANSORES)
+        # 🧠 MULTI-CEREBRAL CORTEX (v26.4 - Lateralized Market Focus)
         self.genes = {
-            "frontal_weight": 0.35,   # Lógica/EMA
-            "occipital_weight": 0.35, # Visão de Fluxo/OBP
-            "amygdala_weight": 0.15,  # Emoção/Risco/Adrenalina
-            "parietal_weight": 0.15   # Espacial/Liquidez (Depth)
+            "occipital_weight": 0.35, # 👁️ Fluxo/OFI/OBP (Alta importância em Range)
+            "parietal_weight": 0.25,  # 🗺️ Liquidez/Paredes (Crucial em Range)
+            "frontal_weight": 0.25,   # 🧠 Lógica/RSI (Momentum baixo)
+            "amygdala_weight": 0.15   # 🛡️ Medo/Risco
         }
         
         # 🦴 CEREBELO (Memória Muscular / Execução)
@@ -581,7 +581,7 @@ class NomadBrain:
         price = intel.get("price", 1.0) if intel else 1.0
         vol_ratio = atr / price if price > 0 else 0.0
         
-        market_regime = "TRENDING" if vol_ratio > 0.003 else "RANGING" # 0.3% threshold
+        market_regime = "TRENDING" if vol_ratio > 0.004 else "RANGING" # 0.4% threshold para hoje
         
         # 🧠 LOBO FRONTAL (Lógica Adaptativa)
         kinetic = intel["kinetic"] if intel else 0.0
@@ -591,15 +591,17 @@ class NomadBrain:
         # Se RANGING, inverte RSI para Mean Reversion (Compra Fundo, Vende Topo)
         # Se TRENDING, segue o momento (RSI > 50 ajuda compra)
         if market_regime == "RANGING":
-            rsi_factor = -1.0 * ((rsi - 50) / 50.0) # RSI 70 -> -0.4 (Vende)
+            # [FINE-TUNE] Aumenta sensibilidade em RSI extremos (70/30)
+            rsi_dev = (rsi - 50) / 50.0
+            rsi_factor = -1.4 * rsi_dev # Sensibilidade aumentada para 1.4x
         else:
-            rsi_factor = 1.0 * ((rsi - 50) / 50.0)  # RSI 70 -> +0.4 (Compra)
+            rsi_factor = 1.0 * ((rsi - 50) / 50.0) 
             
-        frontal_signal = (kinetic * 0.4 + rsi_factor * 0.6) * self.genes["frontal_weight"]
+        frontal_signal = (kinetic * 0.3 + rsi_factor * 0.7) * self.genes["frontal_weight"] # Prioriza RSI em Range
         
         # 🧠 LOBO PARIETAL (Integração de Liquidez Espacial)
         # Se o preço está perto de uma parede de liquidez (OBP alto), o sinal parietal é forte
-        parietal_signal = (abs(obp) * 2.0) * self.genes["parietal_weight"]
+        parietal_signal = (abs(obp) * 2.5) * self.genes["parietal_weight"]
         
         # 🧠 AMÍGDALA (Resposta ao Risco e Adrenalina)
         z_score = intel["z_score"] if intel else 0.0
@@ -634,7 +636,7 @@ class NomadBrain:
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
         # Se o mercado está caótico (consciência baixa), o limiar de consenso sobe
-        consensus_threshold = 0.25 if self.global_consciousness < 0.6 else 0.15
+        consensus_threshold = 0.22 if self.global_consciousness < 0.6 else 0.12
         if resonance_align: consensus_threshold *= 0.7 # Mais fácil entrar se houver ressonância
         
         bias = "NEUTRAL"
@@ -651,7 +653,7 @@ class NomadBrain:
         
         # Otimização Kelly: Ajuste dinâmico baseado na saúde da banca e regime
         # Ranging permite posições maiores pois Stop Loss é técnico e curto
-        kelly_base = 0.25 if market_regime == "RANGING" else 0.15
+        kelly_base = 0.30 if market_regime == "RANGING" else 0.15
         dynamic_kelly = kelly_base + (0.10 if self.homeostasis > 85 else 0.0)
         self.kelly_fraction = dynamic_kelly  # Atualiza instância para uso na execução
         
