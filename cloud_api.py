@@ -154,15 +154,15 @@ async def get_state(x_token: str = Header(None)):
 # ============================================================
 def get_supreme_config(symbol, is_trending):
     """ 
-    [BTC/ETH] FUSÃO SINGULARITY 
+    [BTC/ETH] FUSÃO SINGULARITY - SENSIBILIDADE PRO
     Funde o DNA de 19% (Legacy) com Proteção Iron (Modern)
     """
-    base_threshold = 0.22 if "BTC" in symbol or "ETH" in symbol else 0.30
+    base_threshold = 0.20 if "BTC" in symbol or "ETH" in symbol else 0.30
     buffer = 0.05
     
     return {
-        "threshold": base_threshold + buffer,
-        "min_score": 70, # Elevado de 55 para filtrar ruído (Elite)
+        "threshold": base_threshold + buffer, # Resulta em 0.25 para BTC/ETH
+        "min_score": 70, 
         "sl_mult": 1.8,
         "tp_mult": 5.5 if is_trending else 2.8,
         "leverage": 10
