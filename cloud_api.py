@@ -49,8 +49,9 @@ class EngineState:
         self.is_healthy = True
         self.daily_pnl = 0.0
         self.trades = 0
-        self.wins = 0
-        self.mode = "SUPREME"
+        self.last_price = 0.0
+        self.last_score = 0
+        self.trade_log = []
         
         # 🛡️ TRAVAS DE SEGURANÇA
         self.MAX_DAILY_LOSS = -2.0 # %
@@ -58,8 +59,8 @@ class EngineState:
 
     def get_bio_metrics(self):
         # Dopamina: Alta se o winrate ou trades estiverem bons
-        winrate = (self.wins / max(1, self.trades))
-        dopamine = min(1.0, winrate * 1.5)
+        win_rate = (self.wins / max(1, self.trades)) * 100
+        dopamine = min(1.0, (win_rate / 100) * 1.5)
         
         # Adrenalina: Alta se estiver operando em modo SUPREME
         adrenaline = 0.8 if self.mode == "SUPREME" else 0.4
@@ -71,20 +72,36 @@ class EngineState:
             "dopamine": round(dopamine, 2),
             "adrenaline": round(adrenaline, 2),
             "cortisol": round(cortisol, 2),
-            "homeostasis": round(100 - (cortisol * 100), 1)
+            "homeostasis": round(100 - (cortisol * 100), 1),
+            "synaptic_firing": 12 + (dopamine * 50) # Simula atividade neural
         }
 
     def get_stats(self):
+        bio = self.get_bio_metrics()
+        win_rate = (self.wins / max(1, self.trades)) * 100
+        is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
+        
         return {
-            "version": "57.0-BIO-SAFETY",
+            "version": "65.0-APEX-SYNC",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
             "wins": self.wins,
+            "win_rate": round(win_rate, 2),
             "mode": self.mode,
-            "bio": self.get_bio_metrics(),
-            "kill_switch_active": self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT,
-            "apex_mode": self.daily_pnl > 1.0 # Ativa modo agressivo se já estiver no lucro
+            "regime": "APEX-ACTIVE" if not is_locked else "LOCKED",
+            "price": self.last_price,
+            "prob": self.last_score,
+            "confidence": self.last_score,
+            "is_locked": is_locked,
+            "is_hunting": not is_locked,
+            "homeostasis": bio["homeostasis"],
+            "adrenaline": bio["adrenaline"],
+            "synaptic_firing": bio["synaptic_firing"],
+            "bio": bio,
+            "trade_log": self.trade_log[-8:] if self.trade_log else [],
+            "kill_switch_active": is_locked,
+            "apex_mode": self.daily_pnl > 1.0
         }
 
 engine_state = EngineState()
@@ -203,6 +220,7 @@ async def run_strategy(symbol, mode):
     if not ohlcv: return
     
     closes = [x[4] for x in ohlcv]
+    engine_state.last_price = closes[-1]
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv])
     if not intel: return
     
@@ -215,8 +233,10 @@ async def run_strategy(symbol, mode):
         config = get_supreme_config(symbol, intel["trend_strong"])
         
         threshold = config["threshold"]
+        engine_state.last_score = 0 # Reset
         if abs(intel["psi"]) > threshold:
             score = 55 + (abs(intel["psi"]) * 10)
+            engine_state.last_score = score
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
         
         # Filtro RSI Blindado (Adaptativo)
@@ -228,8 +248,11 @@ async def run_strategy(symbol, mode):
         
     elif mode == "SNIPER":
         config = get_sniper_config(symbol, intel["trend_strong"])
+        engine_state.last_score = 0 # Reset
+        # Unificando Lógica Sniper com o Threshold de PSI solicitado
         if abs(intel["psi"]) > config["threshold"]:
             score = 55 + (abs(intel["psi"]) * 10)
+            engine_state.last_score = score
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             
         # Filtro RSI Adaptativo (SINGULARITY)
@@ -273,6 +296,13 @@ async def run_strategy(symbol, mode):
                 # Simulação básica de PnL para monitoramento (v57.0)
                 # Na real, isso viria da confirmação da exchange
                 engine_state.last_order = order
+                engine_state.trade_log.append({
+                    "time": datetime.now().strftime("%H:%M:%S"),
+                    "action": side.upper(),
+                    "symbol": symbol,
+                    "confidence": int(score),
+                    "price": price
+                })
             except Exception as ex:
                 print(f"❌ Erro Exec: {ex}")
         
