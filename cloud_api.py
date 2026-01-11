@@ -635,16 +635,15 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v27.4] Quantum Flow: Equilíbrio para evitar "imobilidade"
-        limit_cons = 0.25 if self.global_consciousness < 0.6 else 0.18
-        consensus_threshold = limit_cons
+        # [v28.0] ULTIMATUM: Alta seletividade para vencer taxas e volatilidade
+        consensus_threshold = 0.45 if self.global_consciousness < 0.6 else 0.40
         
-        # Filtro de Volatilidade Mínima
+        # Filtro de Volatilidade Realista: Só opera se o lucro possível > custo
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_check = (atr / price) > 0.0003 # 0.03% (Ainda mais leve para o backtest)
+        vol_check = (atr / price) > 0.0012 # 0.12% de oscilação mínima necessária
         
-        # Filtro de Inércia
+        # Filtro de Inércia Simplificado
         self.psi_history.append(psi)
         if len(self.psi_history) > 3: self.psi_history.pop(0)
         avg_psi = sum(self.psi_history) / len(self.psi_history)
@@ -652,6 +651,7 @@ class NomadBrain:
         
         bias = "NEUTRAL"
         if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
+            # Filtro Sniper Real
             high_vol = (vol_ratio > 0.008)
             extreme_rsi = True
             if market_regime == "RANGING" and high_vol:
@@ -1734,11 +1734,11 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v27.1: Anti-Friction sniper
-                if report["bias"] != "NEUTRAL" and report["score"] > 70:
+                # Gatilho v28.0: Sniper de Alta Performance (Score > 80)
+                if report["bias"] != "NEUTRAL" and report["score"] > 80:
                     is_sol = symbol in ["SOLUSDT", "PEPEUSDT"]
-                    sl_mult = 2.4 if is_sol else 1.8
-                    tp_mult = 6.5 if is_sol else 4.8 # TP Expandido para pagar taxas
+                    sl_mult = 2.0 if is_sol else 1.5
+                    tp_mult = 6.0 if is_sol else 4.5 # RRR institucional
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
@@ -1787,15 +1787,9 @@ async def run_backtest(data: dict):
                     history.append({"t": timestamp, "pnl": round(real_pnl_percent, 2)})
                     position = None
                 else:
-                    # [v27.4] Breakeven Guard Relaxado (70% do TP)
-                    # Dá espaço para o trade "girar" antes de travar
-                    fee_buffer = position["entry"] * 0.0005 
-                    target_move = (position["tp"] - position["entry"]) * 0.7 
-                    
-                    if position["type"] == "long" and (close - position["entry"]) > target_move:
-                         position["sl"] = max(position["sl"], position["entry"] + fee_buffer)
-                    elif position["type"] == "short" and (position["entry"] - close) > target_move:
-                         position["sl"] = min(position["sl"], position["entry"] - fee_buffer)
+                    # [v28.0] SEM PREMATUROS: Deixamos o mercado decidir entre TP ou SL.
+                    # Removida a trava de Breakeven para restaurar o Win Rate real.
+                    pass
 
         brain.genes = original_genes
         total = sim_state.wins + sim_state.losses
