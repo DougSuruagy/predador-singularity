@@ -1,6 +1,13 @@
 # PREDATOR PROGRESS LOG
 
-## Iteration v24.0 Multi-Market Nexus (Current)
+## Iteration v24.1 Bybit Strike (Current)
+- **Status:** COMPLETED
+- **Learnings:**
+  - Implemented **Global Symbol Normalizer**: `normalize_symbol` function automatically adapts tickers (`BTC/USDT` <-> `BTCUSDT`) based on the active Exchange ID. This prevents failures on Bybit V5 which rejects slashes.
+  - Enhanced **Leverage Logic**: Added safeguards for Bybit's API which throws errors if leverage is already set, preventing unnecessary log spam.
+  - Added **Boot Balance Check**: The system now prints the detected initial balance on startup, aiding in debugging connectivity.
+
+## Iteration v24.0 Multi-Market Nexus
 - **Status:** COMPLETED
 - **Learnings:**
   - Implemented **Multi-Exchange Logic**. The system now supports dynamic switching between **Binance** (Futures) and **Bybit** (Linear/Unified) via `EXCHANGE_ID` environment variable.
@@ -13,9 +20,3 @@
   - Implemented **Liquidity Gatekeeper Protocol**: The system now starts in a locked state (`funding_locked=True`) and only unlocks `is_hunting` if the background scanner confirms a Binance USDT balance > $5.
   - Removed dangerous fallback simulation money ($20) from production logic. No money = No Trade.
   - Webhook signals are explicitly rejected with `NO_FUEL` reason if funds are insufficient.
-
-## Iteration v23.0 Sentinel Agility
-- **Status:** COMPLETED
-- **Learnings:**
-  - Implemented **Zero-Latency Capital Manager**. Execution time reduced drastically by caching balance in RAM and updating asynchronously via `maintain_exchange_session` (10s loop) and `execute_binance_order` callback.
-  - Implemented **Dynamic Regime Cortex**. The AI now detects Ranging vs Trending markets using Volatility Ratio (ATR/Price). Logic adapts automatically (Mean Reversion vs Trend Following).

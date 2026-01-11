@@ -519,6 +519,12 @@ async def maintain_exchange_session():
             print(f"⚠️ GATEKEEPER ERROR: {e}")
             await asyncio.sleep(10)
 
+def normalize_symbol(symbol: str) -> str:
+    """Adapta símbolos para Bybit (BTCUSDT) ou Binance (BTC/USDT)"""
+    if EXCHANGE_ID == "bybit":
+        return symbol.replace("/", "").upper()
+    return symbol.upper()
+
 # Se as chaves estiverem presentes, testa conexão e configura alavancagem
 if API_KEY and API_SECRET:
     try:
@@ -527,6 +533,15 @@ if API_KEY and API_SECRET:
             try:
                 await exchange.load_markets()
                 print(f"✅ MERCADOS CARREGADOS: {EXCHANGE_ID.upper()} READY.")
+                
+                # Check Inicial de Saldo (Debug)
+                try:
+                    bal = await exchange.fetch_balance()
+                    usdt = float(bal['total'].get('USDT', 0))
+                    print(f"💰 SALDO INICIAL DETECTADO: ${usdt:.2f} USDT")
+                except Exception as ex:
+                    print(f"⚠️ AVISO: Não foi possível ler saldo inicial ({ex})")
+                    
             except Exception as e:
                 print(f"⚠️ ERRO AO CARREGAR MERCADOS: {e}")
         asyncio.create_task(setup_account())
@@ -791,6 +806,9 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
     Recebe sinais do TradingView e processa.
     O parâmetro intel_cache evita chamadas repetidas à API da Binance.
     """
+    # 🩹 Bybit V5 Fix: Remove barras dos símbolos
+    payload.symbol = normalize_symbol(payload.symbol)
+    
     now = get_now_br()
     
     # [SEGURANÇA] Liquidity Gatekeeper (v23.1)
@@ -963,13 +981,18 @@ async def get_compounded_amount(symbol, kelly=0.20, price=None):
         print(f"⚠️ [CAPITAL-ERROR] {e}")
         return 0
 
-# ⚡ HELPER: Execução Assíncrona Binance (Alta Performance)
+# ⚡ HELPER: Execução Assíncrona Multi-Exchange (Alta Performance)
 async def execute_binance_order(payload: WebhookPayload, use_compounding=True, entry_price=None):
-    """Executa a ordem na Binance com Auto-Compounding."""
+    """Executa a ordem na Exchange (Bybit/Binance) com Auto-Compounding."""
     try:
-        symbol = payload.symbol.upper()
-        if "/" not in symbol:
-            symbol = f"{symbol}/USDT" if "USDT" not in symbol else symbol
+        symbol = normalize_symbol(payload.symbol)
+        # O CCXT Bybit exige BTCUSDT. Binance aceita BTC/USDT.
+        # Se for Binance, manter compatibilidade antiga se necessário ou confiar no normalize
+        if EXCHANGE_ID == "binance" and "/" not in symbol and "USDT" in symbol:
+             # Legacy fix para Binance se o sinal vier sem barra
+             symbol = symbol.replace("USDT", "/USDT")
+        
+        # Para Bybit, normalize já removeu a barra.
         
         action = payload.action.upper()
         
@@ -989,12 +1012,17 @@ async def execute_binance_order(payload: WebhookPayload, use_compounding=True, e
         
         # [PERFORMANCE-BOOST] Caching de Alavancagem para evitar chamadas de rede redundantes
         target_lev = 15
-        if symbol not in brain.leverage_cache or brain.leverage_cache[symbol] != target_lev:
+        if symbol not in getattr(brain, 'leverage_cache', {}) or brain.leverage_cache.get(symbol) != target_lev:
+            if not hasattr(brain, 'leverage_cache'): brain.leverage_cache = {}
             try:
-                await exchange.set_leverage(target_lev, symbol)
+                params = {'category': 'linear'} if EXCHANGE_ID == "bybit" else {}
+                await exchange.set_leverage(target_lev, symbol, params)
                 brain.leverage_cache[symbol] = target_lev
                 print(f"⚡ [LEVERAGE] {symbol} definido para {target_lev}x")
-            except: pass
+            except Exception as e: 
+                # Bybit ignora se já estiver setado, outros erros logamos low-level
+                if "not modified" not in str(e).lower():
+                     pass # print(f"⚠️ Lev Update: {e}")
 
         if action == "BUY":
             await exchange.create_market_buy_order(symbol, amount)

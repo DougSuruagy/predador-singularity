@@ -1,15 +1,15 @@
 {
-    "feature": "PREDATOR v24.0 MULTI-MARKET NEXUS",
+    "feature": "PREDATOR v24.1 BYBIT STRIKE",
     "status": "COMPLETED",
     "userStories": [
         {
             "id": "STORY-1",
-            "title": "Implement Multi-Exchange Support (Bybit)",
-            "description": "Refactor `cloud_api.py` to support dynamic exchange selection via `EXCHANGE_ID` env var. Priority: Add Bybit support to bypass Binance IP restrictions on Cloud.",
+            "title": "Bybit Symbol & Balance Normalization",
+            "description": "Adapt core logic to handle Bybit V5 specifics: 1) Remove slashes from symbols (BTC/USDT -> BTCUSDT), 2) Parse Unified Trading Account balance correctly.",
             "acceptanceCriteria": [
-                "API initializes specified exchange (Binance or Bybit)",
-                "Unified logic for Balance and Orders",
-                "Env vars adjusted for generic API Keys"
+                "Orders sent to Bybit use slashless format",
+                "Balance check correctly reads USDT form Bybit Unified",
+                "Leverage setting uses correct category"
             ],
             "passes": true
         }
