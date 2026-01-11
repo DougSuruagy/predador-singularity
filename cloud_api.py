@@ -635,24 +635,26 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v26.6] Sniper Threshold: Mais difícil entrar se houver muita entropia
-        consensus_threshold = 0.28 if self.global_consciousness < 0.6 else 0.20
+        # [v27.1] Anti-Friction: Threshold aumentado para 0.35 para garantir trades de alta qualidade
+        consensus_threshold = 0.40 if self.global_consciousness < 0.6 else 0.35
         
-        # Filtro de Inércia [v26.6]: Evita entrar em picos isolados
+        # Filtro de Volatilidade Mínima: Evita operar em "telas paradas" (Taxa > Lucro)
+        atr = intel.get("atr", 0.0)
+        price = intel.get("price", 1.0)
+        vol_check = (atr / price) > 0.0012 # Exige pelo menos 0.12% de oscilação
+        
+        # Filtro de Inércia [v26.6]
         self.psi_history.append(psi)
         if len(self.psi_history) > 3: self.psi_history.pop(0)
         avg_psi = sum(self.psi_history) / len(self.psi_history)
-        
-        # Só confirma se a média dos últimos disparos for na mesma direção
         inertia_ok = (psi > 0 and avg_psi > 0) or (psi < 0 and avg_psi < 0)
         
         bias = "NEUTRAL"
-        if abs(psi) > consensus_threshold and is_correlated and inertia_ok:
-            # RSI Extremity Check para moedas voláteis no modo Range
-            high_vol = (vol_ratio > 0.008) # Ativos com > 0.8% de ATR/Preço
+        if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
+            high_vol = (vol_ratio > 0.008)
             extreme_rsi = True
             if market_regime == "RANGING" and high_vol:
-                extreme_rsi = (rsi > 75 or rsi < 25)
+                extreme_rsi = (rsi > 78 or rsi < 22) # Mais rigoroso no SOL
             
             if extreme_rsi:
                 bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
@@ -1731,13 +1733,14 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v26.9: Dynamic Golden RRR
-                if report["bias"] != "NEUTRAL" and report["score"] > 60:
-                    # Determina se precisa de mais espaço (Wick Shield)
+                # Gatilho v27.1: Anti-Friction sniper
+                if report["bias"] != "NEUTRAL" and report["score"] > 70:
                     is_sol = symbol in ["SOLUSDT", "PEPEUSDT"]
-                    vol_mult = 2.2 if is_sol else 1.8
-                    sl_dist = atr * vol_mult
-                    tp_dist = atr * (5.0 if is_sol else 3.8) # TP Agressivo no SOL
+                    sl_mult = 2.4 if is_sol else 1.8
+                    tp_mult = 6.5 if is_sol else 4.8 # TP Expandido para pagar taxas
+                    
+                    sl_dist = atr * sl_mult
+                    tp_dist = atr * tp_mult
                     
                     sl = close - sl_dist if report["bias"] == "GOD_LONG" else close + sl_dist
                     tp = close + tp_dist if report["bias"] == "GOD_LONG" else close - tp_dist
@@ -1783,13 +1786,15 @@ async def run_backtest(data: dict):
                     history.append({"t": timestamp, "pnl": round(real_pnl_percent, 2)})
                     position = None
                 else:
-                    # [v27.0] Breakeven Guard: Proteção de Capital
-                    # Se atingir 50% do caminho para o TP, move SL para o Breakeven
-                    target_move = (position["tp"] - position["entry"]) * 0.5
+                    # [v27.1] Fee-Aware Breakeven Guard (v27.1)
+                    # Move SL para Entrada + 0.06% (cobre as 2 taxas e sai com micro-lucro)
+                    fee_buffer = position["entry"] * 0.0006 
+                    target_move = (position["tp"] - position["entry"]) * 0.4 # Mais rápido
+                    
                     if position["type"] == "long" and (close - position["entry"]) > target_move:
-                         position["sl"] = max(position["sl"], position["entry"] + (atr * 0.2))
+                         position["sl"] = max(position["sl"], position["entry"] + fee_buffer)
                     elif position["type"] == "short" and (position["entry"] - close) > target_move:
-                         position["sl"] = min(position["sl"], position["entry"] - (atr * 0.2))
+                         position["sl"] = min(position["sl"], position["entry"] - fee_buffer)
 
         brain.genes = original_genes
         total = sim_state.wins + sim_state.losses
