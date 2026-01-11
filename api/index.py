@@ -42,27 +42,29 @@ class NomadBrain:
         direction_changes = sum(1 for i in range(len(deltas)-10, len(deltas)) if (deltas[i] > 0) != (deltas[i-1] > 0))
         entropy = direction_changes / 10.0
         
-        # Volume Shock 
-        vol_shock = 1.0
+        # Volume Intensity (2-Sigma)
+        vol_intensity = 1.0
         if volumes and len(volumes) > 20:
             avg_vol = sum(volumes[-20:-1]) / 19
-            vol_shock = volumes[-1] / avg_vol if avg_vol > 0 else 1.0
+            std_vol = (sum((v - avg_vol)**2 for v in volumes[-20:-1]) / 20)**0.5
+            vol_intensity = (volumes[-1] - avg_vol) / (std_vol + 0.0001)
 
-        is_compressed = bb_width < 0.70 or entropy > 0.60
+        is_compressed = bb_width < 0.60 or entropy > 0.50
         
         # 🔗 Divergence Check
         divergence = False
-        if closes[-1] > ma20 and rsi < 45: divergence = True
-        elif closes[-1] < ma20 and rsi > 55: divergence = True
+        if closes[-1] > ma20 and rsi < 40: divergence = True
+        elif closes[-1] < ma20 and rsi > 60: divergence = True
 
         return {
             "rsi": rsi, "psi": psi, "velocity": velocity, 
             "bb_width": bb_width, "entropy": entropy, 
-            "vol_shock": vol_shock, "is_compressed": is_compressed,
+            "vol_intensity": vol_intensity, "is_compressed": is_compressed,
             "touch_low": touch_low, "touch_high": touch_high,
-            "trend_strong": bb_width > 0.9 and entropy < 0.4,
+            "trend_strong": bb_width > 0.8 and entropy < 0.4,
             "divergence": divergence,
-            "price": closes[-1]
+            "price": closes[-1],
+            "ma20": ma20
         }
 
     def _calc_rsi(self, deltas):
@@ -102,41 +104,38 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v170.0 "GHOST REAPING"
+    # 🧬 MASTER LOGIC v190.0 "SCALPER-SOUL"
+    # Foco: Alta frequência, lucros rápidos na exaustão.
     if intel["is_compressed"]:
-        # Volatility Floor: Mínimo 0.40% para garantir que o movimento cubra taxas e sobre lucro
-        if intel["bb_width"] < 0.40:
-             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Vol Zone (Fee Trap)"}
+        # Floor de Volatilidade reduzido para Scalping (0.25%)
+        # Mas exige Volume Intensity alto (> 1.5)
+        if intel["bb_width"] < 0.25:
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Dead Zone"}
 
-        # Body Ratio Check (Rejeição Pin-bar)
-        candle_range = highs[-1] - lows[-1]
-        body_size = abs(closes[-1] - payload.ohlcv[-1][1]) # close - open
-        body_ratio = (body_size / candle_range) if candle_range > 0 else 1.0
+        # Exaustão RSI (Nível primário de scalper)
+        rsi_oversold = intel["rsi"] < 28
+        rsi_overbought = intel["rsi"] > 72
         
-        # SOL precisa de precisão cirúrgica (Wick Longo, Corpo Pequeno)
-        wick_threshold = 0.65 if "SOL" in payload.symbol.upper() else 0.50
-        body_max = 0.35 # Corpo deve ser no máximo 35% do range total
+        # Volume Shock (Nível secundário)
+        strong_flow = intel["vol_intensity"] > 1.8
         
-        rejection_low = (closes[-1] > lows[-1] + (candle_range * wick_threshold)) and (body_ratio < body_max)
-        rejection_high = (closes[-1] < highs[-1] - (candle_range * wick_threshold)) and (body_ratio < body_max)
-        
-        # Filtro de Exaustão Extrema (RSI 32/68)
-        if intel["touch_low"] and rejection_low and intel["rsi"] < 32 and intel["vol_shock"] > 1.3: 
-            bias = "GOD_LONG"; score = 98
-        elif intel["touch_high"] and rejection_high and intel["rsi"] > 68 and intel["vol_shock"] > 1.3: 
-            bias = "GOD_SHORT"; score = 98
-    else:
-        # Modo TREND: Aumentamos exigência para evitar topos e fundos em tendências fracas
-        if abs(intel["psi"]) > 0.25: 
-            bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 85 + (abs(intel["psi"]) * 10)
+        if (intel["touch_low"] and rsi_oversold) or (rsi_oversold and strong_flow):
+            bias = "GOD_LONG"; score = 95
+        elif (intel["touch_high"] and rsi_overbought) or (rsi_overbought and strong_flow):
+            bias = "GOD_SHORT"; score = 95
             
-    # Hard Divergence Filter
+    else:
+        # TREND SCALPING: Segue o fluxo se a PSI for explosiva
+        if abs(intel["psi"]) > 0.25 and intel["vol_intensity"] > 2.0: 
+            bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+            score = 90
+            
+    # Filtro de Divergência (Hard Reject para Scalper)
     if intel["divergence"]: score = 0 
             
-    decision = "EXECUTE" if score >= 90 else "REJECT"
+    decision = "EXECUTE" if score >= 85 else "REJECT"
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "version": "170.0"
+        "version": "190.0-SCALPER"
     }
