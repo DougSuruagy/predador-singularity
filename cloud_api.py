@@ -1080,8 +1080,8 @@ async def tradingview_webhook(payload: WebhookPayload, auth: None = Depends(sove
     }
 
 # ⚡ HELPER: Gestão de Capital Auto-Compounding (Sovereign Cache - Zero Latency)
-async def get_compounded_amount(symbol, kelly=0.20, price=None):
-    """Calcula o tamanho do lote baseado no saldo em CACHE da Bybit com alavancagem."""
+async def get_compounded_amount(symbol, kelly=0.20, price=None, atr=None):
+    """Calcula o tamanho do lote baseado no saldo em CACHE da Bybit com alavancagem adaptativa."""
     try:
         # ⚡ ZERO-LATENCY CAPITAL MANAGER
         available_balance = state.balance
@@ -1090,38 +1090,53 @@ async def get_compounded_amount(symbol, kelly=0.20, price=None):
         if available_balance <= 0:
             try:
                 bal = await exchange.fetch_balance()
-                available_balance = float(bal['total']['USDT']) if 'USDT' in bal['total'] else 0.0
+                available_balance = float(bal['total'].get('USDT', 0))
                 state.balance = available_balance
             except:
                 return 0.0
                 
-        # 🎰 APEX LEVERAGE MATRIX (10x - 20x Dinâmico)
-        leverage = 20 if state.homeostasis > 80 else 10
+        # 🎰 VOLATILITY-ADJUSTED LEVERAGE (VAL)
+        # Se ATR é 1% do preço, 0.01 / 0.01 = 1 -> Alavancagem equilibrada.
+        # Alvo: Risco fixo de movimentação.
+        leverage = 10 # Default
+        if atr and price:
+            volatility = (atr / price)
+            # Regra: Se volatilidade é baixa (<0.5%), sobe alavancagem. Se alta (>2%), desce.
+            # Limites: 2x a 25x.
+            leverage = int(0.15 / max(0.005, volatility))
+            leverage = max(2, min(25, leverage))
+            
+        # 🛡️ MARGIN PROTECTION: Se a saúde da banca baixar, corta a alavancagem pela metade
+        if state.homeostasis < 70: leverage = max(1, int(leverage * 0.5))
+        if state.homeostasis < 50: leverage = 1 # Cash only
         
         # ⚡ ZERO-LATENCY: Só faz fetch_balance se o cache estiver muito antigo (> 30s)
         now = time.time()
         if not hasattr(state, 'last_balance_fetch'): state.last_balance_fetch = 0
         
-        if (now - state.last_balance_fetch) > 30 or available_balance <= 0:
+        if (now - state.last_balance_fetch) > 60: # Aumentado para 60s (Sovereign Cache)
             try:
                 bal = await exchange.fetch_balance()
                 available_balance = float(bal['total'].get('USDT', 0))
                 state.balance = available_balance
                 state.last_balance_fetch = now
-            except Exception as e:
-                print(f"⚠️ [BALANCE-STALE] Usando cache: {available_balance}")
+            except: pass
 
-        # Otimização: Cache de alavancagem inteligente
+        # Otimização: Cache de alavancagem inteligente na Bybit
         try:
             if symbol not in getattr(brain, 'leverage_cache', {}):
                 if not hasattr(brain, 'leverage_cache'): brain.leverage_cache = {}
                 await exchange.set_leverage(leverage, symbol)
                 brain.leverage_cache[symbol] = leverage
-        except:
-            pass 
+                print(f"⚙️ [LEVERAGE] {symbol} configurado para {leverage}x (VAL Mode)")
+        except: pass 
             
-        # Kelly Criterion Limitado (Max 30% da banca em um trade)
-        risk_amount = available_balance * min(0.30, kelly)
+        # 🎯 DYNAMIC AGGRESSION (Win-Streak Scaling)
+        # O PREDATOR fica mais faminto quando ganha e mais cauteloso quando perde.
+        aggression = getattr(brain, 'adaptive_aggression', 1.0)
+        risk_fraction = min(0.40, kelly * aggression) # Cap de 40% de risco nocional por trade
+        
+        risk_amount = available_balance * risk_fraction
         notional_value = risk_amount * leverage
         
         # ⚡ Evita fetch_ticker se o preço já foi passado pela inteligência
@@ -1130,13 +1145,17 @@ async def get_compounded_amount(symbol, kelly=0.20, price=None):
             price = ticker['last']
             
         amount = notional_value / price
+        
+        # Log de Cálculo (Biometria de Capital)
+        print(f"💰 [CAPITAL] Trade: {symbol} | Risk: {risk_fraction*100:.1f}% | Lev: {leverage}x | Spot: ${risk_amount:.2f}")
+        
         return amount
     except Exception as e:
         print(f"⚠️ [CAPITAL-ERROR] {e}")
         return 0
 
 # ⚡ HELPER: Execução Assíncrona BYBIT V5 (Alta Performance)
-async def execute_bybit_order(payload: WebhookPayload, use_compounding=True, entry_price=None, sl=None, tp=None):
+async def execute_bybit_order(payload: WebhookPayload, use_compounding=True, entry_price=None, sl=None, tp=None, atr=None):
     """
     Executa a ordem na Bybit V5 (Sovereign) com Auto-Compounding, Precision Fix e TP/SL.
     """
@@ -1146,7 +1165,7 @@ async def execute_bybit_order(payload: WebhookPayload, use_compounding=True, ent
         
         amount = payload.qty
         if use_compounding and action != "CLOSE":
-            amount = await get_compounded_amount(symbol, kelly=brain.kelly_fraction, price=entry_price)
+            amount = await get_compounded_amount(symbol, kelly=brain.kelly_fraction, price=entry_price, atr=atr)
             if amount <= 0: return 
         
         # ⚡ BYBIT PRECISION & FILTERS
@@ -1639,8 +1658,8 @@ async def autonomous_hunter_loop():
                         qty=0 # Será calculado pelo auto-compounding
                     )
                     
-                    # Dispara execução com TP/SL
-                    await execute_bybit_order(payload, use_compounding=True, entry_price=intel["price"], sl=sl, tp=tp)
+                    # Dispara execução com TP/SL e ATR para alavancagem adaptativa
+                    await execute_bybit_order(payload, use_compounding=True, entry_price=intel["price"], sl=sl, tp=tp, atr=intel.get("atr"))
                     brain.active_positions.add(symbol)
                     
                     # [CRITICAL] Registra o trade no Supabase
