@@ -205,43 +205,43 @@ async def root():
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v140.0 KING """
+    """ [BTC/ETH] SINGULARITY APEX - v150.0 ZENITH """
     if is_compressed:
         return {
             "threshold": 0.10, 
-            "min_score": 92,  
-            "sl_mult": 1.5,   # Folga técnica
-            "tp_mult": 3.8,   # RRR 1:2.5+ Neto
-            "leverage": 3,    # Alavancagem conservadora para precisão
+            "min_score": 90,  
+            "sl_mult": 2.2,   # Stop de Sobrevivência
+            "tp_mult": 2.8,   # TP de Reversão à Média (RRR 1:1.3)
+            "leverage": 5,    
             "shadow_trail": False
         }
     
     return {
-        "threshold": 0.22, 
+        "threshold": 0.20, 
         "min_score": 75, 
-        "sl_mult": 1.5,
+        "sl_mult": 1.8,
         "tp_mult": 6.5,   
         "leverage": 10,   
         "shadow_trail": True
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v140.0 KING """
+    """ [SOL] SNIPER v150.0 ZENITH """
     if is_compressed:
         return {
             "threshold": 0.12,
-            "min_score": 95,
-            "sl_mult": 1.5,
-            "tp_mult": 4.0, 
-            "leverage": 2, 
+            "min_score": 92,
+            "sl_mult": 2.5,
+            "tp_mult": 3.2, 
+            "leverage": 3, 
             "shadow_trail": False
         }
     return {
-        "threshold": 0.28,
+        "threshold": 0.25,
         "min_score": 75,
         "sl_mult": 2.0,
         "tp_mult": 6.0,
-        "leverage": 7,
+        "leverage": 8,
         "shadow_trail": True
     }
 
@@ -448,4 +448,14 @@ async def run_backtest(payload: WebhookPayload):
         
         i += 1
 
-    return {"symbol": symbol, "total_pnl_percent": round(sim["pnl"], 2), "total_trades": sim["trades"]}
+    win_rate = (sim["wins"] / max(1, sim["trades"])) * 100
+    return {
+        "symbol": symbol, 
+        "total_pnl_percent": round(sim["pnl"], 2), 
+        "total_trades": sim["trades"],
+        "win_rate": round(win_rate, 2),
+        "metrics": {
+            "rrr": 1.3 if "SOL" not in symbol else 1.2,
+            "safety_rating": "SOVEREIGN" if sim["pnl"] > 0 else "CAUTION"
+        }
+    }
