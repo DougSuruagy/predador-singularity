@@ -635,15 +635,15 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v28.0] ULTIMATUM: Alta seletividade para vencer taxas e volatilidade
-        consensus_threshold = 0.45 if self.global_consciousness < 0.6 else 0.40
+        # [v29.0] PHOENIX: Re-balanceamento para retomar fluidez de trades
+        consensus_threshold = 0.28 if self.global_consciousness < 0.6 else 0.22
         
-        # Filtro de Volatilidade Realista: Só opera se o lucro possível > custo
+        # Filtro de Volatilidade Adaptativo (v29.0)
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_check = (atr / price) > 0.0012 # 0.12% de oscilação mínima necessária
+        vol_check = (atr / price) > 0.0006 # 0.06% de oscilação mínima
         
-        # Filtro de Inércia Simplificado
+        # Filtro de Inércia
         self.psi_history.append(psi)
         if len(self.psi_history) > 3: self.psi_history.pop(0)
         avg_psi = sum(self.psi_history) / len(self.psi_history)
@@ -651,11 +651,10 @@ class NomadBrain:
         
         bias = "NEUTRAL"
         if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
-            # Filtro Sniper Real
             high_vol = (vol_ratio > 0.008)
             extreme_rsi = True
             if market_regime == "RANGING" and high_vol:
-                extreme_rsi = (rsi > 80 or rsi < 20)
+                extreme_rsi = (rsi > 78 or rsi < 22)
             
             if extreme_rsi:
                 bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
@@ -1734,11 +1733,11 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v28.0: Sniper de Alta Performance (Score > 80)
-                if report["bias"] != "NEUTRAL" and report["score"] > 80:
+                # Gatilho v29.0: Phoenix Strike (Score > 60)
+                if report["bias"] != "NEUTRAL" and report["score"] > 60:
                     is_sol = symbol in ["SOLUSDT", "PEPEUSDT"]
-                    sl_mult = 2.0 if is_sol else 1.5
-                    tp_mult = 6.0 if is_sol else 4.5 # RRR institucional
+                    sl_mult = 1.8 if is_sol else 1.5
+                    tp_mult = 4.2 if is_sol else 3.5 # RRR Seguro + Alta Taxa de Acerto
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
