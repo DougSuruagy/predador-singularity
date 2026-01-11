@@ -634,15 +634,20 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v32.0] EQUILIBRIUM: Calibração soberana para lucro e segurança
-        consensus_threshold = 0.35 if self.global_consciousness < 0.6 else 0.28
+        # [v33.0] MASTER-PIECE: Inteligência Adaptativa por Ativo
+        is_major = intel.get("symbol", "") in ["BTCUSDT", "ETHUSDT"]
         
-        # Filtro de Volatilidade Realista (v32.0)
+        # Ativos estáveis precisam de menos阈值 (Threshold) para agir
+        base_cons = 0.20 if is_major else 0.28
+        consensus_threshold = (base_cons + 0.05) if self.global_consciousness < 0.6 else base_cons
+        
+        # Filtro de Volatilidade Adaptativo
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_check = (atr / (price + 0.0001)) > 0.0004 # 0.04% mínimo
+        vol_floor = 0.00015 if is_major else 0.0005 # BTC/ETH (1.5bp) vs SOL (5bp)
+        vol_check = (atr / (price + 0.0001)) > vol_floor
         
-        # Filtro de Inércia [v32.0]
+        # Filtro de Inércia
         self.psi_history.append(psi)
         if len(self.psi_history) > 3: self.psi_history.pop(0)
         avg_psi = sum(self.psi_history) / len(self.psi_history)
@@ -1726,11 +1731,14 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v32.0: Equilibrium Strike (Score > 50)
-                if report["bias"] != "NEUTRAL" and report["score"] > 50:
+                # Gatilho v33.0: Master-Piece adaptive
+                if report["bias"] != "NEUTRAL" and report["score"] > 45:
                     is_sol = symbol in ["SOLUSDT", "PEPEUSDT"]
-                    sl_mult = 1.8 if is_sol else 1.5
-                    tp_mult = 4.8 if is_sol else 3.8 # RRR Ideal para compensar taxas
+                    is_major = symbol in ["BTCUSDT", "ETHUSDT"]
+                    
+                    # Calibração Master (RRR v33)
+                    sl_mult = 1.8 if is_sol else (1.2 if is_major else 1.5)
+                    tp_mult = 5.0 if is_sol else (3.5 if is_major else 4.0)
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
