@@ -634,18 +634,18 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v33.0] MASTER-PIECE: Inteligência Adaptativa por Ativo
-        is_major = intel.get("symbol", "") in ["BTCUSDT", "ETHUSDT"]
+        # [v34.0] FINALE: Inteligência de Ativo Sincronizada
+        is_major = any(m in (intel.get("symbol", "") or "") for m in ["BTC", "ETH"])
         
-        # Ativos estáveis precisam de menos阈值 (Threshold) para agir
-        base_cons = 0.20 if is_major else 0.28
+        # Ativos estáveis (BTC/ETH) precisam de sensibilidade extrema
+        base_cons = 0.16 if is_major else 0.26
         consensus_threshold = (base_cons + 0.05) if self.global_consciousness < 0.6 else base_cons
         
-        # Filtro de Volatilidade Adaptativo
+        # Filtro de Volatilidade Adaptativo Sincronizado
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_floor = 0.00015 if is_major else 0.0005 # BTC/ETH (1.5bp) vs SOL (5bp)
-        vol_check = (atr / (price + 0.0001)) > vol_floor
+        vol_floor = 0.00010 if is_major else 0.0004 # 1bp vs 4bp
+        vol_check = (atr / (price + 0.000001)) > vol_floor
         
         # Filtro de Inércia
         self.psi_history.append(psi)
@@ -656,7 +656,7 @@ class NomadBrain:
         bias = "NEUTRAL"
         if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
             bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
-       
+ Broadway      
         # SINAPSE: Intensidade do disparo neural
         self.synaptic_firing = (abs(psi) * 100)
         confidence = min(100, self.synaptic_firing * (0.4 if not is_correlated else 1.0))
@@ -1709,10 +1709,11 @@ async def run_backtest(data: dict):
             sim_corr = 0.82 if vel > 0 else -0.82
             
             intel = {
+                "symbol": symbol, # [v34.0] Crucial: Identidade do ativo para o cérebro
                 "price": close,
                 "obp": 0.8 if vel > 0 else -0.8, 
                 "ofi": 0.8 if vel > 0 else -0.8,
-                "anchor_confirm": sim_corr,
+ Broadway               "anchor_confirm": sim_corr,
                 "kinetic": kinetic,
                 "z_score": z_score,
                 "trend_aligned": True,
