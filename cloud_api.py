@@ -656,7 +656,7 @@ class NomadBrain:
         bias = "NEUTRAL"
         if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
             bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
- Broadway      
+        
         # SINAPSE: Intensidade do disparo neural
         self.synaptic_firing = (abs(psi) * 100)
         confidence = min(100, self.synaptic_firing * (0.4 if not is_correlated else 1.0))
@@ -1713,7 +1713,7 @@ async def run_backtest(data: dict):
                 "price": close,
                 "obp": 0.8 if vel > 0 else -0.8, 
                 "ofi": 0.8 if vel > 0 else -0.8,
- Broadway               "anchor_confirm": sim_corr,
+                "anchor_confirm": sim_corr,
                 "kinetic": kinetic,
                 "z_score": z_score,
                 "trend_aligned": True,
