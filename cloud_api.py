@@ -207,33 +207,31 @@ class NomadBrain:
         
         # 🦴 CEREBELO (Memória Muscular / Execução)
         self.muscle_memory = {"avg_latency": 0.2, "success_rate": 0.0}
-        
         self.restricted_symbols = set()
         
-        # 🧬 BIO-QUANTUM LIFE SIGNS
-        self.metabolism = 1.0           # Taxa de processamento biológico
-        self.adrenaline = 0.0           # Resposta ao estresse de mercado
-        self.homeostasis = 100.0        # Saúde do sistema (Banca R$ 100)
-        self.quantum_entropy = 0.1      # Desordem quântica
-        self.synaptic_firing = 0.0      # Intensidade de sinais neurais
+        # 🧬 BIO-QUANTUM LIFE SIGNS (v26.4)
+        self.metabolism = 1.0
+        self.adrenaline = 0.0
+        self.homeostasis = 100.0
+        self.quantum_entropy = 0.1
+        self.synaptic_firing = 0.0
         self.btc_momentum = 0.0
         self.btc_last_price = 0.0
         self.btc_last_fetch = 0.0
-        self.kelly_fraction = 0.20
+        self.kelly_fraction = 0.30
         self.leverage_cache = {} 
-        # 📈 SCALPER MEMORY (Performance Tracking)
-        self.recent_trades = []  # [{"result": "WIN/LOSS", "pnl": float, "symbol": str}]
+        self.recent_trades = []
         self.scalper_win_streak = 0
         self.scalper_loss_streak = 0
-        self.adaptive_aggression = 1.0  # Multiplica risco quando ganhando
+        self.adaptive_aggression = 1.0
         self.last_trade_time = 0
-        self.positions = {}  # {"BTCUSDT": {"side": "long", "entry": 50000, "tp": 50500, "sl": 49500}}
+        self.positions = {}
         
-        # 🧠 PATTERN MEMORY & GLOBAL CONSCIOUSNESS (v26.0)
+        # 🧠 PATTERN MEMORY & GLOBAL CONSCIOUSNESS
         self.synaptic_cache = {}
         self.pulse_anchor = {"ETHUSDT": 0.0, "SOLUSDT": 0.0}
-        self.global_consciousness = 0.5 # 0 (Chaos) to 1 (Harmony)
-        self.plasticity_index = 0.1     # Learning Rate
+        self.global_consciousness = 0.5
+        self.plasticity_index = 0.1
         self.sector_resonance = {k: 0.0 for k in self.eyes.keys()}
         
         # ⚡ CACHE DE SÍMBOLOS MONITORADOS
