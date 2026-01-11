@@ -1626,8 +1626,8 @@ async def run_backtest(data: dict):
         
         print(f"🧪 INICIANDO BACKTEST GENÉTICO: {symbol} ({period})...")
         
-        # 1. Buscar dados históricos
-        limit = 1440 if period == "1d" else 1000
+        # 1. Buscar dados históricos (Deep Space Stress Test)
+        limit = data.get("limit", 2000)
         ohlcv = await exchange.fetch_ohlcv(symbol, '1m', limit=limit)
         if not ohlcv:
             return {"error": "Sem dados históricos."}

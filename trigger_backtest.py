@@ -27,7 +27,8 @@ def run_remote_backtest(symbol="SOLUSDT", period="1d"):
     
     payload = {
         "symbol": symbol,
-        "period": period
+        "period": period,
+        "limit": 2000   # Dobramos a amostra para validação estatística real
     }
     
     try:
