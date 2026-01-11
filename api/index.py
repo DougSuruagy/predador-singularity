@@ -96,20 +96,23 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v100.0 "CYBER-PREDATOR"
+    # 🧬 MASTER LOGIC v120.0 "PREDATOR SOUL"
     if intel["is_compressed"]:
-        # Spring/Upthrust Detection (Rejeição de Pavio)
+        # Filtro de Rentabilidade: ATR deve ser suficiente para cobrir taxas (0.12% round trip)
+        expected_move_pct = (intel["bb_width"] / 4) # Estimativa simples
+        if expected_move_pct < 0.20:
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Profitability Zone"}
+
+        # Spring/Upthrust Detection
         candle_size = highs[-1] - lows[-1]
         rejection_low = closes[-1] > lows[-1] + (candle_size * 0.4) if candle_size > 0 else False
         rejection_high = closes[-1] < highs[-1] - (candle_size * 0.4) if candle_size > 0 else False
         
-        # Só entra se houver VOLUME + TOQUE + REJEIÇÃO
-        if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.2: 
+        if intel["touch_low"] and rejection_low and intel["rsi"] < 40 and intel["vol_shock"] > 1.1: 
             bias = "GOD_LONG"; score = 98
-        elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.2: 
+        elif intel["touch_high"] and rejection_high and intel["rsi"] > 60 and intel["vol_shock"] > 1.1: 
             bias = "GOD_SHORT"; score = 98
     else:
-        # Modo TREND (Valhalla)
         if abs(intel["psi"]) > 0.15:
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 80 + (abs(intel["psi"]) * 10)

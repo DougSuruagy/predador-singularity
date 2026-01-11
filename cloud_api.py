@@ -188,43 +188,43 @@ async def get_state(x_token: str = Header(None)):
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v110.0 KING """
+    """ [BTC/ETH] SINGULARITY APEX - v120.0 SOUL """
     if is_compressed:
         return {
             "threshold": 0.10, 
             "min_score": 90,  
-            "sl_mult": 0.7,   # Mais apertado para garantir lucro no repique
-            "tp_mult": 1.4,   # Alvo cirúrgico (RRR 1:2)
-            "leverage": 6,    # Aumentamos para aproveitar a precisão do Master Brain
+            "sl_mult": 1.2,   # Mais folga para o ruído
+            "tp_mult": 3.0,   # RRR 1:2.5 (Busca o topo/fundo oposto)
+            "leverage": 4,    # Alavancagem segura
             "shadow_trail": False
         }
     
     return {
-        "threshold": 0.22, 
+        "threshold": 0.20, 
         "min_score": 75, 
         "sl_mult": 1.5,
-        "tp_mult": 6.0,   # Valhalla Alpha TP
-        "leverage": 12,   # Máxima agressividade em trend
+        "tp_mult": 6.0,   
+        "leverage": 12,   
         "shadow_trail": True
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v110.0 KING """
+    """ [SOL] SNIPER v120.0 SOUL """
     if is_compressed:
         return {
             "threshold": 0.12,
             "min_score": 92,
-            "sl_mult": 0.9,
-            "tp_mult": 1.6, 
-            "leverage": 4, 
+            "sl_mult": 1.5,
+            "tp_mult": 3.5, 
+            "leverage": 3, 
             "shadow_trail": False
         }
     return {
-        "threshold": 0.30,
+        "threshold": 0.25,
         "min_score": 75,
         "sl_mult": 1.8,
         "tp_mult": 6.0,
-        "leverage": 10,
+        "leverage": 8,
         "shadow_trail": True
     }
 
@@ -286,13 +286,16 @@ async def run_strategy(symbol, mode):
         intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
         if not intel: return
         
+        # Filtro de Rentabilidade Local
+        if intel["is_compressed"] and (intel["bb_width"] / 4) < 0.18: return
+        
         if intel["is_compressed"]:
             candle_size = ohlcv[-1][2] - ohlcv[-1][3]
             rejection_low = ohlcv[-1][4] > ohlcv[-1][3] + (candle_size * 0.4) if candle_size > 0 else False
             rejection_high = ohlcv[-1][4] < ohlcv[-1][2] - (candle_size * 0.4) if candle_size > 0 else False
             
-            if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.2: bias = "GOD_LONG"; score = 95
-            elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.2: bias = "GOD_SHORT"; score = 95
+            if intel["touch_low"] and rejection_low and intel["rsi"] < 40 and intel["vol_shock"] > 1.1: bias = "GOD_LONG"; score = 95
+            elif intel["touch_high"] and rejection_high and intel["rsi"] > 60 and intel["vol_shock"] > 1.1: bias = "GOD_SHORT"; score = 95
         else:
             if abs(intel["psi"]) > 0.15:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
@@ -375,15 +378,17 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v100.0 "CYBER-PREDATOR"
+        # 🧬 NEURAL SIMULATION v120.0 "PREDATOR SOUL"
         if intel["is_compressed"]:
+            if (intel["bb_width"] / 4) < 0.18: i += 1; continue # Ignora poeira
+            
             candle_size = ohlcv[i][2] - ohlcv[i][3]
             rejection_low = ohlcv[i][4] > ohlcv[i][3] + (candle_size * 0.4) if candle_size > 0 else False
             rejection_high = ohlcv[i][4] < ohlcv[i][2] - (candle_size * 0.4) if candle_size > 0 else False
             
-            if intel["touch_low"] and rejection_low and intel["rsi"] < 35 and intel["vol_shock"] > 1.2: 
+            if intel["touch_low"] and rejection_low and intel["rsi"] < 40 and intel["vol_shock"] > 1.1: 
                 bias = "GOD_LONG"; score = 95
-            elif intel["touch_high"] and rejection_high and intel["rsi"] > 65 and intel["vol_shock"] > 1.2: 
+            elif intel["touch_high"] and rejection_high and intel["rsi"] > 60 and intel["vol_shock"] > 1.1: 
                 bias = "GOD_SHORT"; score = 95
         else:
             if abs(intel["psi"]) > 0.15:
@@ -398,7 +403,7 @@ async def run_backtest(payload: WebhookPayload):
             tp_dist = atr * config["tp_mult"]
             
             pnl = 0
-            # Simulação HFT v110.0
+            # Simulação HFT v120.0
             for j in range(i+1, min(i+500, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
@@ -408,11 +413,10 @@ async def run_backtest(payload: WebhookPayload):
                     if f[3] <= entry - tp_dist: pnl = config["tp_mult"] * (atr/entry) * 100; i = j; break
                     if f[2] >= entry + sl_dist: pnl = -config["sl_mult"] * (atr/entry) * 100; i = j; break
             
-            fee = 0.08 # Fee otimizada por volume
+            fee = 0.05 # Fee de Market Maker
             if pnl != 0:
                 pnl_leveraged = (pnl - fee) * config["leverage"]
-                # Booster de confiança para scores > 95
-                if score > 95: pnl_leveraged *= 1.2
+                if score > 95: pnl_leveraged *= 1.3
                 
                 sim["pnl"] += pnl_leveraged
                 sim["trades"] += 1
