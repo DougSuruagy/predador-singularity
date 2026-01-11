@@ -1,5 +1,5 @@
 /**
- * PREDATOR v23.0 SENTINEL AGILITY - Frontend Engine
+ * PREDATOR v25.0 BYBIT-SOVEREIGN - Frontend Engine
  * 100% CLOUD | Zero Local | Custo Zero
  * 
  * Fluxo: TradingView → Render API → Este Dashboard
@@ -251,7 +251,7 @@ function updateUI(data) {
     // PnL
     if (DOM.pnlValue) {
         const pnl = data.pnl || data.daily_pnl || 0;
-        DOM.pnlValue.innerText = `R$ ${pnl.toLocaleString('pt-BR')}`;
+        DOM.pnlValue.innerText = `$ ${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         DOM.pnlValue.style.color = pnl >= 0 ? 'var(--neon-green)' : 'var(--neon-pink)';
     }
 
@@ -356,6 +356,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Supervisor a cada 30 segundos (Serverless economiza)
     setInterval(syncSupervisor, 30000);
     syncSupervisor();
+
+    // ⚡ KEEP-ALIVE: Ping a API a cada 5 minutos para evitar que o Render durma
+    setInterval(() => {
+        fetch(`${CONFIG.API_URL}/ping`).catch(() => { });
+    }, 300000);
 
     console.log("✅ PREDATOR v21.2 | CLOUD SYSTEMS ONLINE");
 });

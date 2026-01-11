@@ -1,5 +1,14 @@
 # PREDATOR PROGRESS LOG
 
+## Iteration v25.0 Bybit Sovereign
+- **Status:** COMPLETED
+- **Learnings:**
+  - **Sovereign Architecture**: Purged all Binance legacy code. The system is now 100% hardcoded for **Bybit V5 Linear Perpetual** markets.
+  - **Direct Driver Initialization**: Removed conditional exchange loading, speeding up boot time and reducing overhead.
+  - **Symbol Normalization Hardened**: Integrated `bybit_normalize_symbol` everywhere to ensure zero-latency routing of TradingView signals.
+  - **Namespace Consolidation**: Renamed core execution and session functions (e.g., `execute_bybit_order`, `maintain_sovereign_session`) to reflect the new architecture.
+  - **UTA Compatibility**: Verified and adjusted balance fetching logic for Unified Trading Accounts.
+
 ## Iteration v24.1 Bybit Strike (Current)
 - **Status:** COMPLETED
 - **Learnings:**

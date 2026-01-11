@@ -42,9 +42,9 @@ def get_now_br():
 load_dotenv()
 
 app = FastAPI(
-    title="PREDATOR v23.0 - SENTINEL AGILITY",
-    version="23.0.0",
-    description="Sovereign AI Trading System with Dynamic Regime Cortex and Zero-Latency Core."
+    title="PREDATOR v25.0 - BYBIT SOVEREIGN",
+    version="25.0.0",
+    description="Sovereign AI Trading System - Bybit V5 Exclusive High-Frequency Scalper."
 )
 
 # ============================================================
@@ -56,10 +56,10 @@ class NomadBrain:
     def __init__(self):
         # 🟢 MULTI-OCULAR SYSTEM (OLHOS)
         self.eyes = {
-            "DEFI": ["UNI/USDT", "AAVE/USDT", "LINK/USDT"],
-            "L1": ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "ADA/USDT"],
-            "MEMES": ["DOGE/USDT", "PEPE/USDT", "WIF/USDT", "SHIB/USDT"],
-            "AI": ["NEAR/USDT", "FET/USDT", "RENDER/USDT"]
+            "DEFI": ["UNIUSDT", "AAVEUSDT", "LINKUSDT"],
+            "L1": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "ADAUSDT"],
+            "MEMES": ["DOGEUSDT", "PEPEUSDT", "WIFUSDT", "SHIBUSDT"],
+            "AI": ["NEARUSDT", "FETUSDT", "RENDERUSDT"]
         }
         self.market_watchlist = []
         for v in self.eyes.values(): self.market_watchlist.extend(v)
@@ -96,6 +96,17 @@ class NomadBrain:
         self.last_trade_time = 0
         self.positions = {}  # {"BTCUSDT": {"side": "long", "entry": 50000, "tp": 50500, "sl": 49500}}
         
+        # ⚡ CACHE DE SÍMBOLOS MONITORADOS
+        self.monitored_symbols_cache = []
+        self.refresh_monitored_symbols()
+        
+    def refresh_monitored_symbols(self):
+        """Atualiza o cache de símbolos normalizados para Bybit V5."""
+        symbols = []
+        for s_list in self.eyes.values():
+            symbols.extend([normalize_symbol(s) for s in s_list])
+        self.monitored_symbols_cache = list(set(symbols))
+        
     def record_trade_result(self, result: str, pnl: float, symbol: str):
         """Registra resultado do trade para adaptação de estratégia."""
         self.recent_trades.append({"result": result, "pnl": pnl, "symbol": symbol, "time": time.time()})
@@ -122,13 +133,18 @@ class NomadBrain:
         
         try:
             # Seleciona os ativos mais quentes de cada "Olho" para análise
-            all_tickers = await exchange.fetch_tickers()
+            # ⚡ OPTIMIZATION: Usa o cache para evitar processamento repetido de strings
+            if not self.monitored_symbols_cache:
+                self.refresh_monitored_symbols()
+                
+            all_tickers = await exchange.fetch_tickers(self.monitored_symbols_cache)
             candidates = []
             
             for sector, symbols in self.eyes.items():
                 for sym in symbols:
-                    ticker = all_tickers.get(sym)
-                    if ticker and ticker['quoteVolume'] > 5000000:
+                    norm_sym = normalize_symbol(sym)
+                    ticker = all_tickers.get(norm_sym)
+                    if ticker and (ticker.get('quoteVolume', 0) or 0) > 5000000:
                         score_v = abs(ticker.get('percentage', 0))
                         candidates.append((sym, score_v, sector))
             
@@ -137,11 +153,12 @@ class NomadBrain:
             discovery = [c[0] for c in candidates[:10]]
             
             # [PERFORMANCE-BOOST] Fetch BTC once for all symbols in this scan
-            btc_intel = await exchange.fetch_ohlcv('BTC/USDT', timeframe='1m', limit=10)
-            btc_closes = [c[4] for c in btc_intel]
-            self.btc_momentum = (btc_closes[-1] - btc_closes[0]) / btc_closes[0]
-            self.btc_last_price = btc_closes[-1]
-            self.btc_last_fetch = time.time()
+            # Se BTC já está nos monitored, podemos pegar do all_tickers
+            if 'BTCUSDT' in all_tickers:
+                btc_ticker = all_tickers['BTCUSDT']
+                self.btc_last_price = btc_ticker['last']
+                self.btc_momentum = btc_ticker.get('percentage', 0) / 100.0
+                self.btc_last_fetch = time.time()
             
             # Escaneamento Paralelo Bio-Sincronizado
             tasks = [self.fetch_god_intelligence(symbol, btc_provided=True) for symbol in discovery]
@@ -205,12 +222,12 @@ class NomadBrain:
     async def fetch_god_intelligence(self, symbol, btc_provided=False):
         """Busca dados de alta fidelidade e retorna métricas puras."""
         try:
-            target = f"{symbol}/USDT" if "/" not in symbol else symbol
+            target = bybit_normalize_symbol(symbol)
             # ⚓ ÂNCORA BTC + ATIVO ALVO PARALELIZADO
             # Otimização: Se BTC já foi buscado no loop de scan, evita a chamada repetida
             if not btc_provided:
                 tasks = [
-                    exchange.fetch_ohlcv('BTC/USDT', timeframe='1m', limit=10),
+                    exchange.fetch_ohlcv('BTCUSDT', timeframe='1m', limit=10),
                     exchange.fetch_order_book(target, limit=10),
                     exchange.fetch_ohlcv(target, timeframe='1m', limit=30),
                     exchange.fetch_ohlcv(target, timeframe='5m', limit=10)
@@ -444,111 +461,126 @@ class NomadBrain:
 brain = NomadBrain()
 state_lock = asyncio.Lock()
 
-# MULTI-EXCHANGE CONNECTION (v24.0)
-# Suporta: 'binance' (Futures) ou 'bybit' (Unified/Linear)
-EXCHANGE_ID = os.environ.get("EXCHANGE_ID", "binance").strip().lower()
-print(f"🔌 CONECTANDO EXCHANGE: {EXCHANGE_ID.upper()}")
+# DOCTOR DOOM v25.0 - BYBIT SOVEREIGN ARCHITECTURE
+# 100% BYBIT V5 | LINEAR PERPETUALS | SCALPER OPTIMIZED
 
-# Carrega chaves (Prioridade: Genérica > Binance Específica)
-raw_key = os.environ.get("EXCHANGE_API_KEY", os.environ.get("BINANCE_API_KEY", ""))
-raw_secret = os.environ.get("EXCHANGE_API_SECRET", os.environ.get("BINANCE_API_SECRET", ""))
+# Carrega chaves (Prioridade: BYBIT > Genérica > Binance Legacy)
+raw_key = os.environ.get("BYBIT_API_KEY", os.environ.get("EXCHANGE_API_KEY", os.environ.get("BINANCE_API_KEY", "")))
+raw_secret = os.environ.get("BYBIT_API_SECRET", os.environ.get("EXCHANGE_API_SECRET", os.environ.get("BINANCE_API_SECRET", "")))
 
 API_KEY = raw_key.strip() if raw_key else None
 API_SECRET = raw_secret.strip() if raw_secret else None
 
-# 🌐 CONFIGURAÇÃO DE PROXY (Opcional - Para contornar bloqueios regionais)
-PROXY_URL = os.environ.get("PROXY_URL") # Ex: http://user:pass@host:port
+# 🌐 CONFIGURAÇÃO DE PROXY
+PROXY_URL = os.environ.get("PROXY_URL")
 proxies = {'http': PROXY_URL, 'https': PROXY_URL} if PROXY_URL and PROXY_URL.strip() else None
 
-# Inicializa Driver CCXT
-if EXCHANGE_ID == "bybit":
-    exchange = ccxt.bybit({
-        'apiKey': API_KEY,
-        'secret': API_SECRET,
-        'enableRateLimit': True,
-        'options': {
-            'defaultType': 'linear',  # USDT Perpetuals
-            'adjustForTimeDifference': True
-        },
-        'proxies': proxies
-    })
-else:
-    # Default: BINANCE FUTURES
-    exchange = ccxt.binance({
-        'apiKey': API_KEY,
-        'secret': API_SECRET,
-        'enableRateLimit': True,
-        'options': {
-            'defaultType': 'future',
-            'adjustForTimeDifference': True,
-            'recvWindow': 5000,
-        },
-        'proxies': proxies
-    })
+# Inicializa Driver CCXT (BYBIT V5 EXCLUSIVE)
+print("🔌 INICIALIZANDO BYBIT V5 DRIVER...")
+exchange = ccxt.bybit({
+    'apiKey': API_KEY,
+    'secret': API_SECRET,
+    'enableRateLimit': True,
+    'options': {
+        'defaultType': 'linear',  # Foco em USDT Perpetuals
+        'adjustForTimeDifference': True,
+        'recvWindow': 10000,      # Aumentado para evitar Timeouts
+    },
+    'proxies': proxies
+})
 
-# Task para manter a sessão da exchange viva e evitar reconexões lentas
 # Task para manter a sessão da exchange viva e monitorar LIQUIDEZ (Gatekeeper)
-async def maintain_exchange_session():
-    print("🛡️ LIQUIDITY GATEKEEPER: Monitorando fluxo de caixa...")
+async def maintain_sovereign_session():
+    """
+    BYBIT GATEKEEPER v25.1: Monitoramento otimizado de saldo e liquidez.
+    Centraliza a verificação de saúde financeira para evitar redundância de API.
+    """
+    print("🛡️ BYBIT GATEKEEPER: Monitorando fluxo de caixa (Zero-Latency Mode)...")
     while True:
         try:
             if exchange.apiKey:
-                # ⚡ ZERO-LATENCY: Cache balance every 10s
-                bal = await exchange.fetch_balance()
-                usdt_bal = float(bal['total']['USDT']) if 'USDT' in bal['total'] else 0.0
-                state.balance = usdt_bal
+                # ⚡ Bybit V5 Unified Account Optimization
+                # Forçamos a conta 'unified' se disponível para resposta mais rápida
+                params = {'accountType': 'UNIFIED'} if exchange.uid else {}
+                bal = await exchange.fetch_balance(params)
+                
+                # Tenta pegar USDT da forma unificada CCXT
+                usdt_total = float(bal.get('total', {}).get('USDT', 0))
+                state.balance = usdt_total
                 
                 # 🔒 LIQUIDITY LOGIC (v23.1)
-                if usdt_bal < 5.0:
+                # Pausa o caçador se o saldo for crítico (< $5)
+                if usdt_total < 5.0:
                     if not state.funding_locked:
-                        print(f"⚠️ [NO FUEL] Saldo ${usdt_bal:.2f} insuficiente. Pausando PREDATOR.")
+                        print(f"⚠️ [NO FUEL] Saldo Bybit ${usdt_total:.2f} insuficiente. Pausando PREDATOR.")
                     state.funding_locked = True
                     state.is_hunting = False
                     state.regime = "NO_CASH"
                 else:
-                    # Se estava bloqueado e agora tem dinheiro, libera (se não tiver outro lock)
                     if state.funding_locked:
-                        print(f"💰 [FUEL DETECTED] Saldo ${usdt_bal:.2f}. Reativando PREDATOR.")
+                        print(f"💰 [FUEL DETECTED] Saldo Bybit ${usdt_total:.2f}. Reativando PREDATOR.")
                         state.funding_locked = False
+                        # Só reativa se não estiver travado por perdas ou pânico
                         if not state.is_locked and state.consecutive_losses < MAX_CONSECUTIVE_LOSSES:
                              state.is_hunting = True
                              state.regime = "ACTIVE"
                              
-            await asyncio.sleep(10)
+            await asyncio.sleep(15) # Intervalo maior para economizar Rate Limit
         except Exception as e:
             print(f"⚠️ GATEKEEPER ERROR: {e}")
-            await asyncio.sleep(10)
+            await asyncio.sleep(15)
 
+# Consolidando normalização de símbolos para Bybit V5
 def normalize_symbol(symbol: str) -> str:
-    """Adapta símbolos para Bybit (BTCUSDT) ou Binance (BTC/USDT)"""
-    if EXCHANGE_ID == "bybit":
-        return symbol.replace("/", "").upper()
-    return symbol.upper()
+    """Adapta símbolos para Bybit V5 (Sem barras e em maiúsculas)."""
+    return symbol.replace("/", "").replace("-", "").upper()
 
-# Se as chaves estiverem presentes, testa conexão e configura alavancagem
+def bybit_normalize_symbol(symbol: str) -> str:
+    return normalize_symbol(symbol)
+
+# Se as chaves estiverem presentes, testa conexão
 if API_KEY and API_SECRET:
     try:
-        print(f"⚡ INICIANDO DRIVER {EXCHANGE_ID.upper()}...")
+        print("⚡ INICIANDO SISTEMA BYBIT...")
         async def setup_account():
             try:
-                await exchange.load_markets()
-                print(f"✅ MERCADOS CARREGADOS: {EXCHANGE_ID.upper()} READY.")
+                # 1. Carrega mercados com filtro 'linear' se possível para economizar recursos
+                print("⏳ Carregando mercados Bybit...")
+                markets = await exchange.load_markets()
                 
-                # Check Inicial de Saldo (Debug)
+                # 2. Configura a conta para One-way Mode (Obrigatório para alguns pares e scalping simplificado)
                 try:
-                    bal = await exchange.fetch_balance()
-                    usdt = float(bal['total'].get('USDT', 0))
-                    print(f"💰 SALDO INICIAL DETECTADO: ${usdt:.2f} USDT")
-                except Exception as ex:
-                    print(f"⚠️ AVISO: Não foi possível ler saldo inicial ({ex})")
+                    # Bybit V5: set_position_mode(hedged=False) tenta colocar em One-Way
+                    # Muitas vezes já está, então capturamos o erro
+                    await exchange.set_position_mode(False) 
+                    print("✅ BYBIT: Modo de Posição definido para One-Way.")
+                except:
+                    pass # Já está em One-Way ou não suportado no par padrão
+
+                print("✅ MERCADOS BYBIT CARREGADOS.")
+                
+                # Check Inicial de Saldo
+                bal = await exchange.fetch_balance()
+                usdt = float(bal.get('total', {}).get('USDT', 0))
+                state.balance = usdt
+                print(f"💰 SALDO BYBIT INICIAL: ${usdt:.2f} USDT")
                     
             except Exception as e:
-                print(f"⚠️ ERRO AO CARREGAR MERCADOS: {e}")
+                print(f"⚠️ ERRO CONEXÃO BYBIT: {e}")
         asyncio.create_task(setup_account())
     except Exception as e:
         print(f"⚠️ ERRO DRIVER: {e}")
 else:
-    print("⚠️ API KEYS AUSENTES: Execução real bloqueada. Apenas Simulação.")
+    print("⚠️ BYBIT API KEYS AUSENTES: Modo Simulação.")
+
+
+
+# Task para manter a sessão da exchange viva e evitar reconexões lentas
+# Task para manter a sessão da exchange viva e monitorar LIQUIDEZ (Gatekeeper)
+def normalize_symbol(symbol: str) -> str:
+    """Adapta símbolos para Bybit V5 (Sem barras e em maiúsculas)."""
+    return symbol.replace("/", "").replace("-", "").upper()
+
 
 # ============================================================
 # SUPABASE CLIENT (Persistência Opcional)
@@ -804,10 +836,10 @@ async def mql5_update(data: MQL5Update):
 async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None):
     """
     Recebe sinais do TradingView e processa.
-    O parâmetro intel_cache evita chamadas repetidas à API da Binance.
+    O parâmetro intel_cache evita chamadas repetidas à API da Bybit.
     """
     # 🩹 Bybit V5 Fix: Remove barras dos símbolos
-    payload.symbol = normalize_symbol(payload.symbol)
+    payload.symbol = bybit_normalize_symbol(payload.symbol)
     
     now = get_now_br()
     
@@ -816,7 +848,7 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
         return {
             "status": "REJECTED",
             "reason": "NO_FUEL",
-            "message": "Saldo Insuficiente na BinanceFutures (<$5). Deposite para ativar."
+            "message": "Saldo Insuficiente na Bybit (<$5). Deposite ou transfira para conta de Derivativos para ativar."
         }
         
     # [SEGURANÇA] Validação de POSIÇÃO ZERO (Zero Overnight)
@@ -918,8 +950,17 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
         
         # [SEGURANÇA] Usa Auto-Compounding com preço real
         entry_price = intel["price"] if intel else state.price
-        payload.qty = 0.001  # Valor base, será recalculado pelo compounding
-        asyncio.create_task(execute_binance_order(payload, use_compounding=True, entry_price=entry_price))
+        
+        # 🎯 Dynamic TP/SL from Intel
+        sl, tp = None, None
+        if intel:
+            sl_dist = intel.get("suggested_sl", entry_price * 0.01)
+            tp_dist = intel.get("suggested_tp", entry_price * 0.02)
+            sl = entry_price - sl_dist if payload.action.upper() == "BUY" else entry_price + sl_dist
+            tp = entry_price + tp_dist if payload.action.upper() == "BUY" else entry_price - tp_dist
+
+        payload.qty = 0.001 
+        asyncio.create_task(execute_bybit_order(payload, use_compounding=True, entry_price=entry_price, sl=sl, tp=tp))
     # ═══════════════════════════════════════════════════════════
     
     return {
@@ -931,127 +972,105 @@ async def tradingview_webhook(payload: WebhookPayload, intel_cache: dict = None)
         "message": "Predator NOMAD v21.1: Física e Correlação em Sintonia."
     }
 
-# ⚡ HELPER: Gestão de Capital Auto-Compounding (Caixa Preta - Zero Latency)
+# ⚡ HELPER: Gestão de Capital Auto-Compounding (Sovereign Cache - Zero Latency)
 async def get_compounded_amount(symbol, kelly=0.20, price=None):
-    """Calcula o tamanho do lote baseado no saldo em CACHE da Binance com alavancagem."""
+    """Calcula o tamanho do lote baseado no saldo em CACHE da Bybit com alavancagem."""
     try:
         # ⚡ ZERO-LATENCY CAPITAL MANAGER
         available_balance = state.balance
         
-        # Fallback de segurança na primeira execução
+        # Fallback de segurança se o cache estiver zerado
         if available_balance <= 0:
             try:
                 bal = await exchange.fetch_balance()
                 available_balance = float(bal['total']['USDT']) if 'USDT' in bal['total'] else 0.0
                 state.balance = available_balance
-                state.balance = available_balance
             except:
-                print("⚠️ FALHA CRÍTICA: Não foi possível obter saldo real.")
-                return 0.0 # Aborta cálculo se não souber o saldo
+                return 0.0
                 
         # 🎰 APEX LEVERAGE MATRIX (10x - 20x Dinâmico)
         leverage = 20 if state.homeostasis > 80 else 10
         
-        # Otimização: Cache de alavancagem para evitar chamadas excessivas
-        if symbol not in getattr(brain, 'leverage_cache', {}):
-             if not hasattr(brain, 'leverage_cache'): brain.leverage_cache = {}
-             try:
-                 await exchange.set_leverage(leverage, symbol)
-                 brain.leverage_cache[symbol] = leverage
-             except: pass 
+        # Otimização: Cache de alavancagem inteligente
+        try:
+            if symbol not in getattr(brain, 'leverage_cache', {}):
+                if not hasattr(brain, 'leverage_cache'): brain.leverage_cache = {}
+                await exchange.set_leverage(leverage, symbol)
+                brain.leverage_cache[symbol] = leverage
+        except:
+            pass 
             
         # Kelly Criterion Limitado (Max 30% da banca em um trade)
         risk_amount = available_balance * min(0.30, kelly)
-        
-        # Valor nocional com alavancagem
         notional_value = risk_amount * leverage
         
-        if not price:
+        # ⚡ Evita fetch_ticker se o preço já foi passado pela inteligência
+        if not price or price <= 0:
             ticker = await exchange.fetch_ticker(symbol)
             price = ticker['last']
             
         amount = notional_value / price
         return amount
     except Exception as e:
-        print(f"⚠️ ERRO CALCULANDO LOTE COMPOUND: {e}")
-        return 0.001
-        
-        return amount
-    except Exception as e:
         print(f"⚠️ [CAPITAL-ERROR] {e}")
         return 0
 
-# ⚡ HELPER: Execução Assíncrona Multi-Exchange (Alta Performance)
-async def execute_binance_order(payload: WebhookPayload, use_compounding=True, entry_price=None):
-    """Executa a ordem na Exchange (Bybit/Binance) com Auto-Compounding."""
+# ⚡ HELPER: Execução Assíncrona BYBIT V5 (Alta Performance)
+async def execute_bybit_order(payload: WebhookPayload, use_compounding=True, entry_price=None, sl=None, tp=None):
+    """
+    Executa a ordem na Bybit V5 (Sovereign) com Auto-Compounding, Precision Fix e TP/SL.
+    """
     try:
         symbol = normalize_symbol(payload.symbol)
-        # O CCXT Bybit exige BTCUSDT. Binance aceita BTC/USDT.
-        # Se for Binance, manter compatibilidade antiga se necessário ou confiar no normalize
-        if EXCHANGE_ID == "binance" and "/" not in symbol and "USDT" in symbol:
-             # Legacy fix para Binance se o sinal vier sem barra
-             symbol = symbol.replace("USDT", "/USDT")
-        
-        # Para Bybit, normalize já removeu a barra.
-        
         action = payload.action.upper()
         
-        # Se for Black Box, ignora a quantidade do payload e calcula sozinho
         amount = payload.qty
         if use_compounding and action != "CLOSE":
             amount = await get_compounded_amount(symbol, kelly=brain.kelly_fraction, price=entry_price)
-            if amount == 0: return # Saldo insuficiente ou erro
+            if amount <= 0: return 
         
-        # Ajuste de Precisão (Lot Size)
+        # ⚡ BYBIT PRECISION & FILTERS
+        params = {}
         if symbol in exchange.markets:
             market = exchange.market(symbol)
-            amount = exchange.amount_to_precision(symbol, amount)
-            print(f"🎯 [PRECISION] Lote ajustado: {amount} {symbol}")
-        
-        print(f"🚀 [BINANCE] Processando {action} {amount} {symbol}...")
-        
-        # [PERFORMANCE-BOOST] Caching de Alavancagem para evitar chamadas de rede redundantes
-        target_lev = 15
-        if symbol not in getattr(brain, 'leverage_cache', {}) or brain.leverage_cache.get(symbol) != target_lev:
-            if not hasattr(brain, 'leverage_cache'): brain.leverage_cache = {}
-            try:
-                params = {'category': 'linear'} if EXCHANGE_ID == "bybit" else {}
-                await exchange.set_leverage(target_lev, symbol, params)
-                brain.leverage_cache[symbol] = target_lev
-                print(f"⚡ [LEVERAGE] {symbol} definido para {target_lev}x")
-            except Exception as e: 
-                # Bybit ignora se já estiver setado, outros erros logamos low-level
-                if "not modified" not in str(e).lower():
-                     pass # print(f"⚠️ Lev Update: {e}")
+            amount = float(exchange.amount_to_precision(symbol, amount))
+            
+            # Verifica limites mínimos
+            min_amount = float(market['limits']['amount']['min'] or 0)
+            if amount < min_amount:
+                amount = min_amount
+
+            # 🛡️ PROTEÇÃO: Adiciona TP/SL se fornecidos (Bybit V5 suporta no create_order)
+            if sl: params['stopLoss'] = float(exchange.price_to_precision(symbol, sl))
+            if tp: params['takeProfit'] = float(exchange.price_to_precision(symbol, tp))
+
+        print(f"🚀 [BYBIT] Executando {action} {amount} @ {symbol} (SL: {sl}, TP: {tp})")
 
         if action == "BUY":
-            await exchange.create_market_buy_order(symbol, amount)
-            print(f"✅ [BINANCE] COMPRA EXECUTADA @ {symbol}")
+            await exchange.create_order(symbol, 'market', 'buy', amount, params=params)
+            print(f"✅ [BYBIT] COMPRA EXECUTADA @ {symbol}")
         elif action == "SELL":
-            await exchange.create_market_sell_order(symbol, amount)
-            print(f"✅ [BINANCE] VENDA EXECUTADA @ {symbol}")
+            await exchange.create_order(symbol, 'market', 'sell', amount, params=params)
+            print(f"✅ [BYBIT] VENDA EXECUTADA @ {symbol}")
         elif action == "CLOSE":
-            # Otimização: Uso de fetch_position_risk para precisão absoluta em futuros
-            positions = await exchange.fetch_position_risk(symbols=[symbol])
-            for pos in positions:
-                size = float(pos.get('positionAmt', 0))
-                if size != 0:
-                    side = 'sell' if size > 0 else 'buy'
-                    await exchange.create_market_order(symbol, side, abs(size), params={'reduceOnly': True})
-                    print(f"✅ [BINANCE] POSIÇÃO ZERADA: {abs(size)} {symbol}")
-                    await log_event_to_db("INFO", "EXECUTION", f"Posição zerada: {symbol}", {"size": size})
+            # 🩹 Bybit V5 Perpetual Close Logic
+            try:
+                positions = await exchange.fetch_positions([symbol])
+                for pos in positions:
+                    size = float(pos.get('contracts', 0) or 0)
+                    if size != 0:
+                        side = pos.get('side', '').lower()
+                        close_side = 'sell' if side == 'long' or side == 'buy' else 'buy'
+                        await exchange.create_order(symbol, 'market', close_side, abs(size), params={'reduceOnly': True})
+                        print(f"✅ [BYBIT] POSIÇÃO ZERADA: {abs(size)} {symbol}")
+            except Exception as e:
+                print(f"⚠️ [CLOSE-ERROR] {symbol}: {e}")
         
-        # ⚡ ATUALIZAÇÃO PÓS-TRADE (Async)
-        async def refresh_balance():
-             await asyncio.sleep(1) # Espera propagação
-             try:
-                 bal = await exchange.fetch_balance()
-                 state.balance = float(bal['total']['USDT']) if 'USDT' in bal['total'] else 0.0
-             except: pass
-        asyncio.create_task(refresh_balance())
+        # ⚡ Sync Balance pós-trade
+        asyncio.create_task(state.recover_daily_stats_async())
                     
     except Exception as e:
-        print(f"❌ [BINANCE ERROR] Falha Crítica na Execução: {e}")
+        print(f"❌ [BYBIT ERROR] {e}")
 
 # 📊 HELPER: Atualizar Daily Stats no DB
 async def log_event_to_db(level: str, module: str, message: str, data: dict = None):
@@ -1071,35 +1090,21 @@ async def log_event_to_db(level: str, module: str, message: str, data: dict = No
 async def update_daily_stats_in_db():
     """
     Sincronia entre memória e Banco de Dados.
-    BUG FIX: Agora utiliza agregação SQL para maior performance em escala.
+    Utiliza o estado em memória para evitar SELECTs pesados, 
+    mas valida com Supabase periodicamente.
     """
     if not supabase: return
     try:
         today = get_today_iso()
         
-        # AGREGAÇÃO EM LADO SERVIDOR (Supabase): Mil vezes mais rápido que baixar todos os trades.
-        # Buscamos os stats básicos para confirmar sincronia
-        response = supabase.table("trades") \
-            .select("pnl, result, kinetic_energy, confidence_score, is_correlated") \
-            .gte("created_at", today) \
-            .execute()
-            
-        trades_data = response.data
-        if not trades_data: return
-        
-        total = len(trades_data)
-        wins = sum(1 for t in trades_data if t.get('result') == 'WIN')
-        losses = sum(1 for t in trades_data if t.get('result') == 'LOSS')
-        pnl_sum = sum(float(t.get('pnl') or 0.0) for t in trades_data)
-        
-        # Upsert (Estratégia Ágil)
+        # Upsert baseado no estado em tempo real (Cache-First)
         supabase.table("daily_stats").upsert({
             "date": today,
-            "total_trades": total,
-            "wins": wins,
-            "losses": losses,
-            "total_pnl": pnl_sum,
-            "updated_at": datetime.utcnow().isoformat()
+            "total_trades": state.trades,
+            "wins": state.wins,
+            "losses": state.losses,
+            "total_pnl": state.daily_pnl,
+            "updated_at": get_now_br().isoformat()
         }).execute()
         
     except Exception as e:
@@ -1468,17 +1473,23 @@ async def autonomous_hunter_loop():
                 state.metabolism = 1.0 + (state.synaptic_firing / 100.0)
                 state.genes = report["genes"]
             
-            if symbol and score >= 80:
+            if symbol and score >= 85: # Aumentamos o threshold para maior qualidade
                 print(f"💎 OPORTUNIDADE GOD-LEVEL: {symbol} (SCORE: {score:.1f})")
-                await log_event_to_db("INFO", "SCANNER", f"Oportunidade detectada: {symbol}", {"score": score, "bias": state.bias})
                 
-                intel = await brain.fetch_god_intelligence(symbol)
+                # Sincroniza estado para análise final
                 report = brain.analyze_infinity(state, intel)
                 
                 if not report["trap"]:
                     action = "BUY" if report["bias"] == "GOD_LONG" else "SELL"
                     
-                    # Cria payload com preço para otimização de capital
+                    # 🎯 Dynamic TP/SL from Intel
+                    sl_dist = intel.get("suggested_sl", intel["price"] * 0.01)
+                    tp_dist = intel.get("suggested_tp", intel["price"] * 0.02)
+                    
+                    sl = intel["price"] - sl_dist if action == "BUY" else intel["price"] + sl_dist
+                    tp = intel["price"] + tp_dist if action == "BUY" else intel["price"] - tp_dist
+
+                    # Cria payload
                     payload = WebhookPayload(
                         action=action,
                         symbol=symbol,
@@ -1487,10 +1498,10 @@ async def autonomous_hunter_loop():
                         confidence=report["score"]
                     )
                     
-                    # Dispara execução com AUTO-COMPOUNDING ativado
-                    await execute_binance_order(payload, use_compounding=True, entry_price=intel["price"])
+                    # Dispara execução com TP/SL
+                    await execute_bybit_order(payload, use_compounding=True, entry_price=intel["price"], sl=sl, tp=tp)
                     
-                    # [CRITICAL] Registra o trade no Supabase para auditoria e evolução
+                    # [CRITICAL] Registra o trade no Supabase
                     if supabase:
                         try:
                             supabase.table("trades").insert({
@@ -1520,6 +1531,72 @@ async def autonomous_hunter_loop():
         except Exception as e:
             print(f"📡 [HUNTER-ERROR] {e}")
             await asyncio.sleep(30)
+
+async def bybit_pnl_sync_loop():
+    """
+    Sincronizador de PnL de Fechamento (Bybit V5 -> Supabase).
+    Garante que trades fechados por TP/SL automático sejam contabilizados.
+    """
+    print("🔄 SYNC PNL: Sincronizador de resultados iniciado.")
+    last_pnl_check = time.time()
+    
+    while True:
+        try:
+            if exchange.apiKey:
+                # Busca pnl fechado nos últimos 15 minutos
+                since = int((time.time() - 900) * 1000)
+                closed_pnl = await exchange.fetch_closed_pnl(since=since)
+                
+                if closed_pnl:
+                    for trade in closed_pnl:
+                        trade_id = trade.get('id')
+                        symbol = trade.get('symbol')
+                        pnl = float(trade.get('closedPnl', 0))
+                        
+                        # Verifica se já registramos esse trade no estado local para evitar duplicidade
+                        # Usamos um cache simples no cérebro
+                        if not hasattr(brain, 'synced_trades'): brain.synced_trades = set()
+                        
+                        if trade_id not in brain.synced_trades:
+                            print(f"💰 REGISTRO PNL: {symbol} | Result: {'WIN' if pnl > 0 else 'LOSS'} | PnL: ${pnl:.2f}")
+                            
+                            # Atualiza Estado Local
+                            if pnl > 0:
+                                state.wins += 1
+                                state.consecutive_losses = 0
+                            else:
+                                state.losses += 1
+                                state.consecutive_losses += 1
+                                
+                            state.daily_pnl += pnl
+                            state.pnl += pnl
+                            state.trades += 1
+                            brain.synced_trades.add(trade_id)
+                            
+                            # Limpa cache antigo (> 100 itens)
+                            if len(brain.synced_trades) > 100:
+                                brain.synced_trades = set(list(brain.synced_trades)[-50:])
+                            
+                            # Salva no Supabase (Opcional, mas recomendado)
+                            if supabase:
+                                try:
+                                    supabase.table("trades").insert({
+                                        "symbol": normalize_symbol(symbol),
+                                        "action": "CLOSE",
+                                        "result": "WIN" if pnl > 0 else "LOSS",
+                                        "pnl": pnl,
+                                        "price": trade.get('avgExitPrice', 0),
+                                        "metadata": {"bybit_id": trade_id, "type": "auto_close"}
+                                    }).execute()
+                                except: pass
+                
+                # Sincroniza stats agregados no DB
+                await update_daily_stats_in_db()
+                
+            await asyncio.sleep(60) # Checa a cada minuto
+        except Exception as e:
+            print(f"⚠️ [PNL-SYNC-ERROR] {e}")
+            await asyncio.sleep(60)
 
 async def evolution_watcher_loop():
     """O Senior observa os descendentes gerados pelo Junior no Supabase."""
@@ -1558,8 +1635,9 @@ async def startup_event():
     asyncio.create_task(exchange.load_markets())
     
     # 3. Loops perpétuos
-    asyncio.create_task(maintain_exchange_session())
+    asyncio.create_task(maintain_sovereign_session())
     asyncio.create_task(autonomous_hunter_loop())
+    asyncio.create_task(bybit_pnl_sync_loop())
     asyncio.create_task(evolution_watcher_loop())
     
     print("🚀 SISTEMA ONLINE E RECUPERADO.")
@@ -1569,18 +1647,23 @@ async def health_check():
     """Health check para Render."""
     return {
         "status": "OK",
-        "version": "21.3.0",
-        "mode": "100% CLOUD | AUTONOMOUS",
+        "version": "25.0.0",
+        "mode": "100% CLOUD | BYBIT SOVEREIGN",
         "uptime_seconds": round(time.time() - state.session_start, 0),
         "hunting": state.is_hunting,
-        "balance": brain.last_balance
+        "balance": state.balance
     }
+
+@app.get("/ping")
+async def ping():
+    """Endpoint simplificado para keep-alive (Render Free Tier)."""
+    return {"status": "PONG", "timestamp": time.time()}
 
 @app.get("/")
 async def root():
     """Página inicial da API."""
     return {
-        "message": "🦅 PREDATOR v21.3 APEX PROGENY",
+        "message": "🦅 PREDATOR v25.0 BYBIT SOVEREIGN",
         "mode": "100% Cloud - Zero Local",
         "docs": "/docs",
         "status": "/state",

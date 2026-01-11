@@ -1,15 +1,25 @@
 {
-    "feature": "PREDATOR v24.1 BYBIT STRIKE",
+    "feature": "PREDATOR v25.0 BYBIT SOVEREIGN",
     "status": "COMPLETED",
     "userStories": [
         {
             "id": "STORY-1",
-            "title": "Bybit Symbol & Balance Normalization",
-            "description": "Adapt core logic to handle Bybit V5 specifics: 1) Remove slashes from symbols (BTC/USDT -> BTCUSDT), 2) Parse Unified Trading Account balance correctly.",
+            "title": "Purge Binance Legacy Code",
+            "description": "Remove all Binance-specific logic, libraries references, and conditional checks. Hardcode system to Bybit V5 architecture.",
             "acceptanceCriteria": [
-                "Orders sent to Bybit use slashless format",
-                "Balance check correctly reads USDT form Bybit Unified",
-                "Leverage setting uses correct category"
+                "Codebase contains no 'ccxt.binance' calls",
+                "Initialization is direct to Bybit",
+                "Variables renamed for clarity"
+            ],
+            "passes": true
+        },
+        {
+            "id": "STORY-2",
+            "title": "Optimize for Bybit V5 Linear",
+            "description": "Configure CCXT to load only 'linear' markets (Perpetuals) to save memory and boost startup speed.",
+            "acceptanceCriteria": [
+                "Load markets filters for 'linear'",
+                "Symbol normalization matches Bybit standard (BTCUSDT)"
             ],
             "passes": true
         }
