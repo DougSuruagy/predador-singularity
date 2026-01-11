@@ -181,14 +181,14 @@ async def get_state(x_token: str = Header(None)):
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v71.0 GHOST """
+    """ [BTC/ETH] SINGULARITY APEX - v85.0 SURGE """
     if is_compressed:
         return {
             "threshold": 0.10, 
-            "min_score": 80,  
-            "sl_mult": 4.0,   # ULTRA-RESILIÊNCIA
-            "tp_mult": 1.5,   # Lucro Garantido
-            "leverage": 2,    
+            "min_score": 85,  
+            "sl_mult": 1.2,   # Stop Curto e Técnico
+            "tp_mult": 1.8,   # TP que paga o risco + taxas
+            "leverage": 4,    # Aumentamos levemente para capitalizar no RRR
             "shadow_trail": False
         }
     
@@ -202,14 +202,14 @@ def get_supreme_config(symbol, is_trending, is_compressed):
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v71.0 GHOST """
+    """ [SOL] SNIPER v85.0 SURGE """
     if is_compressed:
         return {
             "threshold": 0.15,
-            "min_score": 82,
-            "sl_mult": 5.0, # MÁXIMA FOLGA NA SOL
-            "tp_mult": 1.4, 
-            "leverage": 2, 
+            "min_score": 88,
+            "sl_mult": 1.5,
+            "tp_mult": 2.2, 
+            "leverage": 3, 
             "shadow_trail": False
         }
     return {
@@ -280,15 +280,14 @@ async def run_strategy(symbol, mode):
         if not intel: return
         
         if intel["is_compressed"]:
-            if (intel["rsi"] < 25 and intel["vol_shock"] > 1.2): bias = "GOD_LONG"; score = 85
-            elif (intel["rsi"] > 75 and intel["vol_shock"] > 1.2): bias = "GOD_SHORT"; score = 85
-            if intel["velocity"] > 0.05: score += 10
+            if (intel["rsi"] < 20 and intel["vol_shock"] > 1.4): bias = "GOD_LONG"; score = 92
+            elif (intel["rsi"] > 80 and intel["vol_shock"] > 1.4): bias = "GOD_SHORT"; score = 92
         else:
-            if abs(intel["psi"]) > 0.20:
+            if abs(intel["psi"]) > 0.18:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 70 + (abs(intel["psi"]) * 15)
+                score = 75 + (abs(intel["psi"]) * 15)
         
-        decision = "EXECUTE" if score >= 80 else "REJECT"
+        decision = "EXECUTE" if score >= 90 else "REJECT"
 
     engine_state.last_score = score
     
@@ -359,19 +358,18 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v80.0
+        # 🧬 NEURAL SIMULATION v85.0
         if intel["is_compressed"]:
-            if (intel["rsi"] < 25 and intel["vol_shock"] > 1.2): 
-                bias = "GOD_LONG"; score = 85
-            elif (intel["rsi"] > 75 and intel["vol_shock"] > 1.2): 
-                bias = "GOD_SHORT"; score = 85
-            if intel["velocity"] > 0.05: score += 10
+            if (intel["rsi"] < 20 and intel["vol_shock"] > 1.4): 
+                bias = "GOD_LONG"; score = 92
+            elif (intel["rsi"] > 80 and intel["vol_shock"] > 1.4): 
+                bias = "GOD_SHORT"; score = 92
         else:
-            if abs(intel["psi"]) > 0.20:
+            if abs(intel["psi"]) > 0.18:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 70 + (abs(intel["psi"]) * 15)
+                score = 75 + (abs(intel["psi"]) * 15)
             
-        if score >= 80:
+        if score >= 90:
             config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
             entry = ohlcv[i][4]
             atr = intel["atr"]

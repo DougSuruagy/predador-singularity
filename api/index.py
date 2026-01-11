@@ -89,24 +89,20 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v80.0
+    # 🧬 MASTER LOGIC v85.0 SURGE
     if intel["is_compressed"]:
-        # Em modo CHOP, usamos exaustão + volume shock
-        if (intel["rsi"] < 25 and intel["vol_shock"] > 1.2): 
-            bias = "GOD_LONG"; score = 85
-        elif (intel["rsi"] > 75 and intel["vol_shock"] > 1.2): 
-            bias = "GOD_SHORT"; score = 85
-            
-        # Se a velocidade aumentar em compressão, é prenúncio de rompimento
-        if intel["velocity"] > 0.05:
-            score += 10
+        # Exaustão Extrema + Volume Shock Institucional
+        if (intel["rsi"] < 20 and intel["vol_shock"] > 1.4): 
+            bias = "GOD_LONG"; score = 92
+        elif (intel["rsi"] > 80 and intel["vol_shock"] > 1.4): 
+            bias = "GOD_SHORT"; score = 92
     else:
         # Modo TREND (Valhalla)
-        if abs(intel["psi"]) > 0.20:
+        if abs(intel["psi"]) > 0.18:
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 70 + (abs(intel["psi"]) * 15)
+            score = 75 + (abs(intel["psi"]) * 15)
             
-    decision = "EXECUTE" if score >= 80 else "REJECT"
+    decision = "EXECUTE" if score >= 90 else "REJECT"
 
     return {
         "bias": bias,
