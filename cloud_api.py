@@ -171,17 +171,18 @@ async def get_state(x_token: str = Header(None)):
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending):
-    """ [BTC/ETH] SINGULARITY APEX - v64.0 """
-    base_threshold = 0.20 if "BTC" in symbol or "ETH" in symbol else 0.30
+    """ [BTC/ETH] SINGULARITY APEX - v66.0 CATALYST """
+    # Se não houver tendência forte, reduzimos o threshold para capturar mini-movimentos
+    base_threshold = 0.18 if not is_trending else 0.22
     buffer = 0.05
     
     return {
         "threshold": base_threshold + buffer,
-        "min_score": 70, 
-        "sl_mult": 1.8,
-        "tp_mult": 5.5 if is_trending else 2.8,
+        "min_score": 60 if not is_trending else 70, # Mais agressivo em lateralidade
+        "sl_mult": 1.2 if not is_trending else 1.8, # Stop curto em lateral
+        "tp_mult": 2.2 if not is_trending else 5.5, # Alvo cirúrgico em lateral
         "leverage": 10,
-        "shadow_trail": True # Ativa perseguição de lucro
+        "shadow_trail": True
     }
 
 def get_sniper_config(symbol, is_trending):
@@ -229,29 +230,26 @@ async def run_strategy(symbol, mode):
     config = {}
     
     if mode == "SUPREME":
-        # AQUI ESTÁ A MÁGICA DINÂMICA
         config = get_supreme_config(symbol, intel["trend_strong"])
-        
         threshold = config["threshold"]
-        engine_state.last_score = 0 # Reset
+        engine_state.last_score = 0
+        
+        # Lógica de Intensidade + ADX (Simulado via Trend)
         if abs(intel["psi"]) > threshold:
-            score = 55 + (abs(intel["psi"]) * 10)
+            score = 60 + (abs(intel["psi"]) * 10)
             engine_state.last_score = score
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
         
-        # Filtro RSI Blindado (Adaptativo)
-        rsi_limit_high = 80 if intel["trend_strong"] else 70
-        rsi_limit_low = 20 if intel["trend_strong"] else 30
-        
-        if (bias == "GOD_LONG" and intel["rsi"] > rsi_limit_high) or (bias == "GOD_SHORT" and intel["rsi"] < rsi_limit_low): 
-            score = 0
+        # Filtro de Exaustão (RSI + PSI) para mercados laterais
+        if not intel["trend_strong"]:
+            if (bias == "GOD_LONG" and intel["rsi"] > 65) or (bias == "GOD_SHORT" and intel["rsi"] < 35):
+                score = 0 # Evita comprar topo de lateralidade
         
     elif mode == "SNIPER":
         config = get_sniper_config(symbol, intel["trend_strong"])
-        engine_state.last_score = 0 # Reset
-        # Unificando Lógica Sniper com o Threshold de PSI solicitado
+        engine_state.last_score = 0
         if abs(intel["psi"]) > config["threshold"]:
-            score = 55 + (abs(intel["psi"]) * 10)
+            score = 60 + (abs(intel["psi"]) * 10)
             engine_state.last_score = score
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             
