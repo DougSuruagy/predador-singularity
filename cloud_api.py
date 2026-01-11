@@ -448,6 +448,12 @@ class NomadBrain:
             total_vol = sum([b[1] for b in bids[:5]]) + sum([a[1] for a in asks[:5]])
             ofi = ofi_val / total_vol if total_vol > 0 else 0
             
+            # 📊 ORDER BOOK PRESSURE (OBP)
+            # Diferença bruta de volume no topo do book
+            bid_vol_top = sum([b[1] for b in bids[:3]])
+            ask_vol_top = sum([a[1] for a in asks[:3]])
+            obp = (bid_vol_top - ask_vol_top) / (bid_vol_top + ask_vol_top + 0.00001)
+            
             ohlcv = results[2]
             ohlcv_5m = results[3]
             
@@ -698,9 +704,7 @@ exchange = ccxt.bybit({
         'adjustForTimeDifference': True,
         'recvWindow': 10000,      # Aumentado para evitar Timeouts
     },
-    'proxies': proxies,
-    'enableRateLimit': True,
-    'options': {'defaultType': 'linear'}
+    'proxies': proxies
 })
 
 # 🛡️ GLOBAL EXECUTION LOCK (Prevenção de Ordem Duplicada)
@@ -719,13 +723,16 @@ async def maintain_sovereign_session():
                 # ⚡ Bybit V5 Unified Account Optimization
                 # Forçamos a conta 'unified' se disponível para resposta mais rápida
                 try:
-                    params = {'accountType': 'UNIFIED'}
-                    bal = await exchange.fetch_balance(params)
+                    # Tenta Unified e depois Contract como fallback
+                    bal = await exchange.fetch_balance({'accountType': 'UNIFIED'})
+                    usdt_total = float(bal.get('total', {}).get('USDT', 0))
+                    if usdt_total == 0:
+                        bal = await exchange.fetch_balance({'accountType': 'CONTRACT'})
+                        usdt_total = float(bal.get('total', {}).get('USDT', 0))
                 except:
                     bal = await exchange.fetch_balance()
+                    usdt_total = float(bal.get('total', {}).get('USDT', 0))
                 
-                # Tenta pegar USDT da forma unificada CCXT
-                usdt_total = float(bal.get('total', {}).get('USDT', 0))
                 state.balance = usdt_total
                 
                 # 🔒 LIQUIDITY LOGIC (v23.1)
@@ -796,10 +803,14 @@ if API_KEY and API_SECRET:
                 # Check Inicial de Saldo (Unified Aware)
                 try:
                     bal = await exchange.fetch_balance({'accountType': 'UNIFIED'})
+                    usdt = float(bal.get('total', {}).get('USDT', 0))
+                    if usdt == 0:
+                        bal = await exchange.fetch_balance({'accountType': 'CONTRACT'})
+                        usdt = float(bal.get('total', {}).get('USDT', 0))
                 except:
                     bal = await exchange.fetch_balance()
+                    usdt = float(bal.get('total', {}).get('USDT', 0))
                     
-                usdt = float(bal.get('total', {}).get('USDT', 0))
                 state.balance = usdt
                 print(f"💰 SALDO BYBIT INICIAL: ${usdt:.2f} USDT")
                     
