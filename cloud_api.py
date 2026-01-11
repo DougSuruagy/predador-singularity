@@ -634,31 +634,31 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v42.0] SINGULARITY SUPREME: A Convergência Final do Lucro
+        # [v43.0] VALHALLA: A Restauração do Lucro (Standard ETH Protocol)
         symbol = intel.get("symbol", "")
-        # Sincronização BTC/ETH baseada no sucesso do ETH (+12.7%)
-        if "SOL" in symbol: base_cons = 0.26
-        else: base_cons = 0.22 # BTC e ETH unificados no ponto de lucro
+        # Unificando BTC/ETH no 'ponto doce' do ETH que rendeu +12.7%
+        if "SOL" in symbol: base_cons = 0.30
+        else: base_cons = 0.22 # Ponto de convergência Majors
         
         consensus_threshold = (base_cons + 0.05) if self.global_consciousness < 0.6 else base_cons
         
-        # Filtro de Volatilidade "Singularity"
+        # Filtro de Volatilidade "Valhalla"
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_floor = 0.0002 if "BTC" in symbol or "ETH" in symbol else 0.0005 
+        vol_floor = 0.0002 if "BTC" in symbol or "ETH" in symbol else 0.0006 
         vol_check = (atr / (price + 0.000001)) > vol_floor
         
-        # Filtro de Inércia [v42.0]
+        # Filtro de Inércia [v43.0]
         self.psi_history.append(psi)
         if len(self.psi_history) > 3: self.psi_history.pop(0)
         avg_psi = sum(self.psi_history) / len(self.psi_history)
         inertia_ok = (psi > 0 and avg_psi > 0) or (psi < 0 and avg_psi < 0)
         
-        # [v42] Filtro RSI de Equilíbrio
+        # [v43] Filtro RSI de Equilíbrio
         rsi_penalty = 1.0
         if market_regime == "RANGING":
-            if psi > 0 and rsi > 70: rsi_penalty = 0.4 # Penalidade maior no topo
-            if psi < 0 and rsi < 30: rsi_penalty = 0.4 
+            if psi > 0 and rsi > 70: rsi_penalty = 0.5 
+            if psi < 0 and rsi < 30: rsi_penalty = 0.5 
             
         bias = "NEUTRAL"
         if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
@@ -1739,11 +1739,11 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v42.0: Singularity Supreme (Score > 60)
-                if report["bias"] != "NEUTRAL" and report["score"] > 60:
-                    # RRR Singularity 4.0:1 (v42)
-                    sl_mult = 1.5
-                    tp_mult = 6.0 
+                # Gatilho v43.0: Valhalla Strike (Score > 55)
+                if report["bias"] != "NEUTRAL" and report["score"] > 55:
+                    # RRR Restaurado (1.8x / 5.5x) - O segredo do lucro líquido real
+                    sl_mult = 1.8
+                    tp_mult = 5.5 
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
