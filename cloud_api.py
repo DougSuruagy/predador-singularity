@@ -162,9 +162,9 @@ def get_supreme_config(symbol, is_trending):
     
     return {
         "threshold": base_threshold + buffer,
-        "min_score": 55, # DNA Legacy
-        "sl_mult": 1.8, # DNA Legacy
-        "tp_mult": 5.5 if is_trending else 2.8, # Híbrido: Longo em Trend, Curto em Chop
+        "min_score": 70, # Elevado de 55 para filtrar ruído (Elite)
+        "sl_mult": 1.8,
+        "tp_mult": 5.5 if is_trending else 2.8,
         "leverage": 10
     }
 
@@ -172,10 +172,10 @@ def get_sniper_config(symbol, is_trending):
     """ [SOL] SNIPER SINGULARITY - OTIMIZADO 7x """
     return {
         "threshold": 0.30 + 0.05,
-        "min_score": 55,
+        "min_score": 70, # Elevado de 55 para filtrar ruído (Elite)
         "sl_mult": 1.8 if is_trending else 1.2,
         "tp_mult": 5.5 if is_trending else 2.5,
-        "leverage": 7 # Ajuste Fino para redução de impacto de taxas
+        "leverage": 7
     }
 
 async def autonomous_hunter_loop():
