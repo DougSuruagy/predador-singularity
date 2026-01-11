@@ -584,6 +584,7 @@ class NomadBrain:
         # 🧠 LOBO FRONTAL (Lógica Adaptativa)
         kinetic = intel["kinetic"] if intel else 0.0
         rsi = intel.get("rsi", 50) if intel else 50
+        trend_aligned = intel.get("trend_aligned", True) if intel else True
         
         # [v26.5] RSI DEADZONE: Ignora ruído no meio do range (45-55)
         if 45 < rsi < 55:
