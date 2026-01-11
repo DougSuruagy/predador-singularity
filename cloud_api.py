@@ -234,22 +234,30 @@ async def run_strategy(symbol, mode):
         threshold = config["threshold"]
         engine_state.last_score = 0
         
-        # Lógica de Intensidade + ADX (Simulado via Trend)
+        # MEAN REVERSION FILTER (REAPER v67.0)
+        # Só permite compra se o preço estiver abaixo da média da barra atual (ou vice-versa)
         if abs(intel["psi"]) > threshold:
-            score = 60 + (abs(intel["psi"]) * 10)
+            price_now = intel["price"]
+            # Simulação simples de média: price vs closes[-5]
+            if intel["psi"] > 0 and price_now < (sum(closes[-5:])/5): # GOD_LONG
+                score = 65 + (abs(intel["psi"]) * 10)
+                bias = "GOD_LONG"
+            elif intel["psi"] < 0 and price_now > (sum(closes[-5:])/5): # GOD_SHORT
+                score = 65 + (abs(intel["psi"]) * 10)
+                bias = "GOD_SHORT"
+            
             engine_state.last_score = score
-            bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
         
-        # Filtro de Exaustão (RSI + PSI) para mercados laterais
+        # Filtro de Exaustão aprimorado
         if not intel["trend_strong"]:
-            if (bias == "GOD_LONG" and intel["rsi"] > 65) or (bias == "GOD_SHORT" and intel["rsi"] < 35):
-                score = 0 # Evita comprar topo de lateralidade
+            if (bias == "GOD_LONG" and intel["rsi"] > 60) or (bias == "GOD_SHORT" and intel["rsi"] < 40):
+                score = 0
         
     elif mode == "SNIPER":
         config = get_sniper_config(symbol, intel["trend_strong"])
         engine_state.last_score = 0
         if abs(intel["psi"]) > config["threshold"]:
-            score = 60 + (abs(intel["psi"]) * 10)
+            score = 65 + (abs(intel["psi"]) * 10)
             engine_state.last_score = score
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             
