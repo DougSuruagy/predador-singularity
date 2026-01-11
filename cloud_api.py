@@ -132,19 +132,19 @@ def get_predator_config(symbol):
 
 def get_junior_config(symbol):
     """
-    [JUNIOR RAPTOR v1.0] O Filho (SOL/PEPE).
-    Estratégia: Scalping Agressivo (Mordidas Rápidas).
+    [JUNIOR RAPTOR v1.1 SNIPER] O Filho Mais Calmo (SOL).
+    Estratégia: Só entra em EXTREMOS (RSI < 20 ou > 80).
     """
     return {
-        "threshold": 0.35, # Mais tolerância a ruído
-        "min_score": 50,   # Mais ativo
-        "sl_mult": 1.0,    # Stop curto (não segura trade ruim)
-        "tp_mult": 1.5,    # Realiza lucro rápido
-        "leverage": 7
+        "threshold": 0.40, 
+        "min_score": 60,   # Mais exigente
+        "sl_mult": 1.0,    
+        "tp_mult": 1.5,    
+        "leverage": 5      # Segurança igual ao Pai
     }
 
 async def autonomous_hunter_loop():
-    print("🦅 PREDADOR (BTC/ETH) & 🦖 JUNIOR (SOL/PEPE) ATIVOS.")
+    print("🦅 PREDADOR (BTC/ETH) & 🦖 JUNIOR SNIPER (SOL) ATIVOS.")
     while True:
         try:
             await asyncio.sleep(4) 
@@ -153,10 +153,8 @@ async def autonomous_hunter_loop():
             for symbol in ["BTCUSDT", "ETHUSDT"]:
                 await run_strategy(symbol, "PREDATOR")
                 
-            # 2. JUNIOR TARGETS (SOL, PEPE)
-            # PEPEUSDT ou SOLUSDT (Alta Volatilidade)
-            for symbol in ["SOLUSDT"]: 
-                await run_strategy(symbol, "JUNIOR")
+            # 2. JUNIOR TARGET (SOL)
+            await run_strategy("SOLUSDT", "JUNIOR")
                 
         except Exception as e:
             print(f"⚠️ Loop Error: {e}")
@@ -186,20 +184,14 @@ async def run_strategy(symbol, mode):
         
     elif mode == "JUNIOR":
         config = get_junior_config(symbol)
-        # Lógica Raptor (Mean Reversion + Momentum)
-        # Compra Fundo (RSI < 30) ou Vende Topo (RSI > 70) em tendência lateral
-        # OU Segue fluxo se PSI explodir
+        # Lógica JUNIOR SNIPER v1.1 (Extremos)
         
-        # 1. Scalp de Reversão
-        if intel["rsi"] < 25: 
-            bias = "GOD_LONG"; score = 65
-        elif intel["rsi"] > 75: 
-            bias = "GOD_SHORT"; score = 65
-            
-        # 2. Scalp de Momentum (Rompimento)
-        elif abs(intel["psi"]) > 0.45: # Movimento muito forte
-            bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 70 # Alta convicção
+        # 1. Reversão em Extremos (Ouro)
+        if intel["rsi"] < 20: # Muito sobrevendido
+            bias = "GOD_LONG"; score = 70
+        elif intel["rsi"] > 80: # Muito sobrecomprado
+            bias = "GOD_SHORT"; score = 70
+
             
     if score >= config["min_score"]:
         print(f"⚡ [{mode} STRIKE] {symbol} | Score: {score:.1f} | Bias: {bias}")
