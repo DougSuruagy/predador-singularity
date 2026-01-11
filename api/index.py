@@ -106,41 +106,42 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v210.0 "ELASTIC SCALPER"
-    # Objetivo: Capturar o "estilingue" do preço de volta à EMA 9.
-    fee_safe = 0.08 
+    # 🧬 MASTER LOGIC v220.0 "ELASTIC-SOL-ARMOR"
+    is_sol = "SOL" in payload.symbol.upper()
     
     if intel["is_compressed"]:
-        # Filtro de Rentabilidade (Menos estrito que v200 para manter atividade)
-        if intel["bb_width"] < 0.30:
-             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Dead Zone"}
+        # Filtro de Rentabilidade (SOL exige mais espaço por causa dos spreads e volatilidade)
+        min_width = 0.80 if is_sol else 0.35
+        if intel["bb_width"] < min_width:
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Vol Zone"}
 
-        # Triggers de Estilingue (Exaustão + Volume Institucional)
-        # Z-Volume > 2.0 indica entrada de big player
-        oversold = (intel["rsi"] < 32 or (intel["rsi"] < 38 and intel["rsi_slope"] < -5))
-        overbought = (intel["rsi"] > 68 or (intel["rsi"] > 62 and intel["rsi_slope"] > 5))
+        # Triggers de Estilingue
+        oversold = (intel["rsi"] < 30 or (intel["rsi"] < 35 and intel["rsi_slope"] < -6))
+        overbought = (intel["rsi"] > 70 or (intel["rsi"] > 65 and intel["rsi_slope"] > 6))
         
-        # Confirmação Institucional (Z-Vol)
-        strong_push = intel["z_vol"] > 2.0 
+        # Z-Volume Crítico (SOL precisa de volume gigante para não ser "fakeout")
+        min_z = 3.2 if is_sol else 2.2
+        strong_push = intel["z_vol"] > min_z
 
-        if (intel["touch_low"] or strong_push) and oversold:
-            bias = "GOD_LONG"; score = 96
-        elif (intel["touch_high"] or strong_push) and overbought:
-            bias = "GOD_SHORT"; score = 96
+        if strong_push and oversold:
+            bias = "GOD_LONG"; score = 98 if is_sol else 96
+        elif strong_push and overbought:
+            bias = "GOD_SHORT"; score = 98 if is_sol else 96
             
     else:
-        # TREND LOGIC: Apenas se for um rompimento com volume real
-        if abs(intel["psi"]) > 0.30 and intel["z_vol"] > 2.5: 
+        # TREND LOGIC: Apenas com Z-Vol explosivo
+        min_trend_z = 4.0 if is_sol else 2.8
+        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > min_trend_z: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 90
+            score = 92
             
     # Divergence Hard-Reject
     if intel["divergence"]: score = 0 
             
-    decision = "EXECUTE" if score >= 85 else "REJECT"
+    decision = "EXECUTE" if score >= 90 else "REJECT"
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "targets": {"tp": intel["ema9"], "sl_factor": 1.8},
-        "version": "210.0-ELASTIC"
+        "targets": {"tp": intel["ema9"], "sl_factor": 2.2 if is_sol else 1.8},
+        "version": "220.0-ARMOR"
     }

@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "210.0-ELASTIC-SCALPER",
+            "version": "220.0-ELASTIC-SOL-ARMOR",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -219,14 +219,14 @@ async def root():
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v210.0 ELASTIC """
+    """ [BTC/ETH] SINGULARITY APEX - v220.0 ARMOR """
     if is_compressed:
         return {
             "threshold": 0.10, 
-            "min_score": 85,  
-            "sl_mult": 1.8,   # ATR Resiliente
-            "tp_mult": 1.4,   # Alvo EMA 9 (Perto mas constante)
-            "leverage": 15,    # Overclock para compensar TP curto
+            "min_score": 90,  
+            "sl_mult": 1.5,   
+            "tp_mult": 1.2,   
+            "leverage": 20,    
             "shadow_trail": False
         }
     
@@ -234,28 +234,28 @@ def get_supreme_config(symbol, is_trending, is_compressed):
         "threshold": 0.25, 
         "min_score": 75, 
         "sl_mult": 1.5,
-        "tp_mult": 7.0,   
-        "leverage": 20,   
+        "tp_mult": 6.8,   
+        "leverage": 25,   
         "shadow_trail": True
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v210.0 ELASTIC """
+    """ [SOL] SNIPER v220.0 ARMOR """
     if is_compressed:
         return {
-            "threshold": 0.12,
-            "min_score": 88,
-            "sl_mult": 2.2,
+            "threshold": 0.15,
+            "min_score": 95,
+            "sl_mult": 2.5,   # Resiliência SOL
             "tp_mult": 1.5, 
-            "leverage": 8, 
+            "leverage": 8,    # Redução para controle de risco
             "shadow_trail": False
         }
     return {
         "threshold": 0.30,
         "min_score": 75,
         "sl_mult": 2.0,
-        "tp_mult": 6.5,
-        "leverage": 15,
+        "tp_mult": 6.0,
+        "leverage": 12,
         "shadow_trail": True
     }
 
@@ -317,24 +317,28 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🕒 ELASTIC SCALPER v210.0
+    # 🕒 ELASTIC SOL ARMOR v220.0
+    is_sol = "SOL" in symbol.upper()
     if intel["is_compressed"]:
-        if intel["bb_width"] < 0.30: return
+        min_w = 0.80 if is_sol else 0.35
+        if intel["bb_width"] < min_w: return
         
-        oversold = (intel["rsi"] < 32 or (intel["rsi"] < 38 and intel["rsi_slope"] < -5))
-        overbought = (intel["rsi"] > 68 or (intel["rsi"] > 62 and intel["rsi_slope"] > 5))
-        strong_push = intel["z_vol"] > 2.0 
+        oversold = (intel["rsi"] < 30 or (intel["rsi"] < 35 and intel["rsi_slope"] < -6))
+        overbought = (intel["rsi"] > 70 or (intel["rsi"] > 65 and intel["rsi_slope"] > 6))
+        min_z = 3.2 if is_sol else 2.2
+        strong_push = intel["z_vol"] > min_z
 
-        if (intel["touch_low"] or strong_push) and oversold: bias = "GOD_LONG"; score = 96
-        elif (intel["touch_high"] or strong_push) and overbought: bias = "GOD_SHORT"; score = 96
+        if strong_push and oversold: bias = "GOD_LONG"; score = 98 if is_sol else 96
+        elif strong_push and overbought: bias = "GOD_SHORT"; score = 98 if is_sol else 96
     else:
-        if abs(intel["psi"]) > 0.30 and intel["z_vol"] > 2.5:
+        min_trend_z = 4.0 if is_sol else 2.8
+        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > min_trend_z:
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 92
     
     if intel["divergence"]: score = 0 
 
-    decision = "EXECUTE" if score >= 85 else "REJECT"
+    decision = "EXECUTE" if score >= 90 else "REJECT"
 
     engine_state.last_score = score
     
@@ -411,25 +415,29 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v210.0 "ELASTIC SCALPER"
+        # 🧬 NEURAL SIMULATION v220.0 "ELASTIC-SOL-ARMOR"
+        is_sol = "SOL" in symbol.upper()
         if intel["is_compressed"]:
-            if intel["bb_width"] < 0.30: i += 1; continue
+            min_w = 0.80 if is_sol else 0.35
+            if intel["bb_width"] < min_w: i += 1; continue
             
-            oversold = (intel["rsi"] < 32 or (intel["rsi"] < 38 and intel["rsi_slope"] < -5))
-            overbought = (intel["rsi"] > 68 or (intel["rsi"] > 62 and intel["rsi_slope"] > 5))
-            strong_push = intel["z_vol"] > 2.0 
+            oversold = (intel["rsi"] < 30 or (intel["rsi"] < 35 and intel["rsi_slope"] < -6))
+            overbought = (intel["rsi"] > 70 or (intel["rsi"] > 65 and intel["rsi_slope"] > 6))
+            min_z = 3.2 if is_sol else 2.2
+            strong_push = intel["z_vol"] > min_z
 
-            if (intel["touch_low"] or strong_push) and oversold: bias = "GOD_LONG"; score = 95
-            elif (intel["touch_high"] or strong_push) and overbought: bias = "GOD_SHORT"; score = 95
+            if strong_push and oversold: bias = "GOD_LONG"; score = 98 if is_sol else 96
+            elif strong_push and overbought: bias = "GOD_SHORT"; score = 98 if is_sol else 96
         else:
-            if abs(intel["psi"]) > 0.30 and intel["z_vol"] > 2.5:
+            min_trend_z = 4.0 if is_sol else 2.8
+            if abs(intel["psi"]) > 0.35 and intel["z_vol"] > min_trend_z:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 90
+                score = 92
         
         if intel["divergence"]: score = 0
             
-        if score >= 85:
-            config = get_supreme_config(symbol, True, intel["is_compressed"])
+        if score >= 90:
+            config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
             atr = intel["atr"]
             sl_dist = atr * config["sl_mult"]
