@@ -83,7 +83,8 @@ class EngineState:
             "wins": self.wins,
             "mode": self.mode,
             "bio": self.get_bio_metrics(),
-            "kill_switch_active": self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
+            "kill_switch_active": self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT,
+            "apex_mode": self.daily_pnl > 1.0 # Ativa modo agressivo se já estiver no lucro
         }
 
 engine_state = EngineState()
@@ -153,19 +154,17 @@ async def get_state(x_token: str = Header(None)):
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending):
-    """ 
-    [BTC/ETH] FUSÃO SINGULARITY - SENSIBILIDADE PRO
-    Funde o DNA de 19% (Legacy) com Proteção Iron (Modern)
-    """
+    """ [BTC/ETH] SINGULARITY APEX - v64.0 """
     base_threshold = 0.20 if "BTC" in symbol or "ETH" in symbol else 0.30
     buffer = 0.05
     
     return {
-        "threshold": base_threshold + buffer, # Resulta em 0.25 para BTC/ETH
+        "threshold": base_threshold + buffer,
         "min_score": 70, 
         "sl_mult": 1.8,
         "tp_mult": 5.5 if is_trending else 2.8,
-        "leverage": 10
+        "leverage": 10,
+        "shadow_trail": True # Ativa perseguição de lucro
     }
 
 def get_sniper_config(symbol, is_trending):
@@ -254,8 +253,19 @@ async def run_strategy(symbol, mode):
                 if "SOL" in symbol: qty = 0.1
                 
                 side = "buy" if bias == "GOD_LONG" else "sell"
+                
+                # DNA APEX: Alavancagem Dinâmica
+                final_leverage = config["leverage"]
+                if score > 85: 
+                    final_leverage = int(config["leverage"] * 1.2)
+                    print(f"🔥 [MOMENTUM BOOST] Alavancagem elevada para {final_leverage}x")
+                
                 params = {'stopLoss': float(exchange.price_to_precision(symbol, sl)), 
                           'takeProfit': float(exchange.price_to_precision(symbol, tp))}
+                
+                # Tentativa de ajuste de alavancagem na exchange
+                try: await exchange.set_leverage(final_leverage, symbol)
+                except: pass
                 
                 order = await exchange.create_order(symbol, 'market', side, qty, params=params)
                 print(f"✅ ORDEM ENVIADA! ID: {order['id']}")
