@@ -69,18 +69,19 @@ async def sovereign_auth(x_token: Optional[str] = Header(None)):
 class EngineState:
     def __init__(self):
         self.uptime_start = time.time()
-        self.neural_tps = 0           # Trades Per Second
-        self.api_latency_ms = 0       # Média de latência de rede
-        self.cpu_usage = 0            # Uso de CPU local
-        self.ram_usage = 0            # Uso de RAM local
+        self.neural_tps = 0
+        self.api_latency_ms = 0
+        self.cpu_usage = 0
+        self.ram_usage = 0
         self.requests_handled = 0
         self.errors_logged = 0
         self.last_neural_pulse = time.time()
+        self.is_healthy = True # Deadman Switch status
 
     def get_stats(self):
         process = psutil.Process(os.getpid())
         self.cpu_usage = psutil.cpu_percent()
-        self.ram_usage = process.memory_info().rss / (1024 * 1024) # MB
+        self.ram_usage = process.memory_info().rss / (1024 * 1024)
         uptime = time.time() - self.uptime_start
         return {
             "uptime_sec": int(uptime),
@@ -88,10 +89,50 @@ class EngineState:
             "ram_mb": round(self.ram_usage, 2),
             "requests_total": self.requests_handled,
             "latency_avg_ms": round(self.api_latency_ms, 1),
-            "pulse_rate_hz": round(1.0 / max(0.001, time.time() - self.last_neural_pulse), 2)
+            "pulse_rate_hz": round(1.0 / max(0.001, time.time() - self.last_neural_pulse), 2),
+            "healthy": self.is_healthy
         }
 
 engine_state = EngineState()
+
+# 🛡️ DISK SHIELD: SOVEREIGN LOG BUFFER (Anti-Freeze Tech)
+class SovereignLogBuffer:
+    def __init__(self, flush_interval=15):
+        self.log_queue = []
+        self.trade_queue = []
+        self.flush_interval = flush_interval
+        self.last_flush = time.time()
+
+    async def add_log(self, level, module, message, data=None):
+        self.log_queue.append({
+            "level": level, "module": module, "message": message,
+            "data": data or {}, "created_at": get_now_br().isoformat()
+        })
+        if len(self.log_queue) > 50: await self.flush()
+
+    async def add_trade(self, trade_data):
+        trade_data["created_at"] = get_now_br().isoformat()
+        self.trade_queue.append(trade_data)
+        if len(self.trade_queue) > 10: await self.flush()
+
+    async def flush(self):
+        if not supabase: return
+        try:
+            if self.log_queue:
+                batch = list(self.log_queue)
+                self.log_queue = []
+                supabase.table("system_logs").insert(batch).execute()
+            
+            if self.trade_queue:
+                batch = list(self.trade_queue)
+                self.trade_queue = []
+                supabase.table("trades").insert(batch).execute()
+                
+            self.last_flush = time.time()
+        except Exception as e:
+            print(f"⚠️ [DISK-SHIELD-ERROR] {e}")
+
+log_shield = SovereignLogBuffer()
 
 # ============================================================
 # 🚀 LIFESPAN MANAGER (FastAPI 2026)
@@ -109,7 +150,8 @@ async def lifespan(app: FastAPI):
         asyncio.create_task(maintain_sovereign_session()),
         asyncio.create_task(autonomous_hunter_loop()),
         asyncio.create_task(bybit_pnl_sync_loop()),
-        asyncio.create_task(evolution_watcher_loop())
+        asyncio.create_task(evolution_watcher_loop()),
+        asyncio.create_task(disk_shield_automated_flush())
     ]
     
     yield
@@ -812,11 +854,17 @@ app.add_middleware(
 # ============================================================
 # VARIÁVEIS DE CONFIGURAÇÃO (Ajuste conforme necessário)
 # ============================================================
-MAX_CONSECUTIVE_LOSSES = 3      # 3-Strikes Rule
-POSICAO_ZERO_HOUR = 17          # Hora limite (Day Trade Only)
-POSICAO_ZERO_MIN = 30           # Minuto limite
-STALE_TIMEOUT_SEC = 120         # Tempo sem update = offline
-INITIAL_PRICE = 0.0             # Preço inicial (0 para aguardar dados reais)
+MAX_CONSECUTIVE_LOSSES = 3
+POSICAO_ZERO_HOUR = 17
+POSICAO_ZERO_MIN = 30
+STALE_TIMEOUT_SEC = 120
+INITIAL_PRICE = 0.0
+
+# 🛡️ SCALPER SAFETY BOUNDARIES
+MAX_DAILY_DRAWDOWN_PERCENT = 3.0 # Trava se perder 3% no dia
+MAX_CONCURRENT_TRADES = 5       # Máximo de trades abertos ao mesmo tempo
+SPREAD_THRESHOLD_PERCENT = 0.3 # Trava se spread > 0.3%
+DEADMAN_LATENCY_MAX_MS = 1000  # Trava se latência > 1s
 
 # ============================================================
 # ESTADO DO SISTEMA (Mantido em memória - Custo Zero)
@@ -1232,6 +1280,17 @@ async def get_compounded_amount(symbol, kelly=0.20, price=None, atr=None):
             
         amount = notional_value / price
         
+        # 🛡️ SCALPING SAFETY: SPREAD GUARDIAN
+        try:
+            orderbook = await exchange.fetch_order_book(symbol, limit=5)
+            bid = orderbook['bids'][0][0]
+            ask = orderbook['asks'][0][0]
+            spread = (ask - bid) / bid * 100
+            if spread > SPREAD_THRESHOLD_PERCENT:
+                print(f"🚫 [SAFETY-SPREAD] Spread de {spread:.2f}% muito alto em {symbol}. Abortando.")
+                return 0.0
+        except: pass
+
         # Log de Cálculo (Biometria de Capital)
         print(f"💰 [CAPITAL] Trade: {symbol} | Risk: {risk_fraction*100:.1f}% | Lev: {leverage}x | Spot: ${risk_amount:.2f}")
         
@@ -1312,18 +1371,14 @@ async def execute_bybit_order(payload: WebhookPayload, use_compounding=True, ent
 
 # 📊 HELPER: Atualizar Daily Stats no DB
 async def log_event_to_db(level: str, module: str, message: str, data: dict = None):
-    """Grava logs críticos no Supabase (Caixa-Preta 2026)."""
-    try:
-        if supabase:
-            log_data = {
-                "level": level,
-                "module": module,
-                "message": message,
-                "data": data or {}
-            }
-            supabase.table("system_logs").insert(log_data).execute()
-    except Exception as e:
-        print(f"⚠️ [LOG-ERROR] {e}")
+    """Grava logs via DISK SHIELD (Non-blocking)."""
+    await log_shield.add_log(level, module, message, data)
+
+async def disk_shield_automated_flush():
+    """Flush automático periódico para garantir persistência."""
+    while True:
+        await asyncio.sleep(log_shield.flush_interval)
+        await log_shield.flush()
 
 async def update_daily_stats_in_db():
     """
@@ -1748,7 +1803,6 @@ async def autonomous_hunter_loop():
                 
                 # Sincroniza estado para análise final
                 report = brain.analyze_infinity(state, intel)
-                
                 if not report["trap"]:
                     action = "BUY" if report["bias"] == "GOD_LONG" else "SELL"
                     
@@ -1759,13 +1813,31 @@ async def autonomous_hunter_loop():
                     sl = intel["price"] - sl_dist if action == "BUY" else intel["price"] + sl_dist
                     tp = intel["price"] + tp_dist if action == "BUY" else intel["price"] - tp_dist
 
-                    # Cria payload
+                    # 🛡️ POSITION GUARD & SAFETY LOCKS (Active Position Management)
                     if not hasattr(brain, 'active_positions'): brain.active_positions = set()
                     
-                    # 🛡️ POSITION GUARD & SAFETY LOCKS
                     if symbol in brain.active_positions:
                         continue
+                        
+                    if len(brain.active_positions) >= MAX_CONCURRENT_TRADES:
+                        print(f"🚫 [SAFETY-MAX-TRADES] Limite de {MAX_CONCURRENT_TRADES} trades atingido.")
+                        continue
                     
+                    # 🛡️ DRAWDOWN GUARDIAN
+                    if state.balance > 0:
+                        dd = (state.daily_pnl / state.balance) * 100
+                        if dd <= -MAX_DAILY_DRAWDOWN_PERCENT:
+                            print(f"🚨 [DRAWDOWN-LOCK] Drawdown diário atingiu {dd:.2f}%. Bloqueando por segurança.")
+                            state.is_locked = True
+                            state.regime = "DRAWDOWN_LOCKED"
+                            continue
+                    
+                    # 🛡️ DEADMAN SWITCH (API Health)
+                    if engine_state.api_latency_ms > DEADMAN_LATENCY_MAX_MS:
+                        print(f"⚠️ [DEADMAN-SWITCH] Latência CRÍTICA ({engine_state.api_latency_ms:.0f}ms). Pausando Hunter.")
+                        await asyncio.sleep(10)
+                        continue
+
                     if state.volatility_lock or state.is_locked:
                         continue
 
@@ -1779,37 +1851,32 @@ async def autonomous_hunter_loop():
                     await execute_bybit_order(payload, use_compounding=True, entry_price=intel["price"], sl=sl, tp=tp, atr=intel.get("atr"))
                     brain.active_positions.add(symbol)
                     
-                    # [CRITICAL] Registra o trade no Supabase
-                    if supabase:
-                        try:
-                            supabase.table("trades").insert({
-                                "symbol": symbol,
-                                "action": action,
-                                "price": intel["price"],
-                                "confidence_score": report["score"],
-                                "kinetic_energy": intel.get("kinetic", 0),
-                                "z_score": intel.get("z_score", 0),
-                                "obp_score": intel.get("obp", 0),
-                                "btc_momentum": intel.get("btc_corr", 0),
-                                "is_correlated": report["correlation"] == "SYNCED",
-                                "metadata": {
-                                    "atr": intel.get("atr"),
-                                    "volume_spike": intel.get("volume_spike"),
-                                    "divergence": intel.get("divergence"),
-                                    "mtf_confluence": intel.get("mtf_confluence"),
-                                    "scalper_score": intel.get("scalper_score")
-                                }
-                            }).execute()
-                            print(f"💾 [SUPABASE] Trade registrado: {action} {symbol} | Scalper Score: {intel.get('scalper_score', 0):.1f}")
-                            
-                            # 🧠 REGISTRO NO EVENT LOG NEURAL (Dashboard)
-                            await log_event_to_db("NEURAL", "HUNTER", f"Oportunidade {action} {symbol} Executada", {
-                                "score": report["score"],
-                                "ofi": intel.get("ofi", 0),
-                                "kinetic": intel.get("kinetic", 0)
-                            })
-                        except Exception as db_err:
-                            print(f"⚠️ [DB-TRADE-ERROR] {db_err}")
+                     # [CRITICAL] Envia para o DISK SHIELD (Zero Lag)
+                    trade_to_log = {
+                        "symbol": symbol,
+                        "action": action,
+                        "price": intel["price"],
+                        "confidence_score": report["score"],
+                        "kinetic_energy": intel.get("kinetic", 0),
+                        "z_score": intel.get("z_score", 0),
+                        "obp_score": intel.get("obp", 0),
+                        "btc_momentum": intel.get("btc_corr", 0),
+                        "is_correlated": report["correlation"] == "SYNCED",
+                        "metadata": {
+                            "atr": intel.get("atr"),
+                            "lev": brain.leverage_cache.get(symbol, 10),
+                            "aggression": brain.adaptive_aggression
+                        }
+                    }
+                    await log_shield.add_trade(trade_to_log)
+                    
+                    print(f"� [ORDEM] {action} em {symbol} enviada para execução e log buffer.")
+                    
+                    # 🧠 REGISTRO NO EVENT LOG NEURAL (Dashboard via Buffer)
+                    await log_event_to_db("NEURAL", "HUNTER", f"Oportunidade {action} {symbol} Executada", {
+                        "score": report["score"],
+                        "ofi": intel.get("ofi", 0)
+                    })
             
             # Ciclo concluído
         except Exception as e:
