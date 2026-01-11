@@ -113,50 +113,43 @@ engine_state = EngineState()
 # 🚀 PREDATOR BRAIN v56.0 (SUPREME LOGIC)
 # ============================================================
 class NomadBrain:
-    def calculate_indicators(self, closes, highs, lows):
+    def calculate_indicators(self, closes, highs, lows, volumes=None):
         if len(closes) < 30: return None
         
-        # Momentum
         deltas = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+        rsi = self._calc_rsi(deltas)
+        psi = (closes[-1] - closes[-5]) / closes[-5] * 100
+        velocity = abs(psi) / 5
+        
+        ma20 = sum(closes[-20:]) / 20
+        std_dev = (sum((x - ma20)**2 for x in closes[-20:]) / 20)**0.5
+        bb_width = (std_dev * 4) / ma20 * 100 
+        
+        direction_changes = sum(1 for i in range(len(deltas)-10, len(deltas)) if (deltas[i] > 0) != (deltas[i-1] > 0))
+        entropy = direction_changes / 10.0
+        
+        vol_shock = 1.0
+        if volumes and len(volumes) > 20:
+            avg_vol = sum(volumes[-20:-1]) / 19
+            vol_shock = volumes[-1] / avg_vol if avg_vol > 0 else 1.0
+
+        is_compressed = bb_width < 0.65 or entropy > 0.65
+        
+        return {
+            "rsi": rsi, "psi": psi, "velocity": velocity, 
+            "bb_width": bb_width, "entropy": entropy, 
+            "vol_shock": vol_shock, "is_compressed": is_compressed,
+            "trend_strong": bb_width > 0.8 and entropy < 0.4,
+            "price": closes[-1], "atr": (max(highs[-1]-lows[-1], abs(highs[-1]-closes[-2])) if len(highs)>1 else 0.001)
+        }
+
+    def _calc_rsi(self, deltas):
         gains = [d for d in deltas if d > 0]
         losses = [abs(d) for d in deltas if d < 0]
         avg_gain = sum(gains[-14:]) / 14 if gains else 0
         avg_loss = sum(losses[-14:]) / 14 if losses else 0.0001
         rs = avg_gain / avg_loss
-        rsi = 100 - (100 / (1 + rs))
-        
-        psi = (closes[-1] - closes[-5]) / closes[-5] * 100
-        
-        tr = max(highs[-1] - lows[-1], abs(highs[-1] - closes[-2]), abs(lows[-1] - closes[-2]))
-        atr = tr 
-        
-        # Volatility Check (Bollinger Width)
-        ma20 = sum(closes[-20:]) / 20
-        variance = sum((x - ma20)**2 for x in closes[-20:]) / 20
-        std_dev = variance**0.5
-        bb_width = (std_dev * 4) / ma20 * 100 
-        
-        # Trend Strength
-        ma50 = sum(closes[-30:]) / 30 
-        trend_strong = abs(ma20 - ma50) > (closes[-1] * 0.001)
-        
-        # Living Indicators: Entropy & Momentum Curl
-        # Entropia simples: variação da direção dos últimos 10 candles
-        direction_changes = sum(1 for i in range(len(deltas)-10, len(deltas)) if (deltas[i] > 0) != (deltas[i-1] > 0))
-        entropy = direction_changes / 10.0 # 1.0 é chop total, 0.0 é trend pura
-        
-        is_compressed = bb_width < 0.60 or entropy > 0.7
-        
-        return {
-            "rsi": rsi,
-            "psi": psi,
-            "atr": atr,
-            "trend_strong": trend_strong,
-            "is_compressed": is_compressed,
-            "entropy": entropy,
-            "bb_width": bb_width,
-            "price": closes[-1]
-        }
+        return 100 - (100 / (1 + rs))
 
 brain = NomadBrain()
 
@@ -283,29 +276,19 @@ async def run_strategy(symbol, mode):
 
     # 🧬 LOCAL FALLBACK (Se o Vercel falhar)
     if not intel:
-        intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv])
+        intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
         if not intel: return
         
-        config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
+        if intel["is_compressed"]:
+            if (intel["rsi"] < 25 and intel["vol_shock"] > 1.2): bias = "GOD_LONG"; score = 85
+            elif (intel["rsi"] > 75 and intel["vol_shock"] > 1.2): bias = "GOD_SHORT"; score = 85
+            if intel["velocity"] > 0.05: score += 10
+        else:
+            if abs(intel["psi"]) > 0.20:
+                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+                score = 70 + (abs(intel["psi"]) * 15)
         
-        if mode == "SUPREME":
-            if intel["is_compressed"]:
-                if intel["rsi"] < 18: bias = "GOD_LONG"; score = 95
-                elif intel["rsi"] > 82: bias = "GOD_SHORT"; score = 95
-            else:
-                if abs(intel["psi"]) > config["threshold"]:
-                    score = 75 + (abs(intel["psi"]) * 10)
-                    bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-        elif mode == "SNIPER":
-            if intel["is_compressed"]:
-                if intel["rsi"] < 15: bias = "GOD_LONG"; score = 95
-                elif intel["rsi"] > 85: bias = "GOD_SHORT"; score = 95
-            else:
-                if abs(intel["psi"]) > config["threshold"]:
-                    score = 75 + (abs(intel["psi"]) * 10)
-                    bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-        
-        decision = "EXECUTE" if score >= 75 else "REJECT"
+        decision = "EXECUTE" if score >= 80 else "REJECT"
 
     engine_state.last_score = score
     
@@ -371,33 +354,25 @@ async def run_backtest(payload: WebhookPayload):
     i = 35
     while i < len(ohlcv) - 1:
         past_closes = [x[4] for x in ohlcv[i-35:i+1]]
-        intel = brain.calculate_indicators(past_closes, [x[2] for x in ohlcv[i-35:i+1]], [x[3] for x in ohlcv[i-35:i+1]])
+        intel = brain.calculate_indicators(past_closes, [x[2] for x in ohlcv[i-35:i+1]], [x[3] for x in ohlcv[i-35:i+1]], [x[5] for x in ohlcv[i-35:i+1]])
         
         bias = "NEUTRAL"
         score = 0
-        config = {}
         
-        if mode == "SUPREME":
-            config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"])
-            if intel["is_compressed"]:
-                if intel["rsi"] < 18: bias = "GOD_LONG"; score = 95
-                elif intel["rsi"] > 82: bias = "GOD_SHORT"; score = 95
-            else:
-                if abs(intel["psi"]) > config["threshold"]: 
-                    score = 75 + (abs(intel["psi"])*10)
-                    bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+        # 🧬 NEURAL SIMULATION v80.0
+        if intel["is_compressed"]:
+            if (intel["rsi"] < 25 and intel["vol_shock"] > 1.2): 
+                bias = "GOD_LONG"; score = 85
+            elif (intel["rsi"] > 75 and intel["vol_shock"] > 1.2): 
+                bias = "GOD_SHORT"; score = 85
+            if intel["velocity"] > 0.05: score += 10
+        else:
+            if abs(intel["psi"]) > 0.20:
+                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+                score = 70 + (abs(intel["psi"]) * 15)
             
-        elif mode == "SNIPER":
-            config = get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
-            if intel["is_compressed"]:
-                if intel["rsi"] < 15: bias = "GOD_LONG"; score = 95
-                elif intel["rsi"] > 85: bias = "GOD_SHORT"; score = 95
-            else:
-                if abs(intel["psi"]) > config["threshold"]:
-                    score = 75 + (abs(intel["psi"]) * 10)
-                    bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            
-        if score >= config["min_score"]:
+        if score >= 80:
+            config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
             entry = ohlcv[i][4]
             atr = intel["atr"]
             sl_dist = atr * config["sl_mult"]
