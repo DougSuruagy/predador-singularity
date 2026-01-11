@@ -636,23 +636,23 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v44.0] TURBO PROFIT: Lucro Acelerado a Curto Prazo
+        # [v44.1] BALANCED TURBO: Equilíbrio entre Volume e Qualidade
         symbol = intel.get("symbol", "")
-        # Thresholds AGRESSIVOS para capturar mais oportunidades
-        if "SOL" in symbol: base_cons = 0.25  # Reduzido de 0.30
-        else: base_cons = 0.18  # Reduzido de 0.22 (mais trades)
+        # Thresholds EQUILIBRADOS - mais trades sem sacrificar qualidade
+        if "SOL" in symbol: base_cons = 0.28
+        else: base_cons = 0.20  # Entre 0.18 (muito) e 0.22 (pouco)
         
-        consensus_threshold = (base_cons + 0.03) if self.global_consciousness < 0.6 else base_cons
+        consensus_threshold = (base_cons + 0.02) if self.global_consciousness < 0.6 else base_cons
         
-        # [v44.0] FILTRO DE MOMENTUM EXPLOSIVO
+        # [v44.1] FILTRO DE MOMENTUM (apenas para movimentos muito fortes)
         kinetic = intel.get("kinetic", 0.0) if intel else 0.0
         volume_spike = intel.get("volume_spike", False) if intel else False
-        momentum_boost = 1.2 if kinetic > 1.5 else 1.0  # Bonus para movimentos fortes
+        momentum_boost = 1.15 if kinetic > 2.0 else 1.0  # Menos agressivo
         
-        # Filtro de Volatilidade otimizado
+        # Filtro de Volatilidade
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_floor = 0.00015 if "BTC" in symbol or "ETH" in symbol else 0.0004  # Mais sensível
+        vol_floor = 0.00018 if "BTC" in symbol or "ETH" in symbol else 0.0005
         vol_check = (atr / (price + 0.000001)) > vol_floor
         
         # Filtro de Inércia [v43.0]
@@ -668,15 +668,15 @@ class NomadBrain:
             if psi < 0 and rsi < 30: rsi_penalty = 0.5 
             
         bias = "NEUTRAL"
-        # [v44.0] Gatilho mais sensível - precisa de menos confirmações
-        if abs(psi) > consensus_threshold and vol_check and (is_correlated or kinetic > 2.0):
+        # [v44.1] Gatilho equilibrado - exige correlação OU momentum forte
+        if abs(psi) > consensus_threshold and vol_check and inertia_ok and (is_correlated or kinetic > 2.5):
             bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
        
-        # SINAPSE: Intensidade do disparo neural com boost de momentum
+        # SINAPSE: Intensidade do disparo neural
         self.synaptic_firing = (abs(psi) * 100) * momentum_boost
-        # [v44.0] Bônus de volume spike (+10 score)
-        volume_bonus = 10 if volume_spike else 0
-        confidence = min(100, (self.synaptic_firing * (0.5 if not is_correlated else 1.0) * rsi_penalty) + volume_bonus)
+        # [v44.1] Bônus de volume spike (+5 score, reduzido de 10)
+        volume_bonus = 5 if volume_spike else 0
+        confidence = min(100, (self.synaptic_firing * (0.45 if not is_correlated else 1.0) * rsi_penalty) + volume_bonus)
         
         # 🧬 MUTAÇÃO ALPHA: Ajuste de Potência Bio-Mecânica
         alpha = 4.0 if confidence > 92 and not reality_trap else 1.0
@@ -1765,11 +1765,11 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # [v44.0] TURBO PROFIT: Score mínimo 45 (mais trades)
-                if report["bias"] != "NEUTRAL" and report["score"] > 45:
-                    # [v44.0] RRR AGRESSIVO (1.8x / 7.0x) - Máximo lucro por trade
+                # [v44.1] BALANCED TURBO: Score mínimo 50
+                if report["bias"] != "NEUTRAL" and report["score"] > 50:
+                    # [v44.1] RRR EQUILIBRADO (1.8x / 6.0x) - RRR ~3.3:1
                     sl_mult = 1.8
-                    tp_mult = 7.0  # Aumentado de 5.5 para 7.0 (RRR ~3.9:1)
+                    tp_mult = 6.0  # Equilibrado entre 5.5 e 7.0
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
