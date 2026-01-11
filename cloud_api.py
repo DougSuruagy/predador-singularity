@@ -541,21 +541,24 @@ async def maintain_sovereign_session():
 # Se as chaves estiverem presentes, testa conexão
 if API_KEY and API_SECRET:
     try:
-        print("⚡ INICIANDO SISTEMA BYBIT...")
+        print(f"⚡ INICIANDO SISTEMA BYBIT (Key: {API_KEY[:4]}***)")
         async def setup_account():
             try:
-                # 1. Carrega mercados com filtro 'linear' se possível para economizar recursos
+                # 1. Carrega mercados
                 print("⏳ Carregando mercados Bybit...")
-                markets = await exchange.load_markets()
+                await exchange.load_markets()
                 
-                # 2. Configura a conta para One-way Mode (Obrigatório para alguns pares e scalping simplificado)
+                # 2. Configura One-way Mode
                 try:
                     # Bybit V5: set_position_mode(hedged=False) tenta colocar em One-Way
                     # Muitas vezes já está, então capturamos o erro
                     await exchange.set_position_mode(False) 
                     print("✅ BYBIT: Modo de Posição definido para One-Way.")
-                except:
-                    pass # Já está em One-Way ou não suportado no par padrão
+                except Exception as e:
+                    if "already in" in str(e):
+                        print("✅ BYBIT: Já em Modo One-Way.")
+                    else:
+                        print(f"⚠️ BYBIT: Não foi possível definir modo de posição ({e})")
 
                 print("✅ MERCADOS BYBIT CARREGADOS.")
                 
@@ -566,7 +569,8 @@ if API_KEY and API_SECRET:
                 print(f"💰 SALDO BYBIT INICIAL: ${usdt:.2f} USDT")
                     
             except Exception as e:
-                print(f"⚠️ ERRO CONEXÃO BYBIT: {e}")
+                print(f"❌ [AUTH-CRITICAL] Falha na Autenticação Bybit: {e}")
+                print("👉 Verifique suas chaves no Render Environment Variables.")
         asyncio.create_task(setup_account())
     except Exception as e:
         print(f"⚠️ ERRO DRIVER: {e}")
@@ -1541,8 +1545,16 @@ async def bybit_pnl_sync_loop():
         try:
             if exchange.apiKey:
                 # Busca pnl fechado nos últimos 15 minutos
-                since = int((time.time() - 900) * 1000)
-                closed_pnl = await exchange.fetch_closed_pnl(since=since)
+                # Usamos check de atributo para evitar crash em versões antigas/instáveis do CCXT
+                closed_pnl = []
+                if hasattr(exchange, 'fetch_closed_pnl'):
+                    closed_pnl = await exchange.fetch_closed_pnl(since=since)
+                elif hasattr(exchange, 'fetchClosedPnl'):
+                    closed_pnl = await exchange.fetchClosedPnl(since=since)
+                else:
+                    # Fallback para fetch_my_trades se PnL direto não estiver disponível
+                    # Bybit V5 costuma expor via trades também
+                    pass 
                 
                 if closed_pnl:
                     for trade in closed_pnl:
