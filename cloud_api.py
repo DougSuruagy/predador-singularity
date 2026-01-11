@@ -634,31 +634,32 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v40.0] QUANTUM BALANCE: O Ponto de Inflexão do Lucro
+        # [v41.0] ULTIMATE EQUILIBRIUM: Sincronia Verde Total
         symbol = intel.get("symbol", "")
-        if "SOL" in symbol: base_cons = 0.34
-        elif "ETH" in symbol: base_cons = 0.24
-        else: base_cons = 0.18 # BTC
+        # Calibração Sniper por Ativo
+        if "SOL" in symbol: base_cons = 0.26
+        elif "ETH" in symbol: base_cons = 0.22
+        else: base_cons = 0.16 # BTC
         
-        consensus_threshold = (base_cons + 0.07) if self.global_consciousness < 0.6 else base_cons
+        consensus_threshold = (base_cons + 0.05) if self.global_consciousness < 0.6 else base_cons
         
-        # Filtro de Volatilidade "Lucro-Focado"
+        # Filtro de Volatilidade "Lucro Master"
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_floor = 0.0002 if "BTC" in symbol or "ETH" in symbol else 0.0006 
+        vol_floor = 0.0002 if "BTC" in symbol or "ETH" in symbol else 0.0005 
         vol_check = (atr / (price + 0.000001)) > vol_floor
         
-        # Filtro de Inércia [v40.0] - Estabilizado em 3 períodos
+        # Filtro de Inércia [v41.0]
         self.psi_history.append(psi)
         if len(self.psi_history) > 3: self.psi_history.pop(0)
         avg_psi = sum(self.psi_history) / len(self.psi_history)
         inertia_ok = (psi > 0 and avg_psi > 0) or (psi < 0 and avg_psi < 0)
         
-        # [v40] Filtro RSI Dinâmico (Não bloqueia, apenas penaliza exaustão)
+        # [v41] Filtro RSI Inteligente
         rsi_penalty = 1.0
         if market_regime == "RANGING":
-            if psi > 0 and rsi > 70: rsi_penalty = 0.6 # Reduz confiança no topo
-            if psi < 0 and rsi < 30: rsi_penalty = 0.6 # Reduz confiança no fundo
+            if psi > 0 and rsi > 72: rsi_penalty = 0.5 # Exaustão de Compra
+            if psi < 0 and rsi < 28: rsi_penalty = 0.5 # Exaustão de Venda
             
         bias = "NEUTRAL"
         if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
@@ -1739,11 +1740,11 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v40.0: Quantum Balance (Score > 60)
-                if report["bias"] != "NEUTRAL" and report["score"] > 60:
-                    # RRR Master 2.8:1
-                    sl_mult = 1.6
-                    tp_mult = 5.5 if symbol in ["SOLUSDT", "PEPEUSDT"] else 4.5 
+                # Gatilho v41.0: Ultimate Equilibrium (Score > 55)
+                if report["bias"] != "NEUTRAL" and report["score"] > 55:
+                    # RRR Institucional 3.5:1 (v41)
+                    sl_mult = 1.8
+                    tp_mult = 6.3 
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
