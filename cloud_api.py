@@ -247,8 +247,138 @@ async def webhook(payload: WebhookPayload, x_token: str = Header(None)):
     await sovereign_auth(x_token)
     return {"status": "RECEIVED", "payload": payload}
 
+@app.post("/backtest")
+async def run_backtest(payload: WebhookPayload):
+    """
+    [v50.0] DREAM SIMULATOR: Simulação aproximada da Lógica OMEGA usando dados históricos.
+    Como Orderbook histórico não existe, usamos Volume + Volatilidade para estimar OFI.
+    """
+    symbol = normalize_symbol(payload.symbol)
+    timeframe = "1m"
+    limit = 1000 # Velas para sonhar
+    
+    print(f"💤 [DREAM-MODE] Iniciando simulação neural para {symbol}...")
+    
+    try:
+        # Carrega Memórias Passadas (OHLCV)
+        ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+        
+        sim_state = {
+            "pnl": 0.0,
+            "trades": 0,
+            "wins": 0,
+            "losses": 0,
+            "equity_curve": []
+        }
+        
+        history = []
+        win_sum = 0
+        loss_sum = 0
+        max_drawdown = 0.0
+        max_pnl = 0.0
+        
+        # Configuração Genética
+        config = get_asset_config(symbol)
+        
+        for i in range(50, len(ohlcv)):
+            candle = ohlcv[i]
+            # [timestamp, open, high, low, close, volume]
+            ts, op, hi, lo, cl, vol = candle
+            prev_cl = ohlcv[i-1][4]
+            
+            # SIMULAÇÃO DE ORDER FLOW (Estimativa)
+            # Se preço subiu com volume, assume pressão de compra (Imbalance +)
+            price_change = (cl - prev_cl) / prev_cl
+            vol_factor = vol / (sum([x[5] for x in ohlcv[i-10:i]]) / 10) # Volume relativo
+            
+            # Estimativa de 'Imbalance' e 'Velocity' para a IA
+            est_imbalance = 0.5 * (1 if price_change > 0 else -1) * min(vol_factor, 2.0)
+            est_velocity = abs(price_change) * 10000
+            
+            # Decisão Neural Simulada
+            intel_sim = {
+                "imbalance": est_imbalance,
+                "velocity": est_velocity if price_change > 0 else -est_velocity
+            }
+            
+            decision = brain.analyze_omega(intel_sim, None) # Sem estado bio no backtest
+            
+            # Lógica de Trade Simplificada (1 candle de duração para HFT)
+            if decision["score"] > config["min_score"]:
+                entry = cl
+                atr = (hi - lo) / cl
+                sl_dist = atr * config["sl_mult"]
+                tp_dist = atr * config["tp_mult"]
+                
+                # Verifica resultado na PRÓXIMA vela (Futuro Imediato)
+                if i + 1 < len(ohlcv):
+                    next_c = ohlcv[i+1]
+                    n_op, n_hi, n_lo, n_cl = next_c[1], next_c[2], next_c[3], next_c[4]
+                    
+                    pnl_trade = 0
+                    if decision["bias"] == "GOD_LONG":
+                        # Tocou TP?
+                        if n_hi >= entry + (tp_dist * entry): pnl_trade = config["tp_mult"] * atr * 100
+                        # Tocou SL?
+                        elif n_lo <= entry - (sl_dist * entry): pnl_trade = -config["sl_mult"] * atr * 100
+                        # Fechamento (Scalp Rápido)
+                        else: pnl_trade = ((n_cl - entry) / entry) * 100
+                        
+                    elif decision["bias"] == "GOD_SHORT":
+                        if n_lo <= entry - (tp_dist * entry): pnl_trade = config["tp_mult"] * atr * 100
+                        elif n_hi >= entry + (sl_dist * entry): pnl_trade = -config["sl_mult"] * atr * 100
+                        else: pnl_trade = ((entry - n_cl) / entry) * 100
+                    
+                    # Taxas de Corretagem Estimadas (Taker)
+                    pnl_trade -= 0.06 
+                    
+                    sim_state["pnl"] += pnl_trade
+                    sim_state["trades"] += 1
+                    
+                    if pnl_trade > 0: 
+                        sim_state["wins"] += 1
+                        win_sum += pnl_trade
+                    else: 
+                        sim_state["losses"] += 1
+                        loss_sum += abs(pnl_trade)
+
+                    sim_state["equity_curve"].append(sim_state["pnl"])
+                    
+                    # Max Drawdown Calc
+                    max_pnl = max(max_pnl, sim_state["pnl"])
+                    dd = max_pnl - sim_state["pnl"]
+                    max_drawdown = max(max_drawdown, dd)
+                    
+                    history.append({"t": ts, "pnl": round(pnl_trade, 2)})
+
+        # Métricas Finais
+        total = sim_state["wins"] + sim_state["losses"]
+        wr = (sim_state["wins"] / total * 100) if total > 0 else 0
+        avg_win = (win_sum / sim_state["wins"]) if sim_state["wins"] > 0 else 0
+        avg_loss = (loss_sum / sim_state["losses"]) if sim_state["losses"] > 0 else 1
+        
+        return {
+            "symbol": symbol,
+            "candles_analyzed": limit,
+            "total_trades": sim_state["trades"],
+            "win_rate": round(wr, 1),
+            "total_pnl_percent": round(sim_state["pnl"], 2),
+            "metrics": {
+                "max_drawdown": round(max_drawdown, 2),
+                "profit_factor": round(win_sum / loss_sum, 2) if loss_sum > 0 else 99,
+                "avg_win": round(avg_win, 2),
+                "avg_loss": round(avg_loss, 2)
+            },
+            "history": history[-10:]
+        }
+        
+    except Exception as e:
+        print(f"❌ [DREAM-ERROR] {e}")
+        return {"error": str(e)}
+
 # ============================================================
 # 🦅 AUTONOMOUS HUNTER (SCALPER LOOP)
+
 # ============================================================
 class MarketState:
     def __init__(self):
