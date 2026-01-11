@@ -1,25 +1,15 @@
 {
-    "feature": "PREDATOR v23.1 LIQUIDITY GATEKEEPER",
+    "feature": "PREDATOR v24.0 MULTI-MARKET NEXUS",
     "status": "COMPLETED",
     "userStories": [
         {
             "id": "STORY-1",
-            "title": "Implement Liquidity Gatekeeper",
-            "description": "System must strictly block any trading ('is_hunting = False') if confirmed Binance USDT balance is below $5. No simulation fallbacks allowed in Production mode.",
+            "title": "Implement Multi-Exchange Support (Bybit)",
+            "description": "Refactor `cloud_api.py` to support dynamic exchange selection via `EXCHANGE_ID` env var. Priority: Add Bybit support to bypass Binance IP restrictions on Cloud.",
             "acceptanceCriteria": [
-                "Starts in PAUSED mode until balance check passes",
-                "Automatically pauses if balance drops below threshold",
-                "Logs 'LOW FUEL' warning to dashboard/Supabase"
-            ],
-            "passes": true
-        },
-        {
-            "id": "STORY-2",
-            "title": "Fix Binance Signature Error",
-            "description": "Render logs show 'Signature for this request is not valid'. This is often due to whitespace in env vars. Solution: Sanitize API keys with .strip() on load.",
-            "acceptanceCriteria": [
-                "API Keys are stripped of whitespace",
-                "Binance connection succeeds without Signature Error"
+                "API initializes specified exchange (Binance or Bybit)",
+                "Unified logic for Balance and Orders",
+                "Env vars adjusted for generic API Keys"
             ],
             "passes": true
         }

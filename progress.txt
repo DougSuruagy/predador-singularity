@@ -1,6 +1,13 @@
 # PREDATOR PROGRESS LOG
 
-## Iteration v23.1 Liquidity Gatekeeper (Current)
+## Iteration v24.0 Multi-Market Nexus (Current)
+- **Status:** COMPLETED
+- **Learnings:**
+  - Implemented **Multi-Exchange Logic**. The system now supports dynamic switching between **Binance** (Futures) and **Bybit** (Linear/Unified) via `EXCHANGE_ID` environment variable.
+  - This solves the critical blocker of Binance requiring Trusted IPs for API trading, as Bybit is more permissive with Cloud IPs (Render).
+  - Codebase refactored to use generic `API_KEY` loading, ensuring agnosticism.
+
+## Iteration v23.1 Liquidity Gatekeeper
 - **Status:** COMPLETED
 - **Learnings:**
   - Implemented **Liquidity Gatekeeper Protocol**: The system now starts in a locked state (`funding_locked=True`) and only unlocks `is_hunting` if the background scanner confirms a Binance USDT balance > $5.
@@ -12,12 +19,3 @@
 - **Learnings:**
   - Implemented **Zero-Latency Capital Manager**. Execution time reduced drastically by caching balance in RAM and updating asynchronously via `maintain_exchange_session` (10s loop) and `execute_binance_order` callback.
   - Implemented **Dynamic Regime Cortex**. The AI now detects Ranging vs Trending markets using Volatility Ratio (ATR/Price). Logic adapts automatically (Mean Reversion vs Trend Following).
-  - **Critical Build Fix**: Render failed due to `os error 30` (Read-only FS) when compiling Rust dependencies (Pydantic Core) on Python 3.13. **Solution**: Unpinned `requirements.txt` to allow newer binary wheels and enforced Python 3.11.9 via `.python-version`.
-  - **Fixed Binance Signature Error (-1022)**: The deployment logs showed invalid signature errors. Root cause identified as likely invisible whitespace in environment variables. **Solution**: Added `.strip()` sanitization to API Key/Secret loading in `cloud_api.py`.
-
-## Iteration v22.0 Quantum Leap
-- **Status:** COMPLETED
-- **Learnings:**
-  - Implemented the "Genetic Backtesting Engine" (`/backtest` endpoint). This allows the system to simulate performance on historical data before risking capital.
-  - Upgraded the Frontend Dashboard to v21.4 with Real Candlesticks and Trade Markers. Visual feedback is now instant.
-  - "Ralph Pattern" with `prd.json` proved effective for keeping focus on granular tasks.

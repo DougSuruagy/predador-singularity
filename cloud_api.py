@@ -444,29 +444,47 @@ class NomadBrain:
 brain = NomadBrain()
 state_lock = asyncio.Lock()
 
-# BINANCE CONNECTION (Custo Zero - Sem MT5)
-raw_key = os.environ.get("BINANCE_API_KEY", "")
-raw_secret = os.environ.get("BINANCE_API_SECRET", "")
+# MULTI-EXCHANGE CONNECTION (v24.0)
+# Suporta: 'binance' (Futures) ou 'bybit' (Unified/Linear)
+EXCHANGE_ID = os.environ.get("EXCHANGE_ID", "binance").strip().lower()
+print(f"🔌 CONECTANDO EXCHANGE: {EXCHANGE_ID.upper()}")
 
-BINANCE_API_KEY = raw_key.strip() if raw_key else None
-BINANCE_API_SECRET = raw_secret.strip() if raw_secret else None
+# Carrega chaves (Prioridade: Genérica > Binance Específica)
+raw_key = os.environ.get("EXCHANGE_API_KEY", os.environ.get("BINANCE_API_KEY", ""))
+raw_secret = os.environ.get("EXCHANGE_API_SECRET", os.environ.get("BINANCE_API_SECRET", ""))
+
+API_KEY = raw_key.strip() if raw_key else None
+API_SECRET = raw_secret.strip() if raw_secret else None
 
 # 🌐 CONFIGURAÇÃO DE PROXY (Opcional - Para contornar bloqueios regionais)
 PROXY_URL = os.environ.get("PROXY_URL") # Ex: http://user:pass@host:port
 proxies = {'http': PROXY_URL, 'https': PROXY_URL} if PROXY_URL and PROXY_URL.strip() else None
 
-# Configurar Exchange (Modo Futures - Otimizado para Baixa Latência)
-exchange = ccxt.binance({
-    'apiKey': BINANCE_API_KEY,
-    'secret': BINANCE_API_SECRET,
-    'enableRateLimit': True,
-    'options': {
-        'defaultType': 'future',
-        'adjustForTimeDifference': True,
-        'recvWindow': 5000,
-    },
-    'proxies': proxies
-})
+# Inicializa Driver CCXT
+if EXCHANGE_ID == "bybit":
+    exchange = ccxt.bybit({
+        'apiKey': API_KEY,
+        'secret': API_SECRET,
+        'enableRateLimit': True,
+        'options': {
+            'defaultType': 'linear',  # USDT Perpetuals
+            'adjustForTimeDifference': True
+        },
+        'proxies': proxies
+    })
+else:
+    # Default: BINANCE FUTURES
+    exchange = ccxt.binance({
+        'apiKey': API_KEY,
+        'secret': API_SECRET,
+        'enableRateLimit': True,
+        'options': {
+            'defaultType': 'future',
+            'adjustForTimeDifference': True,
+            'recvWindow': 5000,
+        },
+        'proxies': proxies
+    })
 
 # Task para manter a sessão da exchange viva e evitar reconexões lentas
 # Task para manter a sessão da exchange viva e monitorar LIQUIDEZ (Gatekeeper)
@@ -502,20 +520,20 @@ async def maintain_exchange_session():
             await asyncio.sleep(10)
 
 # Se as chaves estiverem presentes, testa conexão e configura alavancagem
-if BINANCE_API_KEY and BINANCE_API_SECRET:
+if API_KEY and API_SECRET:
     try:
-        print("⚡ CONECTANDO À BINANCE FUTURES...")
+        print(f"⚡ INICIANDO DRIVER {EXCHANGE_ID.upper()}...")
         async def setup_account():
             try:
                 await exchange.load_markets()
-                print("✅ MERCADOS CARREGADOS E AMBIENTE BINANCE PRONTO.")
+                print(f"✅ MERCADOS CARREGADOS: {EXCHANGE_ID.upper()} READY.")
             except Exception as e:
                 print(f"⚠️ ERRO AO CARREGAR MERCADOS: {e}")
         asyncio.create_task(setup_account())
     except Exception as e:
-        print(f"⚠️ ERRO BINANCE: {e}")
+        print(f"⚠️ ERRO DRIVER: {e}")
 else:
-    print("⚠️ BINANCE API KEYS AUSENTES: Execução real bloqueada. Apenas Simulação.")
+    print("⚠️ API KEYS AUSENTES: Execução real bloqueada. Apenas Simulação.")
 
 # ============================================================
 # SUPABASE CLIENT (Persistência Opcional)
