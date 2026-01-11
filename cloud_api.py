@@ -38,6 +38,14 @@ def get_today_iso():
 def get_now_br():
     return datetime.utcnow() - timedelta(hours=3)
 
+# Consolidando normalização de símbolos para Bybit V5
+def normalize_symbol(symbol: str) -> str:
+    """Adapta símbolos para Bybit V5 (Sem barras e em maiúsculas)."""
+    return symbol.replace("/", "").replace("-", "").upper()
+
+def bybit_normalize_symbol(symbol: str) -> str:
+    return normalize_symbol(symbol)
+
 # Carregar variáveis de ambiente locais (.env) se existirem
 load_dotenv()
 
@@ -530,14 +538,6 @@ async def maintain_sovereign_session():
             print(f"⚠️ GATEKEEPER ERROR: {e}")
             await asyncio.sleep(15)
 
-# Consolidando normalização de símbolos para Bybit V5
-def normalize_symbol(symbol: str) -> str:
-    """Adapta símbolos para Bybit V5 (Sem barras e em maiúsculas)."""
-    return symbol.replace("/", "").replace("-", "").upper()
-
-def bybit_normalize_symbol(symbol: str) -> str:
-    return normalize_symbol(symbol)
-
 # Se as chaves estiverem presentes, testa conexão
 if API_KEY and API_SECRET:
     try:
@@ -577,9 +577,6 @@ else:
 
 # Task para manter a sessão da exchange viva e evitar reconexões lentas
 # Task para manter a sessão da exchange viva e monitorar LIQUIDEZ (Gatekeeper)
-def normalize_symbol(symbol: str) -> str:
-    """Adapta símbolos para Bybit V5 (Sem barras e em maiúsculas)."""
-    return symbol.replace("/", "").replace("-", "").upper()
 
 
 # ============================================================
