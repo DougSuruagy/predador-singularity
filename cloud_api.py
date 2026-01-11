@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "200.0-QUANTUM-SCALPER",
+            "version": "210.0-ELASTIC-SCALPER",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -141,27 +141,35 @@ class NomadBrain:
             avg_vol = sum(volumes[-20:-1]) / 19
             vol_shock = volumes[-1] / avg_vol if avg_vol > 0 else 1.0
 
-        # Volume Intensity (2-Sigma)
-        vol_intensity = 1.0
-        if volumes and len(volumes) > 20:
-            avg_vol = sum(volumes[-20:-1]) / 19
-            std_vol = (sum((v - avg_vol)**2 for v in volumes[-20:-1]) / 20)**0.5
-            vol_intensity = (volumes[-1] - avg_vol) / (std_vol + 0.0001)
+        # Z-Score Volume
+        z_vol = 0.0
+        if volumes and len(volumes) > 30:
+            avg_v = sum(volumes[-30:-1]) / 29
+            std_v = (sum((v - avg_v)**2 for v in volumes[-30:-1]) / 29)**0.5
+            z_vol = (volumes[-1] - avg_v) / (std_v + 0.0001)
 
-        is_compressed = bb_width < 0.60 or entropy > 0.50
+        # RSI Slope
+        past_rsi = []
+        for j in range(len(closes)-5, len(closes)):
+            window = closes[max(0, j-14):j+1]
+            if len(window) < 2: continue
+            d = [window[k] - window[k-1] for k in range(1, len(window))]
+            past_rsi.append(self._calc_rsi(d))
+        rsi_slope = past_rsi[-1] - past_rsi[-3] if len(past_rsi) > 3 else 0
+
+        is_compressed = bb_width < 0.65 or entropy > 0.55
+        ema9 = sum(closes[-9:]) / 9
         
-        # 🔗 Divergence Check
+        # 🔗 Elastic Divergence
         divergence = False
-        if closes[-1] > ma20 and rsi < 40: divergence = True
-        elif closes[-1] < ma20 and rsi > 60: divergence = True
+        if closes[-1] > ma20 and rsi < 38: divergence = True
+        elif closes[-1] < ma20 and rsi > 62: divergence = True
 
         return {
-            "rsi": rsi, "psi": psi, "velocity": velocity, 
-            "bb_width": bb_width, "entropy": entropy, 
-            "vol_intensity": vol_intensity, "is_compressed": is_compressed,
+            "rsi": rsi, "rsi_slope": rsi_slope, "psi": psi,
+            "bb_width": bb_width, "z_vol": z_vol, "is_compressed": is_compressed,
             "touch_low": touch_low, "touch_high": touch_high,
-            "trend_strong": bb_width > 0.8 and entropy < 0.4,
-            "divergence": divergence,
+            "divergence": divergence, "ema9": ema9, "ma20": ma20,
             "price": closes[-1], "atr": (max(highs[-1]-lows[-1], abs(highs[-1]-closes[-2])) if len(highs)>1 else 0.001)
         }
 
@@ -211,43 +219,43 @@ async def root():
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v200.0 QUANTUM """
+    """ [BTC/ETH] SINGULARITY APEX - v210.0 ELASTIC """
     if is_compressed:
         return {
-            "threshold": 0.08, 
-            "min_score": 88,  
-            "sl_mult": 1.0,   
-            "tp_mult": 1.8,   # RRR 1:1.8
-            "leverage": 10,    # Scalper Overclock
+            "threshold": 0.10, 
+            "min_score": 85,  
+            "sl_mult": 1.8,   # ATR Resiliente
+            "tp_mult": 1.4,   # Alvo EMA 9 (Perto mas constante)
+            "leverage": 15,    # Overclock para compensar TP curto
             "shadow_trail": False
         }
     
     return {
-        "threshold": 0.22, 
+        "threshold": 0.25, 
         "min_score": 75, 
         "sl_mult": 1.5,
-        "tp_mult": 6.5,   
-        "leverage": 18,   
+        "tp_mult": 7.0,   
+        "leverage": 20,   
         "shadow_trail": True
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v200.0 QUANTUM """
+    """ [SOL] SNIPER v210.0 ELASTIC """
     if is_compressed:
         return {
-            "threshold": 0.10,
-            "min_score": 90,
-            "sl_mult": 1.2,
-            "tp_mult": 2.2, 
-            "leverage": 6, 
+            "threshold": 0.12,
+            "min_score": 88,
+            "sl_mult": 2.2,
+            "tp_mult": 1.5, 
+            "leverage": 8, 
             "shadow_trail": False
         }
     return {
-        "threshold": 0.28,
+        "threshold": 0.30,
         "min_score": 75,
         "sl_mult": 2.0,
-        "tp_mult": 6.0,
-        "leverage": 12,
+        "tp_mult": 6.5,
+        "leverage": 15,
         "shadow_trail": True
     }
 
@@ -309,23 +317,18 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🕒 QUANTUM SCALPER v200.0 (Filtro Fee-Aware)
+    # 🕒 ELASTIC SCALPER v210.0
     if intel["is_compressed"]:
-        if (intel["bb_width"] / 2) < 0.22: return # Expected move < 2.5x Fee
+        if intel["bb_width"] < 0.30: return
         
-        candle_range = ohlcv[-1][2] - ohlcv[-1][3]
-        body_size = abs(ohlcv[-1][4] - ohlcv[-1][1])
-        body_ratio = (body_size / candle_range) if candle_range > 0 else 1.0
-        
-        pin_rejection = 0.45 if "SOL" not in symbol else 0.55
-        is_pin = body_ratio < 0.40
-        
-        if intel["touch_low"] and (ohlcv[-1][4] > ohlcv[-1][3] + (candle_range * pin_rejection)) and is_pin and intel["rsi"] < 32:
-            bias = "GOD_LONG"; score = 98
-        elif intel["touch_high"] and (ohlcv[-1][4] < ohlcv[-1][2] - (candle_range * pin_rejection)) and is_pin and intel["rsi"] > 68:
-            bias = "GOD_SHORT"; score = 98
+        oversold = (intel["rsi"] < 32 or (intel["rsi"] < 38 and intel["rsi_slope"] < -5))
+        overbought = (intel["rsi"] > 68 or (intel["rsi"] > 62 and intel["rsi_slope"] > 5))
+        strong_push = intel["z_vol"] > 2.0 
+
+        if (intel["touch_low"] or strong_push) and oversold: bias = "GOD_LONG"; score = 96
+        elif (intel["touch_high"] or strong_push) and overbought: bias = "GOD_SHORT"; score = 96
     else:
-        if abs(intel["psi"]) > 0.28 and intel["vol_intensity"] > 2.2:
+        if abs(intel["psi"]) > 0.30 and intel["z_vol"] > 2.5:
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 92
     
@@ -408,43 +411,41 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v200.0 "QUANTUM SCALPER"
+        # 🧬 NEURAL SIMULATION v210.0 "ELASTIC SCALPER"
         if intel["is_compressed"]:
-            if (intel["bb_width"] / 2) < 0.22: i += 1; continue
+            if intel["bb_width"] < 0.30: i += 1; continue
             
-            candle_range = ohlcv[i][2] - ohlcv[i][3]
-            body_size = abs(ohlcv[i][4] - ohlcv[i][1])
-            is_pin = (body_size / candle_range) < 0.40 if candle_range > 0 else False
-            pin_rejection = 0.45 if "SOL" not in symbol else 0.55
-            
-            if intel["touch_low"] and (ohlcv[i][4] > ohlcv[i][3] + (candle_range * pin_rejection)) and is_pin and intel["rsi"] < 32:
-                bias = "GOD_LONG"; score = 98
-            elif intel["touch_high"] and (ohlcv[i][4] < ohlcv[i][2] - (candle_range * pin_rejection)) and is_pin and intel["rsi"] > 68:
-                bias = "GOD_SHORT"; score = 98
+            oversold = (intel["rsi"] < 32 or (intel["rsi"] < 38 and intel["rsi_slope"] < -5))
+            overbought = (intel["rsi"] > 68 or (intel["rsi"] > 62 and intel["rsi_slope"] > 5))
+            strong_push = intel["z_vol"] > 2.0 
+
+            if (intel["touch_low"] or strong_push) and oversold: bias = "GOD_LONG"; score = 95
+            elif (intel["touch_high"] or strong_push) and overbought: bias = "GOD_SHORT"; score = 95
         else:
-            if abs(intel["psi"]) > 0.28 and intel["vol_intensity"] > 2.2:
+            if abs(intel["psi"]) > 0.30 and intel["z_vol"] > 2.5:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 92
+                score = 90
         
         if intel["divergence"]: score = 0
             
         if score >= 85:
-            config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
+            config = get_supreme_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
             atr = intel["atr"]
             sl_dist = atr * config["sl_mult"]
-            tp_dist = atr * config["tp_mult"]
             
             pnl = 0
-            # Simulação HFT v120.0
-            for j in range(i+1, min(i+500, len(ohlcv))):
+            # Simulação ultra-rápida (EMA 9 Target)
+            target_price = intel["ema9"]
+            
+            for j in range(i+1, min(i+100, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
-                    if f[2] >= entry + tp_dist: pnl = config["tp_mult"] * (atr/entry) * 100; i = j; break
-                    if f[3] <= entry - sl_dist: pnl = -config["sl_mult"] * (atr/entry) * 100; i = j; break
+                    if f[2] >= target_price: pnl = (target_price/entry - 1) * 100 * config["leverage"]; i = j; break
+                    if f[3] <= entry - sl_dist: pnl = -config["sl_mult"] * (atr/entry) * 100 * config["leverage"]; i = j; break
                 else:
-                    if f[3] <= entry - tp_dist: pnl = config["tp_mult"] * (atr/entry) * 100; i = j; break
-                    if f[2] >= entry + sl_dist: pnl = -config["sl_mult"] * (atr/entry) * 100; i = j; break
+                    if f[3] <= target_price: pnl = (1 - target_price/entry) * 100 * config["leverage"]; i = j; break
+                    if f[2] >= entry + sl_dist: pnl = -config["sl_mult"] * (atr/entry) * 100 * config["leverage"]; i = j; break
             
             fee = 0.05 # Fee de Market Maker
             if pnl != 0:

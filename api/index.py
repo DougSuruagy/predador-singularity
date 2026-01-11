@@ -42,29 +42,31 @@ class NomadBrain:
         direction_changes = sum(1 for i in range(len(deltas)-10, len(deltas)) if (deltas[i] > 0) != (deltas[i-1] > 0))
         entropy = direction_changes / 10.0
         
-        # Volume Intensity (2-Sigma)
-        vol_intensity = 1.0
-        if volumes and len(volumes) > 20:
-            avg_vol = sum(volumes[-20:-1]) / 19
-            std_vol = (sum((v - avg_vol)**2 for v in volumes[-20:-1]) / 20)**0.5
-            vol_intensity = (volumes[-1] - avg_vol) / (std_vol + 0.0001)
+        # Z-Score Volume (Outlier Detection)
+        z_vol = 0.0
+        if volumes and len(volumes) > 30:
+            avg_v = sum(volumes[-30:-1]) / 29
+            std_v = (sum((v - avg_v)**2 for v in volumes[-30:-1]) / 29)**0.5
+            z_vol = (volumes[-1] - avg_v) / (std_v + 0.0001)
 
-        is_compressed = bb_width < 0.60 or entropy > 0.50
+        # RSI Slope (Momentum Exhaustion)
+        past_rsi = [self._calc_rsi([closes[j] - closes[j-1] for j in range(max(1, i-14), i+1)]) for i in range(len(closes)-5, len(closes))]
+        rsi_slope = past_rsi[-1] - past_rsi[-3] if len(past_rsi) > 3 else 0
+
+        is_compressed = bb_width < 0.65 or entropy > 0.55
+        ema9 = sum(closes[-9:]) / 9
         
-        # 🔗 Divergence Check
+        # 🔗 Elastic Divergence
         divergence = False
-        if closes[-1] > ma20 and rsi < 40: divergence = True
-        elif closes[-1] < ma20 and rsi > 60: divergence = True
+        if closes[-1] > ma20 and rsi < 38: divergence = True
+        elif closes[-1] < ma20 and rsi > 62: divergence = True
 
         return {
-            "rsi": rsi, "psi": psi, "velocity": velocity, 
-            "bb_width": bb_width, "entropy": entropy, 
-            "vol_intensity": vol_intensity, "is_compressed": is_compressed,
+            "rsi": rsi, "rsi_slope": rsi_slope, "psi": psi,
+            "bb_width": bb_width, "z_vol": z_vol, "is_compressed": is_compressed,
             "touch_low": touch_low, "touch_high": touch_high,
-            "trend_strong": bb_width > 0.8 and entropy < 0.4,
-            "divergence": divergence,
-            "price": closes[-1],
-            "ma20": ma20
+            "divergence": divergence, "ema9": ema9, "ma20": ma20,
+            "price": closes[-1]
         }
 
     def _calc_rsi(self, deltas):
@@ -104,47 +106,41 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v200.0 "QUANTUM SCALPER"
-    # Objetivo: Lucro Líquido Real (Net Profit) em Bybit Fees (0.06% round trip)
-    fee_round_trip = 0.08 # % total
+    # 🧬 MASTER LOGIC v210.0 "ELASTIC SCALPER"
+    # Objetivo: Capturar o "estilingue" do preço de volta à EMA 9.
+    fee_safe = 0.08 
     
     if intel["is_compressed"]:
-        # Filtro de Rentabilidade Real: BB_Width deve ser > 3x as taxas para valer o risco
-        # Movimento esperado é ~ bb_width / 2 (para a média)
-        expected_move = intel["bb_width"] / 2
-        if expected_move < (fee_round_trip * 2.5):
-             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Fee Trap Zone"}
+        # Filtro de Rentabilidade (Menos estrito que v200 para manter atividade)
+        if intel["bb_width"] < 0.30:
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Dead Zone"}
 
-        # Wick Rejection (Pin-bar) - Mais estrito que v190
-        candle_range = highs[-1] - lows[-1]
-        body_size = abs(closes[-1] - payload.ohlcv[-1][1])
-        body_ratio = (body_size / candle_range) if candle_range > 0 else 1.0
+        # Triggers de Estilingue (Exaustão + Volume Institucional)
+        # Z-Volume > 2.0 indica entrada de big player
+        oversold = (intel["rsi"] < 32 or (intel["rsi"] < 38 and intel["rsi_slope"] < -5))
+        overbought = (intel["rsi"] > 68 or (intel["rsi"] > 62 and intel["rsi_slope"] > 5))
         
-        # Filtro de Pin-bar Institucional
-        wick_rejection = 0.45 if "SOL" not in payload.symbol.upper() else 0.55
-        is_pin_bar = body_ratio < 0.40 # Corpo pequeno
-        
-        rejection_low = (closes[-1] > lows[-1] + (candle_range * wick_rejection)) and is_pin_bar
-        rejection_high = (closes[-1] < highs[-1] - (candle_range * wick_rejection)) and is_pin_bar
+        # Confirmação Institucional (Z-Vol)
+        strong_push = intel["z_vol"] > 2.0 
 
-        # Scalper Triggers
-        if intel["touch_low"] and rejection_low and intel["rsi"] < 32: 
-            bias = "GOD_LONG"; score = 98
-        elif intel["touch_high"] and rejection_high and intel["rsi"] > 68: 
-            bias = "GOD_SHORT"; score = 98
+        if (intel["touch_low"] or strong_push) and oversold:
+            bias = "GOD_LONG"; score = 96
+        elif (intel["touch_high"] or strong_push) and overbought:
+            bias = "GOD_SHORT"; score = 96
             
     else:
-        # TREND SCALPING (PSI + Volume)
-        if abs(intel["psi"]) > 0.28 and intel["vol_intensity"] > 2.2: 
+        # TREND LOGIC: Apenas se for um rompimento com volume real
+        if abs(intel["psi"]) > 0.30 and intel["z_vol"] > 2.5: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 92
+            score = 90
             
-    # Filtro de Divergência
+    # Divergence Hard-Reject
     if intel["divergence"]: score = 0 
             
     decision = "EXECUTE" if score >= 85 else "REJECT"
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "version": "200.0-QUANTUM"
+        "targets": {"tp": intel["ema9"], "sl_factor": 1.8},
+        "version": "210.0-ELASTIC"
     }
