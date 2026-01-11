@@ -133,26 +133,28 @@ def get_supreme_config(symbol, is_trending):
     
     return {
         "threshold": threshold,
-        "min_score": 55 if is_trending else 65, # Mais exigente se lateral
+        "min_score": 55 if is_trending else 60, # Mais frequente no lateral (Era 65)
         "sl_mult": 1.8, # Padrão Valhalla
-        "tp_mult": 5.5, # Padrão Valhalla
+        "tp_mult": 5.5 if is_trending else 2.5, # Iron: Profit curto para garantir caixa
         "leverage": 10
     }
 
 def get_sniper_config(symbol):
-    """ [SOL] Junior Sniper v1.1 """
+    """ [SOL] Junior Sniper v1.2Aggro """
     return {
         "min_score": 75,
         "sl_mult": 1.0,
         "tp_mult": 1.5,
-        "leverage": 5
+        "leverage": 5,
+        "rsi_long": 25, # Expandido de 20 para pegar reversões antes
+        "rsi_short": 75 # Expandido de 80
     }
 
 async def autonomous_hunter_loop():
     print("🦅 PREDADOR SUPREMO & 🦖 SNIPER JUNIOR ATIVOS.")
     while True:
         try:
-            await asyncio.sleep(4)
+            await asyncio.sleep(1) # HFT Speed (Era 4s)
             # PREDADOR (BTC/ETH)
             for symbol in ["BTCUSDT", "ETHUSDT"]: await run_strategy(symbol, "SUPREME")
             # SNIPER (SOL)
@@ -187,9 +189,9 @@ async def run_strategy(symbol, mode):
         
     elif mode == "SNIPER":
         config = get_sniper_config(symbol)
-        if intel["rsi"] < 20: 
+        if intel["rsi"] < config["rsi_long"]: 
             bias = "GOD_LONG"; score = 80
-        elif intel["rsi"] > 80: 
+        elif intel["rsi"] > config["rsi_short"]: 
             bias = "GOD_SHORT"; score = 80
             
     if score >= config["min_score"]:
@@ -246,8 +248,8 @@ async def run_backtest(payload: WebhookPayload):
             
         elif mode == "SNIPER":
             config = get_sniper_config(symbol)
-            if intel["rsi"] < 20: bias = "GOD_LONG"; score = 80
-            elif intel["rsi"] > 80: bias = "GOD_SHORT"; score = 80
+            if intel["rsi"] < config["rsi_long"]: bias = "GOD_LONG"; score = 80
+            elif intel["rsi"] > config["rsi_short"]: bias = "GOD_SHORT"; score = 80
             
         if score >= config["min_score"]:
             entry = ohlcv[i][4]
