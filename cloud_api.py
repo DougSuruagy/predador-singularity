@@ -583,23 +583,22 @@ class NomadBrain:
         
         # 🧠 LOBO FRONTAL (Lógica Adaptativa)
         kinetic = intel["kinetic"] if intel else 0.0
-        trend_aligned = intel.get("trend_aligned", True) if intel else True
         rsi = intel.get("rsi", 50) if intel else 50
         
-        # Se RANGING, inverte RSI para Mean Reversion (Compra Fundo, Vende Topo)
-        # Se TRENDING, segue o momento (RSI > 50 ajuda compra)
-        if market_regime == "RANGING":
-            # [FINE-TUNE] Aumenta sensibilidade em RSI extremos (70/30)
+        # [v26.5] RSI DEADZONE: Ignora ruído no meio do range (45-55)
+        if 45 < rsi < 55:
+            rsi_factor = 0.0
+        elif market_regime == "RANGING":
             rsi_dev = (rsi - 50) / 50.0
-            rsi_factor = -1.4 * rsi_dev # Sensibilidade aumentada para 1.4x
+            rsi_factor = -1.6 * rsi_dev # Sensibilidade aumentada para 1.6x
         else:
-            rsi_factor = 1.0 * ((rsi - 50) / 50.0) 
+            rsi_factor = 1.2 * ((rsi - 50) / 50.0) 
             
-        frontal_signal = (kinetic * 0.3 + rsi_factor * 0.7) * self.genes["frontal_weight"] # Prioriza RSI em Range
+        frontal_signal = (kinetic * 0.2 + rsi_factor * 0.8) * self.genes["frontal_weight"] 
         
         # 🧠 LOBO PARIETAL (Integração de Liquidez Espacial)
-        # Se o preço está perto de uma parede de liquidez (OBP alto), o sinal parietal é forte
-        parietal_signal = (abs(obp) * 2.5) * self.genes["parietal_weight"]
+        # [FIX] VETOR DE PRESSÃO: OBP agora respeita a direção (Negativo = Short)
+        parietal_signal = (obp * 3.0) * self.genes["parietal_weight"]
         
         # 🧠 AMÍGDALA (Resposta ao Risco e Adrenalina)
         z_score = intel["z_score"] if intel else 0.0
@@ -634,9 +633,9 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # Se o mercado está caótico (consciência baixa), o limiar de consenso sobe
-        consensus_threshold = 0.22 if self.global_consciousness < 0.6 else 0.12
-        if resonance_align: consensus_threshold *= 0.7 # Mais fácil entrar se houver ressonância
+        # [v26.5] Mais rigoroso: limiar aumentado para evitar overtrading
+        consensus_threshold = 0.25 if self.global_consciousness < 0.6 else 0.18
+        if resonance_align: consensus_threshold *= 0.8 
         
         bias = "NEUTRAL"
         if psi > consensus_threshold and is_correlated: bias = "GOD_LONG"
@@ -1691,10 +1690,10 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho ultra-permissivo para diagnóstico (Score > 30)
-                if report["bias"] != "NEUTRAL" and report["score"] > 30:
-                    sl = close - (atr * 2.0)
-                    tp = close + (atr * 4.0)
+                # Gatilho v26.5: Exige score > 50 (Menos trades, mais qualidade)
+                if report["bias"] != "NEUTRAL" and report["score"] > 50:
+                    sl = close - (atr * 1.8)
+                    tp = close + (atr * 3.5) # Take Profit expandido
                     position = {"entry": close, "type": "long" if report["bias"] == "GOD_LONG" else "short", "sl": sl, "tp": tp, "time": timestamp}
             else:
                 pnl = 0
