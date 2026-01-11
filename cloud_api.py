@@ -914,6 +914,7 @@ class MarketState:
         self.entropy: float = 0.0
         self.rsi: float = 50.0
         self.trend_aligned: bool = True
+        self.btc_momentum: float = 0.0  # ⚓ BTC Correlation Sync
         
         # 🧬 BIOMETRICS (LIVING ORGANISM v25.0)
         self.homeostasis: float = 100.0
