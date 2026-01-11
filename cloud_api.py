@@ -634,41 +634,39 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v39.0] SENTINEL: Seletividade de Elite (Anti-Noise)
+        # [v40.0] QUANTUM BALANCE: O Ponto de Inflexão do Lucro
         symbol = intel.get("symbol", "")
-        # Escala de Rigor: SOL > ETH > BTC
-        if "SOL" in symbol: base_cons = 0.48
-        elif "ETH" in symbol: base_cons = 0.38
-        else: base_cons = 0.25 # BTC
+        if "SOL" in symbol: base_cons = 0.34
+        elif "ETH" in symbol: base_cons = 0.24
+        else: base_cons = 0.18 # BTC
         
-        consensus_threshold = (base_cons + 0.10) if self.global_consciousness < 0.6 else base_cons
+        consensus_threshold = (base_cons + 0.07) if self.global_consciousness < 0.6 else base_cons
         
-        # Filtro de Volatilidade "Lucro Bruto"
+        # Filtro de Volatilidade "Lucro-Focado"
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        # Exige volatilidade mínima para respirar acima das taxas
-        vol_floor = 0.0006 if "BTC" in symbol or "ETH" in symbol else 0.0012 
+        vol_floor = 0.0002 if "BTC" in symbol or "ETH" in symbol else 0.0006 
         vol_check = (atr / (price + 0.000001)) > vol_floor
         
-        # Filtro de Inércia [v39.0] - Reforçado para 4 períodos
+        # Filtro de Inércia [v40.0] - Estabilizado em 3 períodos
         self.psi_history.append(psi)
-        if len(self.psi_history) > 4: self.psi_history.pop(0)
+        if len(self.psi_history) > 3: self.psi_history.pop(0)
         avg_psi = sum(self.psi_history) / len(self.psi_history)
         inertia_ok = (psi > 0 and avg_psi > 0) or (psi < 0 and avg_psi < 0)
         
-        # [v39] Filtro Sentinel de RSI: Evita topos e fundos exaustos
-        rsi_ok = True
+        # [v40] Filtro RSI Dinâmico (Não bloqueia, apenas penaliza exaustão)
+        rsi_penalty = 1.0
         if market_regime == "RANGING":
-            if psi > 0 and rsi > 65: rsi_ok = False # Não compra topo
-            if psi < 0 and rsi < 35: rsi_ok = False # Não vende fundo
+            if psi > 0 and rsi > 70: rsi_penalty = 0.6 # Reduz confiança no topo
+            if psi < 0 and rsi < 30: rsi_penalty = 0.6 # Reduz confiança no fundo
             
         bias = "NEUTRAL"
-        if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check and rsi_ok:
+        if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
             bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
        
         # SINAPSE: Intensidade do disparo neural
         self.synaptic_firing = (abs(psi) * 100)
-        confidence = min(100, self.synaptic_firing * (0.4 if not is_correlated else 1.0))
+        confidence = min(100, self.synaptic_firing * (0.4 if not is_correlated else 1.0) * rsi_penalty)
         
         # 🧬 MUTAÇÃO ALPHA: Ajuste de Potência Bio-Mecânica
         alpha = 4.0 if confidence > 92 and not reality_trap else 1.0
@@ -1741,12 +1739,11 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v39.0: Sentinel Strike (Score > 70)
-                # Rigor institucional para qualidade de entrada
-                if report["bias"] != "NEUTRAL" and report["score"] > 70:
-                    # RRR Sentinel (3:1+)
-                    sl_mult = 1.8
-                    tp_mult = 5.5 if symbol in ["SOLUSDT", "PEPEUSDT"] else 4.8 
+                # Gatilho v40.0: Quantum Balance (Score > 60)
+                if report["bias"] != "NEUTRAL" and report["score"] > 60:
+                    # RRR Master 2.8:1
+                    sl_mult = 1.6
+                    tp_mult = 5.5 if symbol in ["SOLUSDT", "PEPEUSDT"] else 4.5 
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
