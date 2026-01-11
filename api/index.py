@@ -30,25 +30,32 @@ class NomadBrain:
         # Volatility & Compression
         ma20 = sum(closes[-20:]) / 20
         std_dev = (sum((x - ma20)**2 for x in closes[-20:]) / 20)**0.5
+        bb_upper = ma20 + (std_dev * 2)
+        bb_lower = ma20 - (std_dev * 2)
         bb_width = (std_dev * 4) / ma20 * 100 
+        
+        # Band Touch Logic
+        touch_low = closes[-1] <= bb_lower or lows[-1] <= bb_lower
+        touch_high = closes[-1] >= bb_upper or highs[-1] >= bb_upper
         
         # Entropy & Directional Chaos
         direction_changes = sum(1 for i in range(len(deltas)-10, len(deltas)) if (deltas[i] > 0) != (deltas[i-1] > 0))
         entropy = direction_changes / 10.0
         
-        # Volume Shock (Se disponível)
+        # Volume Shock 
         vol_shock = 1.0
         if volumes and len(volumes) > 20:
             avg_vol = sum(volumes[-20:-1]) / 19
             vol_shock = volumes[-1] / avg_vol if avg_vol > 0 else 1.0
 
-        is_compressed = bb_width < 0.65 or entropy > 0.65
+        is_compressed = bb_width < 0.70 or entropy > 0.60
         
         return {
             "rsi": rsi, "psi": psi, "velocity": velocity, 
             "bb_width": bb_width, "entropy": entropy, 
             "vol_shock": vol_shock, "is_compressed": is_compressed,
-            "trend_strong": bb_width > 0.8 and entropy < 0.4,
+            "touch_low": touch_low, "touch_high": touch_high,
+            "trend_strong": bb_width > 0.9 and entropy < 0.4,
             "price": closes[-1]
         }
 
@@ -89,16 +96,19 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v85.0 SURGE
+    # 🧬 MASTER LOGIC v90.0 "LIVING REVERSION"
     if intel["is_compressed"]:
-        # Exaustão Extrema + Volume Shock Institucional
-        if (intel["rsi"] < 20 and intel["vol_shock"] > 1.4): 
-            bias = "GOD_LONG"; score = 92
-        elif (intel["rsi"] > 80 and intel["vol_shock"] > 1.4): 
-            bias = "GOD_SHORT"; score = 92
+        # Reversão à Média com Toque de Banda + RSI
+        if intel["touch_low"] and intel["rsi"] < 35: 
+            bias = "GOD_LONG"; score = 90
+        elif intel["touch_high"] and intel["rsi"] > 65: 
+            bias = "GOD_SHORT"; score = 90
+            
+        # Reforço por Volume Shock
+        if intel["vol_shock"] > 1.3: score += 5
     else:
         # Modo TREND (Valhalla)
-        if abs(intel["psi"]) > 0.18:
+        if abs(intel["psi"]) > 0.15:
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 75 + (abs(intel["psi"]) * 15)
             

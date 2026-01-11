@@ -123,7 +123,12 @@ class NomadBrain:
         
         ma20 = sum(closes[-20:]) / 20
         std_dev = (sum((x - ma20)**2 for x in closes[-20:]) / 20)**0.5
+        bb_upper = ma20 + (std_dev * 2)
+        bb_lower = ma20 - (std_dev * 2)
         bb_width = (std_dev * 4) / ma20 * 100 
+        
+        touch_low = closes[-1] <= bb_lower or lows[-1] <= bb_lower
+        touch_high = closes[-1] >= bb_upper or highs[-1] >= bb_upper
         
         direction_changes = sum(1 for i in range(len(deltas)-10, len(deltas)) if (deltas[i] > 0) != (deltas[i-1] > 0))
         entropy = direction_changes / 10.0
@@ -133,13 +138,14 @@ class NomadBrain:
             avg_vol = sum(volumes[-20:-1]) / 19
             vol_shock = volumes[-1] / avg_vol if avg_vol > 0 else 1.0
 
-        is_compressed = bb_width < 0.65 or entropy > 0.65
+        is_compressed = bb_width < 0.70 or entropy > 0.60
         
         return {
             "rsi": rsi, "psi": psi, "velocity": velocity, 
             "bb_width": bb_width, "entropy": entropy, 
             "vol_shock": vol_shock, "is_compressed": is_compressed,
-            "trend_strong": bb_width > 0.8 and entropy < 0.4,
+            "touch_low": touch_low, "touch_high": touch_high,
+            "trend_strong": bb_width > 0.9 and entropy < 0.4,
             "price": closes[-1], "atr": (max(highs[-1]-lows[-1], abs(highs[-1]-closes[-2])) if len(highs)>1 else 0.001)
         }
 
@@ -181,14 +187,14 @@ async def get_state(x_token: str = Header(None)):
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v85.0 SURGE """
+    """ [BTC/ETH] SINGULARITY APEX - v90.0 REVERSION """
     if is_compressed:
         return {
             "threshold": 0.10, 
-            "min_score": 85,  
-            "sl_mult": 1.2,   # Stop Curto e Técnico
-            "tp_mult": 1.8,   # TP que paga o risco + taxas
-            "leverage": 4,    # Aumentamos levemente para capitalizar no RRR
+            "min_score": 90,  
+            "sl_mult": 0.8,   # Stop Cirúrgico (Antirruído)
+            "tp_mult": 1.5,   # TP Direto na Média
+            "leverage": 2,    # Segurança máxima
             "shadow_trail": False
         }
     
@@ -202,14 +208,14 @@ def get_supreme_config(symbol, is_trending, is_compressed):
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v85.0 SURGE """
+    """ [SOL] SNIPER v90.0 REVERSION """
     if is_compressed:
         return {
             "threshold": 0.15,
-            "min_score": 88,
-            "sl_mult": 1.5,
-            "tp_mult": 2.2, 
-            "leverage": 3, 
+            "min_score": 90,
+            "sl_mult": 1.0,
+            "tp_mult": 1.6, 
+            "leverage": 2, 
             "shadow_trail": False
         }
     return {
@@ -280,10 +286,10 @@ async def run_strategy(symbol, mode):
         if not intel: return
         
         if intel["is_compressed"]:
-            if (intel["rsi"] < 20 and intel["vol_shock"] > 1.4): bias = "GOD_LONG"; score = 92
-            elif (intel["rsi"] > 80 and intel["vol_shock"] > 1.4): bias = "GOD_SHORT"; score = 92
+            if intel["touch_low"] and intel["rsi"] < 35: bias = "GOD_LONG"; score = 92
+            elif intel["touch_high"] and intel["rsi"] > 65: bias = "GOD_SHORT"; score = 92
         else:
-            if abs(intel["psi"]) > 0.18:
+            if abs(intel["psi"]) > 0.15:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
                 score = 75 + (abs(intel["psi"]) * 15)
         
@@ -358,14 +364,14 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v85.0
+        # 🧬 NEURAL SIMULATION v90.0 "LIVING REVERSION"
         if intel["is_compressed"]:
-            if (intel["rsi"] < 20 and intel["vol_shock"] > 1.4): 
+            if intel["touch_low"] and intel["rsi"] < 35: 
                 bias = "GOD_LONG"; score = 92
-            elif (intel["rsi"] > 80 and intel["vol_shock"] > 1.4): 
+            elif intel["touch_high"] and intel["rsi"] > 65: 
                 bias = "GOD_SHORT"; score = 92
         else:
-            if abs(intel["psi"]) > 0.18:
+            if abs(intel["psi"]) > 0.15:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
                 score = 75 + (abs(intel["psi"]) * 15)
             
