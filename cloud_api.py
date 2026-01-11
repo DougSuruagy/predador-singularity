@@ -227,19 +227,28 @@ class NomadBrain:
         best_intel = None
         
         try:
-            # Seleciona os ativos mais quentes de cada "Olho" para análise
-            # ⚡ OPTIMIZATION: Usa o cache para evitar processamento repetido de strings
-            if not self.monitored_symbols_cache:
-                self.refresh_monitored_symbols()
-                
-            all_tickers = await exchange.fetch_tickers(self.monitored_symbols_cache)
+            # ⚡ OTIMIZAÇÃO V25.3: Busca todos os tickers Lineares (USDT) de uma vez
+            # params={'category': 'linear'} garante que não misturamos com Spot
+            all_tickers = await exchange.fetch_tickers(params={'category': 'linear'})
             candidates = []
             
             for sector, symbols in self.eyes.items():
                 for sym in symbols:
-                    norm_sym = normalize_symbol(sym)
-                    ticker = all_tickers.get(norm_sym)
-                    if ticker and (ticker.get('quoteVolume', 0) or 0) > 5000000:
+                    # Tenta encontrar o símbolo unificado (ex: SOL/USDT:USDT)
+                    norm_sym = bybit_normalize_symbol(sym)
+                    
+                    # Busca por ID ou por Símbolo Unificado no cache
+                    ticker = None
+                    if norm_sym in all_tickers:
+                        ticker = all_tickers[norm_sym]
+                    else:
+                        # Fallback: procura o símbolo que contém o nome do par
+                        for t_sym, t_data in all_tickers.items():
+                            if norm_sym in t_sym.replace("/", "").replace(":", ""):
+                                ticker = t_data
+                                break
+
+                    if ticker and (ticker.get('quoteVolume', 0) or 0) > 1000000:
                         score_v = abs(ticker.get('percentage', 0))
                         candidates.append((sym, score_v, sector))
             
@@ -247,9 +256,8 @@ class NomadBrain:
             candidates.sort(key=lambda x: x[1], reverse=True)
             discovery = [c[0] for c in candidates[:10]]
             
-            # [PERFORMANCE-BOOST] Fetch Anchors once
-            anchors_to_fetch = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
-            anchor_tickers = await exchange.fetch_tickers(anchors_to_fetch)
+            # [PERFORMANCE-BOOST] Use already fetched tickers for anchors
+            anchor_tickers = all_tickers
             
             if 'BTCUSDT' in anchor_tickers:
                 btc_ticker = anchor_tickers['BTCUSDT']
@@ -616,8 +624,11 @@ async def maintain_sovereign_session():
             if exchange.apiKey:
                 # ⚡ Bybit V5 Unified Account Optimization
                 # Forçamos a conta 'unified' se disponível para resposta mais rápida
-                params = {'accountType': 'UNIFIED'} if exchange.uid else {}
-                bal = await exchange.fetch_balance(params)
+                try:
+                    params = {'accountType': 'UNIFIED'}
+                    bal = await exchange.fetch_balance(params)
+                except:
+                    bal = await exchange.fetch_balance()
                 
                 # Tenta pegar USDT da forma unificada CCXT
                 usdt_total = float(bal.get('total', {}).get('USDT', 0))
@@ -633,7 +644,7 @@ async def maintain_sovereign_session():
                     state.regime = "NO_CASH"
                 else:
                     if state.funding_locked:
-                        print(f"💰 [FUEL DETECTED] Saldo Bybit ${usdt_total:.2f}. Reativando PREDATOR.")
+                        print(f"💰 [FUEL DETECTED] Saldo Bybit UTA ${usdt_total:.2f}. Reativando PREDATOR.")
                         state.funding_locked = False
                         # Só reativa se não estiver travado por perdas ou pânico
                         if not state.is_locked and state.consecutive_losses < MAX_CONSECUTIVE_LOSSES:
@@ -669,8 +680,12 @@ if API_KEY and API_SECRET:
 
                 print("✅ MERCADOS BYBIT CARREGADOS.")
                 
-                # Check Inicial de Saldo
-                bal = await exchange.fetch_balance()
+                # Check Inicial de Saldo (Unified Aware)
+                try:
+                    bal = await exchange.fetch_balance({'accountType': 'UNIFIED'})
+                except:
+                    bal = await exchange.fetch_balance()
+                    
                 usdt = float(bal.get('total', {}).get('USDT', 0))
                 state.balance = usdt
                 print(f"💰 SALDO BYBIT INICIAL: ${usdt:.2f} USDT")
