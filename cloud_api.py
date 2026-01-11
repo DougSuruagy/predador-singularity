@@ -49,6 +49,8 @@ class EngineState:
         self.is_healthy = True
         self.daily_pnl = 0.0
         self.trades = 0
+        self.wins = 0
+        self.mode = "SUPREME"
         self.last_price = 0.0
         self.last_score = 0
         self.trade_log = []
