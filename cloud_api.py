@@ -1645,34 +1645,48 @@ async def run_backtest(data: dict):
                  tr_sum += max(ohlcv[i-j][2] - ohlcv[i-j][3], abs(ohlcv[i-j][2] - ohlcv[i-j][4]), abs(ohlcv[i-j][3] - ohlcv[i-j][4]))
             atr = tr_sum / 14
             
+            # RSI Simulado (14 períodos)
+            if len(closes) >= 14:
+                deltas = [closes[k] - closes[k-1] for k in range(1, len(closes))]
+                gains = [d if d > 0 else 0 for d in deltas[-14:]]
+                losses = [-d if d < 0 else 0 for d in deltas[-14:]]
+                avg_gain = sum(gains) / 14
+                avg_loss = sum(losses) / 14
+                rs = avg_gain / (avg_loss + 0.00001)
+                sim_rsi = 100 - (100 / (1 + rs))
+            else:
+                sim_rsi = 50
+                
             vel = (closes[-1] - closes[-3]) / closes[-3]
             kinetic = abs(vel * 1000)
+            sim_corr = 0.1 if vel > 0 else -0.1
             
             intel = {
                 "price": close,
-                "obp": 0.0,
-                "ofi": 0.0,
-                "anchor_confirm": 0.0,
+                "obp": 0.01 if vel > 0 else -0.01, # Simula pressão leve
+                "ofi": 0.01 if vel > 0 else -0.01,
+                "anchor_confirm": sim_corr,
                 "kinetic": kinetic,
                 "z_score": z_score,
                 "trend_aligned": True,
-                "btc_corr": 0.0,
+                "btc_corr": sim_corr,
                 "sector": "",
-                "rsi": 50,
+                "rsi": sim_rsi,
                 "atr": atr,
                 "volume_spike": vol > (mean * 1.5)
             }
             
             report = brain.analyze_infinity(sim_state, intel)
             
+            # Decisão de Trade no Backtest (Ajustado para v26.4)
             if not position:
-                if report["bias"] == "GOD_LONG" and report["score"] > 80:
-                    sl = close - (atr * 1.5)
-                    tp = close + (atr * 2.5)
+                if report["bias"] == "GOD_LONG" and report["score"] > 70:
+                    sl = close - (atr * 1.6)
+                    tp = close + (atr * 2.8)
                     position = {"entry": close, "type": "long", "sl": sl, "tp": tp, "time": timestamp}
-                elif report["bias"] == "GOD_SHORT" and report["score"] > 80:
-                    sl = close + (atr * 1.5)
-                    tp = close - (atr * 2.5)
+                elif report["bias"] == "GOD_SHORT" and report["score"] > 70:
+                    sl = close + (atr * 1.6)
+                    tp = close - (atr * 2.8)
                     position = {"entry": close, "type": "short", "sl": sl, "tp": tp, "time": timestamp}
             else:
                 pnl = 0
