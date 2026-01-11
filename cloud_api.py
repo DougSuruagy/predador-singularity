@@ -229,6 +229,7 @@ class NomadBrain:
         
         # 🧠 PATTERN MEMORY & GLOBAL CONSCIOUSNESS
         self.synaptic_cache = {}
+        self.psi_history = []           # [v26.6] Histórico de disparos neurais
         self.pulse_anchor = {"ETHUSDT": 0.0, "SOLUSDT": 0.0}
         self.global_consciousness = 0.5
         self.plasticity_index = 0.1
@@ -634,13 +635,27 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v26.5] Mais rigoroso: limiar aumentado para evitar overtrading
-        consensus_threshold = 0.25 if self.global_consciousness < 0.6 else 0.18
-        if resonance_align: consensus_threshold *= 0.8 
+        # [v26.6] Sniper Threshold: Mais difícil entrar se houver muita entropia
+        consensus_threshold = 0.28 if self.global_consciousness < 0.6 else 0.20
+        
+        # Filtro de Inércia [v26.6]: Evita entrar em picos isolados
+        self.psi_history.append(psi)
+        if len(self.psi_history) > 3: self.psi_history.pop(0)
+        avg_psi = sum(self.psi_history) / len(self.psi_history)
+        
+        # Só confirma se a média dos últimos disparos for na mesma direção
+        inertia_ok = (psi > 0 and avg_psi > 0) or (psi < 0 and avg_psi < 0)
         
         bias = "NEUTRAL"
-        if psi > consensus_threshold and is_correlated: bias = "GOD_LONG"
-        if psi < -consensus_threshold and is_correlated: bias = "GOD_SHORT"
+        if abs(psi) > consensus_threshold and is_correlated and inertia_ok:
+            # RSI Extremity Check para moedas voláteis no modo Range
+            high_vol = (vol_ratio > 0.008) # Ativos com > 0.8% de ATR/Preço
+            extreme_rsi = True
+            if market_regime == "RANGING" and high_vol:
+                extreme_rsi = (rsi > 75 or rsi < 25)
+            
+            if extreme_rsi:
+                bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
         
         # SINAPSE: Intensidade do disparo neural
         self.synaptic_firing = (abs(psi) * 100)
@@ -1691,10 +1706,16 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v26.5: Exige score > 50 (Menos trades, mais qualidade)
-                if report["bias"] != "NEUTRAL" and report["score"] > 50:
-                    sl = close - (atr * 1.8)
-                    tp = close + (atr * 3.5) # Take Profit expandido
+                # Gatilho v26.6: Dynamic ATR Stop Loss
+                if report["bias"] != "NEUTRAL" and report["score"] > 60:
+                    # Determina se precisa de mais espaço (Wick Shield)
+                    vol_mult = 2.4 if symbol in ["SOLUSDT", "PEPEUSDT"] else 1.8
+                    sl_dist = atr * vol_mult
+                    tp_dist = atr * 3.8
+                    
+                    sl = close - sl_dist if report["bias"] == "GOD_LONG" else close + sl_dist
+                    tp = close + tp_dist if report["bias"] == "GOD_LONG" else close - tp_dist
+                    
                     position = {"entry": close, "type": "long" if report["bias"] == "GOD_LONG" else "short", "sl": sl, "tp": tp, "time": timestamp}
             else:
                 pnl = 0
