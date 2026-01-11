@@ -635,13 +635,13 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v27.2] Sovereign-Alpha: Balanceamento ideal entre taxas e oportunidade
-        consensus_threshold = 0.35 if self.global_consciousness < 0.6 else 0.30
+        # [v27.3] Final Sniper: Calibração de precisão cirúrgica
+        consensus_threshold = 0.32 if self.global_consciousness < 0.6 else 0.26
         
-        # Filtro de Volatilidade Mínima: Proteção contra "Fee-Burn"
+        # Filtro de Volatilidade Mínima: Permite trades em moedas de 1m (v27.3)
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_check = (atr / price) > 0.0008 # 0.08% de oscilação mínima (v27.2)
+        vol_check = (atr / price) > 0.0004 # 0.04% de oscilação mínima
         
         # Filtro de Inércia [v26.6]
         self.psi_history.append(psi)
