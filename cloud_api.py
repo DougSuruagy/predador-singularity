@@ -176,6 +176,10 @@ class NomadBrain:
         self.last_trade_time = 0
         self.positions = {}  # {"BTCUSDT": {"side": "long", "entry": 50000, "tp": 50500, "sl": 49500}}
         
+        # 🧠 PATTERN MEMORY (Pattern Recognition v25.0)
+        self.synaptic_cache = {}        # { "pattern_hash": {"wins": 0, "losses": 0, "pnl": 0.0} }
+        self.pulse_anchor = {"ETHUSDT": 0.0, "SOLUSDT": 0.0}
+        
         # ⚡ CACHE DE SÍMBOLOS MONITORADOS
         self.monitored_symbols_cache = []
         self.refresh_monitored_symbols()
@@ -232,13 +236,19 @@ class NomadBrain:
             candidates.sort(key=lambda x: x[1], reverse=True)
             discovery = [c[0] for c in candidates[:10]]
             
-            # [PERFORMANCE-BOOST] Fetch BTC once for all symbols in this scan
-            # Se BTC já está nos monitored, podemos pegar do all_tickers
-            if 'BTCUSDT' in all_tickers:
-                btc_ticker = all_tickers['BTCUSDT']
+            # [PERFORMANCE-BOOST] Fetch Anchors once
+            anchors_to_fetch = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
+            anchor_tickers = await exchange.fetch_tickers(anchors_to_fetch)
+            
+            if 'BTCUSDT' in anchor_tickers:
+                btc_ticker = anchor_tickers['BTCUSDT']
                 self.btc_last_price = btc_ticker['last']
                 self.btc_momentum = btc_ticker.get('percentage', 0) / 100.0
                 self.btc_last_fetch = time.time()
+            
+            for a in self.pulse_anchor:
+                if a in anchor_tickers:
+                    self.pulse_anchor[a] = anchor_tickers[a].get('percentage', 0) / 100.0
             
             # Escaneamento Paralelo Bio-Sincronizado
             tasks = [self.fetch_god_intelligence(symbol, btc_provided=True) for symbol in discovery]
@@ -322,17 +332,22 @@ class NomadBrain:
             
             results = await asyncio.gather(*tasks)
             
-            if not btc_provided:
-                btc_ohlcv = results[0]
-                btc_closes = [c[4] for c in btc_ohlcv]
-                self.btc_momentum = (btc_closes[-1] - btc_closes[0]) / btc_closes[0]
-                self.btc_last_price = btc_closes[-1]
-            
-            # 📊 ATIVO ALVO
+            # 📊 ORDER FLOW IMBALANCE (OFI) - Lógica Institucional 2026
+            # OFI = (Bids Change - Asks Change)
+            # Como pegamos snapshot, calculamos o desbalanceamento real entre Bid/Ask Volume
             ob = results[1]
-            bids_vol = sum([b[1] for b in ob['bids']])
-            asks_vol = sum([a[1] for a in ob['asks']])
-            obp = (bids_vol - asks_vol) / (bids_vol + asks_vol) if (bids_vol + asks_vol) > 0 else 0
+            bids = ob['bids']
+            asks = ob['asks']
+            
+            # Peso maior para os primeiros níveis (mais liquidez imediata)
+            ofi_val = 0
+            for i in range(min(5, len(bids), len(asks))):
+                weight = 1.0 / (i + 1)
+                ofi_val += (bids[i][1] - asks[i][1]) * weight
+            
+            # Normalização OFI (-1 a 1)
+            total_vol = sum([b[1] for b in bids[:5]]) + sum([a[1] for a in asks[:5]])
+            ofi = ofi_val / total_vol if total_vol > 0 else 0
             
             ohlcv = results[2]
             ohlcv_5m = results[3]
@@ -412,10 +427,12 @@ class NomadBrain:
             
             return {
                 "obp": obp, 
+                "ofi": ofi,            # 💎 Institutional Flux
                 "kinetic": kinetic, 
                 "z_score": z_score, 
                 "symbol": symbol,
                 "btc_corr": self.btc_momentum,
+                "anchor_confirm": sum(self.pulse_anchor.values()) / len(self.pulse_anchor),
                 "price": closes[-1],
                 "rsi": rsi,
                 "trend_aligned": trend_aligned,
@@ -427,10 +444,10 @@ class NomadBrain:
                 "bearish_div": bearish_divergence,
                 "bullish_div": bullish_divergence,
                 "mtf_confluence": mtf_confluence,
-                "scalper_score": scalper_score,
+                "scalper_score": scalper_score + (ofi * 50), # Fluxo pesado aumenta score
                 # Dynamic SL/TP based on ATR
                 "suggested_sl": atr * 1.5,
-                "suggested_tp": atr * 2.5
+                "suggested_tp": atr * 2.8 # TP levemente mais longo para scalping agressivo
             }
             
         except Exception as e:
@@ -442,9 +459,16 @@ class NomadBrain:
             return None
 
     def analyze_infinity(self, state, intel=None):
-        # 🧠 LOBO OCCIPITAL (Visão de Fluxo)
+        # 🧠 LOBO OCCIPITAL (Visão de Fluxo + OFI)
         obp = intel["obp"] if intel else 0.0
-        occipital_signal = (obp * self.genes["occipital_weight"])
+        ofi = intel.get("ofi", 0.0)
+        
+        # Fluxo institucional tem peso dobrado
+        occipital_signal = (ofi * 0.7 + obp * 0.3) * self.genes["occipital_weight"]
+        
+        # 🔱 TRIPLE ANCHOR SYNC (BTC + ETH + SOL)
+        anchor_conf = intel.get("anchor_confirm", 0.0)
+        is_correlated = (state.btc_momentum > 0 and anchor_conf > 0) or (state.btc_momentum < 0 and anchor_conf < 0)
         
         # 🌀 DYNAMIC REGIME CORTEX (v23.0)
         # Analisa Volatilidade para decidir entre Trend Following ou Mean Reversion
@@ -717,6 +741,7 @@ class MarketState:
         self.prob: float = 75.0
         self.imb: float = 0.0
         self.obp: float = 0.0
+        self.ofi: float = 0.0           # 🟢 REAL-TIME OFI TELEMETRY
         self.kinetic: float = 0.0
         self.z_score: float = 0.0
         self.kelly: float = 0.15
@@ -734,12 +759,13 @@ class MarketState:
         self.rsi: float = 50.0
         self.trend_aligned: bool = True
         
-        # 🧬 BIOMETRICS (LIVING ORGANISM v21.1)
+        # 🧬 BIOMETRICS (LIVING ORGANISM v25.0)
         self.homeostasis: float = 100.0
         self.adrenaline: float = 0.0
         self.synaptic_firing: float = 0.0
         self.quantum_entropy: float = 0.0
         self.metabolism: float = 1.0
+        self.volatility_lock: bool = False # 🛡️ VOLATILITY SHIELD
         
         # Controle de Tempo
         self.last_update: float = time.time()
@@ -1542,7 +1568,21 @@ async def autonomous_hunter_loop():
                 state.kinetic = report["physics"]
                 state.z_score = report["z_score"]
                 state.obp = report["obp"]
+                state.ofi = intel.get("ofi", 0.0) # Sincroniza OFI Institucional
                 state.entropy = report["entropy"]
+                
+                # 🛡️ VOLATILITY SHIELD: Se o ATR explodir, trava por segurança
+                atr = intel.get("atr", 0)
+                price = intel.get("price", 1)
+                atr_percent = (atr / price) * 100
+                if atr_percent > 2.5: # Volatilidade extrema detectada
+                    if not state.volatility_lock:
+                        print(f"🚨 [VOLATILITY-SHIELD] ATR: {atr_percent:.2f}% | Trava de Segurança Ativada.")
+                    state.volatility_lock = True
+                    state.regime = "VOLATILE_SAFETY"
+                else:
+                    state.volatility_lock = False
+
                 state.btc_momentum = report["btc_momentum"]
                 state.is_correlated = report["correlation"]
                 state.confidence = report["score"]
@@ -1578,8 +1618,11 @@ async def autonomous_hunter_loop():
                     # Cria payload
                     if not hasattr(brain, 'active_positions'): brain.active_positions = set()
                     
-                    # 🛡️ POSITION GUARD: Evita duplicidade no mesmo ativo
+                    # 🛡️ POSITION GUARD & SAFETY LOCKS
                     if symbol in brain.active_positions:
+                        continue
+                    
+                    if state.volatility_lock or state.is_locked:
                         continue
 
                     payload = WebhookPayload(
@@ -1614,6 +1657,13 @@ async def autonomous_hunter_loop():
                                 }
                             }).execute()
                             print(f"💾 [SUPABASE] Trade registrado: {action} {symbol} | Scalper Score: {intel.get('scalper_score', 0):.1f}")
+                            
+                            # 🧠 REGISTRO NO EVENT LOG NEURAL (Dashboard)
+                            await log_event_to_db("NEURAL", "HUNTER", f"Oportunidade {action} {symbol} Executada", {
+                                "score": report["score"],
+                                "ofi": intel.get("ofi", 0),
+                                "kinetic": intel.get("kinetic", 0)
+                            })
                         except Exception as db_err:
                             print(f"⚠️ [DB-TRADE-ERROR] {db_err}")
             
@@ -1643,9 +1693,11 @@ async def bybit_pnl_sync_loop():
     while True:
         try:
             if exchange.apiKey:
-                # Busca pnl fechado nos últimos 15 minutos
-                # Usamos check de atributo para evitar crash em versões antigas/instáveis do CCXT
-                since = int((time.time() - 900) * 1000)
+                # Busca pnl fechado desde a última checagem ou últimos 15 min
+                if not hasattr(brain, 'last_pnl_sync_time'): 
+                    brain.last_pnl_sync_time = int((time.time() - 900) * 1000)
+                
+                since = brain.last_pnl_sync_time
                 closed_pnl = []
                 
                 # 🛡️ AUTH GUARD: Se a chave falhou no boot, não bombardeia a API
@@ -1657,6 +1709,9 @@ async def bybit_pnl_sync_loop():
                     closed_pnl = await exchange.fetch_closed_pnl(since=since)
                 elif hasattr(exchange, 'fetchClosedPnl'):
                     closed_pnl = await exchange.fetchClosedPnl(since=since)
+                
+                # Atualiza o ponteiro de tempo para a próxima execução
+                brain.last_pnl_sync_time = int(time.time() * 1000)
                 
                 if closed_pnl:
                     for trade in closed_pnl:
