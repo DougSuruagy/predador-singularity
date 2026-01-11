@@ -1870,22 +1870,22 @@ async def run_backtest(data: dict):
 # ============================================================
 def get_asset_config(symbol):
     """
-    [v45.0] ADAPTIVE STRIKE: Otimização de Qualidade e Robustez.
-    SL mais largo (2.0x) para evitar ruído, TP (6.0x) para RRR 3:1.
-    Filtro de Score (60) mais rigoroso para trades de alta probabilidade.
+    [v46.0] ETH STANDARD PROTOCOL: Scalping Ágil de Alta Frequência.
+    Foco em movimentos rápidos (1.5x/3.0x) para reduzir exposição.
+    Score 50 para capturar micro-tendências.
     """
     is_sol = "SOL" in symbol or "PEPE" in symbol
     is_major = "BTC" in symbol or "ETH" in symbol
     
-    # Thresholds Mais Rigorosos (Qualidade > Quantidade)
-    threshold = 0.32 if is_sol else 0.24
+    # Thresholds Universais (Simplicidade = Robustez)
+    threshold = 0.22
     
-    # RRR 3:1 Estrutural (2.0x / 6.0x)
+    # Scalping Rápido (RRR 2:1)
     return {
         "threshold": threshold,
-        "sl_mult": 2.0, # Mais espaço para o trade respirar
-        "tp_mult": 6.0, # Alvo longo mantendo RRR 3:1
-        "min_score": 60, # Apenas sinais fortes (A-Class)
+        "sl_mult": 1.5, # Stop curto
+        "tp_mult": 3.0, # Alvo rápido
+        "min_score": 50, # Alta sensibilidade
         "leverage": 10 if is_major else 5
     }
 
