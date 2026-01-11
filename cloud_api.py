@@ -1754,11 +1754,11 @@ async def bybit_pnl_sync_loop():
                         # Verifica se já registramos esse trade no estado local para evitar duplicidade
                         if not hasattr(brain, 'synced_trades'): brain.synced_trades = set()
                         
+                        if trade_id not in brain.synced_trades:
                             # 🧠 EVOLUÇÃO NEURAL: O cérebro aprende com o resultado Real
                             result = "WIN" if pnl > 0 else "LOSS"
                             brain.record_trade_result(result, pnl, symbol)
                             
-                            if not hasattr(brain, 'synced_trades'): brain.synced_trades = set()
                             brain.synced_trades.add(trade_id)
                             
                             # Atualiza Estado Local
@@ -1772,7 +1772,6 @@ async def bybit_pnl_sync_loop():
                             state.daily_pnl += pnl
                             state.pnl += pnl
                             state.trades += 1
-                            brain.synced_trades.add(trade_id)
                             
                             # Limpa cache antigo (> 100 itens)
                             if len(brain.synced_trades) > 100:
