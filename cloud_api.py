@@ -169,13 +169,13 @@ def get_supreme_config(symbol, is_trending):
     }
 
 def get_sniper_config(symbol, is_trending):
-    """ [SOL] SNIPER SINGULARITY """
+    """ [SOL] SNIPER SINGULARITY - OTIMIZADO 7x """
     return {
         "threshold": 0.30 + 0.05,
         "min_score": 55,
-        "sl_mult": 1.8 if is_trending else 1.2, # Proteção extra em lateral
-        "tp_mult": 5.5 if is_trending else 2.5, # Captura lucro rápido se sem tendência
-        "leverage": 10
+        "sl_mult": 1.8 if is_trending else 1.2,
+        "tp_mult": 5.5 if is_trending else 2.5,
+        "leverage": 7 # Ajuste Fino para redução de impacto de taxas
     }
 
 async def autonomous_hunter_loop():
@@ -323,11 +323,13 @@ async def run_backtest(payload: WebhookPayload):
                     if f[3] <= entry - tp_dist: pnl = config["tp_mult"] * (atr/entry) * 100; break
                     if f[2] >= entry + sl_dist: pnl = -config["sl_mult"] * (atr/entry) * 100; break
             
-            pnl -= 0.06
-            if pnl != -0.06:
-                sim["pnl"] += pnl
+            # Taxa realista Bybit Taker (0.06% x 2 = 0.12%)
+            fee = 0.12
+            if pnl != 0:
+                pnl_leveraged = (pnl - fee) * config["leverage"]
+                sim["pnl"] += pnl_leveraged
                 sim["trades"] += 1
                 if pnl > 0: sim["wins"] += 1
-                i += 10 # Pula candles
+                i += 10 # Pula candles para evitar redundância
 
     return {"symbol": symbol, "total_pnl_percent": round(sim["pnl"], 2), "total_trades": sim["trades"]}
