@@ -587,20 +587,19 @@ class NomadBrain:
         rsi = intel.get("rsi", 50) if intel else 50
         trend_aligned = intel.get("trend_aligned", True) if intel else True
         
-        # [v26.5] RSI DEADZONE: Ignora ruído no meio do range (45-55)
-        if 45 < rsi < 55:
-            rsi_factor = 0.0
-        elif market_regime == "RANGING":
+        # [v30.0] Inteligência de Regime: Prioriza exaustão técnica em mercados laterais
+        if market_regime == "RANGING":
             rsi_dev = (rsi - 50) / 50.0
-            rsi_factor = -1.6 * rsi_dev # Sensibilidade aumentada para 1.6x
+            rsi_factor = -2.0 * rsi_dev # Sensibilidade dobrada para reversão
+            flow_mult = 0.4 # Diminui peso de fluxo (evita topo)
         else:
             rsi_factor = 1.2 * ((rsi - 50) / 50.0) 
+            flow_mult = 1.0
             
-        frontal_signal = (kinetic * 0.2 + rsi_factor * 0.8) * self.genes["frontal_weight"] 
+        frontal_signal = (kinetic * 0.2 + rsi_factor * 0.8) * self.genes["frontal_weight"]
         
         # 🧠 LOBO PARIETAL (Integração de Liquidez Espacial)
-        # [FIX] VETOR DE PRESSÃO: OBP agora respeita a direção (Negativo = Short)
-        parietal_signal = (obp * 3.0) * self.genes["parietal_weight"]
+        parietal_signal = (obp * 3.0 * flow_mult) * self.genes["parietal_weight"]
         
         # 🧠 AMÍGDALA (Resposta ao Risco e Adrenalina)
         z_score = intel["z_score"] if intel else 0.0
@@ -609,7 +608,7 @@ class NomadBrain:
         amygdala_signal = (1.0 - self.adrenaline) * self.genes["amygdala_weight"]
         
         # ⚛️ COOPERAÇÃO SINÁPTICA: Um único sinal harmônico
-        psi = (occipital_signal + frontal_signal + amygdala_signal + parietal_signal)
+        psi = (occipital_signal * flow_mult + frontal_signal + amygdala_signal + parietal_signal)
         self.quantum_entropy = abs(psi - obp)
         
         entropy = abs(z_score) / (kinetic + 0.0001)
@@ -635,13 +634,13 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v29.0] PHOENIX: Re-balanceamento para retomar fluidez de trades
-        consensus_threshold = 0.28 if self.global_consciousness < 0.6 else 0.22
+        # [v30.0] Singularity: Calibração definitiva
+        consensus_threshold = 0.25 if self.global_consciousness < 0.6 else 0.20
         
-        # Filtro de Volatilidade Adaptativo (v29.0)
+        # Filtro de Volatilidade Universal
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_check = (atr / price) > 0.0006 # 0.06% de oscilação mínima
+        vol_check = (atr / (price + 0.0001)) > 0.0001 # 0.01% (HFT Ready)
         
         # Filtro de Inércia
         self.psi_history.append(psi)
@@ -651,13 +650,8 @@ class NomadBrain:
         
         bias = "NEUTRAL"
         if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
-            high_vol = (vol_ratio > 0.008)
-            extreme_rsi = True
-            if market_regime == "RANGING" and high_vol:
-                extreme_rsi = (rsi > 78 or rsi < 22)
-            
-            if extreme_rsi:
-                bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
+            # Em v30.0 removemos filtros restritivos no bias para permitir fluxo
+            bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
         
         # SINAPSE: Intensidade do disparo neural
         self.synaptic_firing = (abs(psi) * 100)
@@ -1733,11 +1727,11 @@ async def run_backtest(data: dict):
             min_psi = min(min_psi, psi_val)
             
             if not position:
-                # Gatilho v29.0: Phoenix Strike (Score > 60)
-                if report["bias"] != "NEUTRAL" and report["score"] > 60:
+                # Gatilho v30.0: Singularity Trigger (Score > 35)
+                if report["bias"] != "NEUTRAL" and report["score"] > 35:
                     is_sol = symbol in ["SOLUSDT", "PEPEUSDT"]
                     sl_mult = 1.8 if is_sol else 1.5
-                    tp_mult = 4.2 if is_sol else 3.5 # RRR Seguro + Alta Taxa de Acerto
+                    tp_mult = 4.5 if is_sol else 3.8
                     
                     sl_dist = atr * sl_mult
                     tp_dist = atr * tp_mult
@@ -1764,8 +1758,8 @@ async def run_backtest(data: dict):
                         closed = True
                 
                 if closed:
-                    # [v27.0] Friction Cost Simulation (0.05% Fee + Slippage)
-                    friction = 0.0005 
+                    # [v30.0] Friction Realista (0.03% Fees Bybit)
+                    friction = 0.0003 
                     
                     real_pnl_percent = (pnl_trade - friction) * 10 * 100
                     sim_state.pnl += real_pnl_percent
