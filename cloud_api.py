@@ -59,6 +59,8 @@ class EngineState:
         # 🛡️ TRAVAS DE SEGURANÇA
         self.MAX_DAILY_LOSS = -2.0 # %
         self.MAX_DAILY_PROFIT = 5.0 # %
+        self.last_trade_time = time.time()
+        self.idle_hours = 0.0
 
     def get_bio_metrics(self):
         # Dopamina: Alta se o winrate ou trades estiverem bons
@@ -85,14 +87,14 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "110.0-CYBER-KING",
+            "version": "130.0-EVER-ALIVE",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
             "wins": self.wins,
             "win_rate": round(win_rate, 2),
             "mode": self.mode,
-            "regime": "KING-ACTIVE" if not is_locked else "LOCKED",
+            "regime": "ALIVE-HUNTING" if not is_locked else "LOCKED",
             "price": self.last_price,
             "prob": self.last_score,
             "confidence": self.last_score,
@@ -141,12 +143,19 @@ class NomadBrain:
 
         is_compressed = bb_width < 0.70 or entropy > 0.60
         
+        # 🔗 Divergence Check (Internal proxy)
+        # Se o preço atual está acima da MA20 mas RSI está caindo, temos divergência
+        divergence = False
+        if closes[-1] > ma20 and rsi < 45: divergence = True
+        elif closes[-1] < ma20 and rsi > 55: divergence = True
+
         return {
             "rsi": rsi, "psi": psi, "velocity": velocity, 
             "bb_width": bb_width, "entropy": entropy, 
             "vol_shock": vol_shock, "is_compressed": is_compressed,
             "touch_low": touch_low, "touch_high": touch_high,
             "trend_strong": bb_width > 0.9 and entropy < 0.4,
+            "divergence": divergence,
             "price": closes[-1], "atr": (max(highs[-1]-lows[-1], abs(highs[-1]-closes[-2])) if len(highs)>1 else 0.001)
         }
 
@@ -286,22 +295,32 @@ async def run_strategy(symbol, mode):
         intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
         if not intel: return
         
-        # Filtro de Rentabilidade Local
-        if intel["is_compressed"] and (intel["bb_width"] / 4) < 0.18: return
+        # 🕒 ADAPTIVE HUNTER v130.0 (Auto-Relax Filter if Idle)
+        idle_time = (time.time() - engine_state.last_trade_time) / 3600 # horas
+        relax_factor = 1.0 - min(0.3, idle_time / 12) # Relaxa até 30% em 12 horas
+        
+        min_vol_shock = 1.1 * relax_factor
+        min_rsi_low = 40 / relax_factor # Aumenta a zona de caça
+        min_rsi_high = 60 * relax_factor
         
         if intel["is_compressed"]:
             candle_size = ohlcv[-1][2] - ohlcv[-1][3]
-            rejection_low = ohlcv[-1][4] > ohlcv[-1][3] + (candle_size * 0.4) if candle_size > 0 else False
-            rejection_high = ohlcv[-1][4] < ohlcv[-1][2] - (candle_size * 0.4) if candle_size > 0 else False
+            rejection_low = ohlcv[-1][4] > ohlcv[-1][3] + (candle_size * 0.3) if candle_size > 0 else False
+            rejection_high = ohlcv[-1][4] < ohlcv[-1][2] - (candle_size * 0.3) if candle_size > 0 else False
             
-            if intel["touch_low"] and rejection_low and intel["rsi"] < 40 and intel["vol_shock"] > 1.1: bias = "GOD_LONG"; score = 95
-            elif intel["touch_high"] and rejection_high and intel["rsi"] > 60 and intel["vol_shock"] > 1.1: bias = "GOD_SHORT"; score = 95
+            if intel["touch_low"] and rejection_low and intel["rsi"] < min_rsi_low and intel["vol_shock"] > min_vol_shock: 
+                bias = "GOD_LONG"; score = 95
+            elif intel["touch_high"] and rejection_high and intel["rsi"] > min_rsi_high and intel["vol_shock"] > min_vol_shock: 
+                bias = "GOD_SHORT"; score = 95
         else:
-            if abs(intel["psi"]) > 0.15:
+            if abs(intel["psi"]) > (0.15 * relax_factor):
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
                 score = 80 + (abs(intel["psi"]) * 10)
         
-        decision = "EXECUTE" if score >= 90 else "REJECT"
+        # Filtro de Divergência para evitar fakeouts
+        if intel["divergence"]: score -= 15
+
+        decision = "EXECUTE" if score >= 85 else "REJECT"
 
     engine_state.last_score = score
     
@@ -378,24 +397,27 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v120.0 "PREDATOR SOUL"
+        # 🧬 NEURAL SIMULATION v130.0 "EVER-ALIVE"
+        # Relaxamento adaptativo simulado por janela de tempo
+        relax_factor = 1.0 - min(0.3, (i / len(ohlcv)) * 0.5) 
+        
         if intel["is_compressed"]:
-            if (intel["bb_width"] / 4) < 0.18: i += 1; continue # Ignora poeira
-            
             candle_size = ohlcv[i][2] - ohlcv[i][3]
-            rejection_low = ohlcv[i][4] > ohlcv[i][3] + (candle_size * 0.4) if candle_size > 0 else False
-            rejection_high = ohlcv[i][4] < ohlcv[i][2] - (candle_size * 0.4) if candle_size > 0 else False
+            rejection_low = ohlcv[i][4] > ohlcv[i][3] + (candle_size * 0.3) if candle_size > 0 else False
+            rejection_high = ohlcv[i][4] < ohlcv[i][2] - (candle_size * 0.3) if candle_size > 0 else False
             
-            if intel["touch_low"] and rejection_low and intel["rsi"] < 40 and intel["vol_shock"] > 1.1: 
+            if intel["touch_low"] and rejection_low and intel["rsi"] < (45/relax_factor) and intel["vol_shock"] > (1.0*relax_factor): 
                 bias = "GOD_LONG"; score = 95
-            elif intel["touch_high"] and rejection_high and intel["rsi"] > 60 and intel["vol_shock"] > 1.1: 
+            elif intel["touch_high"] and rejection_high and intel["rsi"] > (55*relax_factor) and intel["vol_shock"] > (1.0*relax_factor): 
                 bias = "GOD_SHORT"; score = 95
         else:
-            if abs(intel["psi"]) > 0.15:
+            if abs(intel["psi"]) > (0.12 * relax_factor):
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
                 score = 80 + (abs(intel["psi"]) * 10)
+        
+        if intel["divergence"]: score -= 15
             
-        if score >= 90:
+        if score >= 85:
             config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
             entry = ohlcv[i][4]
             atr = intel["atr"]

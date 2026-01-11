@@ -50,12 +50,18 @@ class NomadBrain:
 
         is_compressed = bb_width < 0.70 or entropy > 0.60
         
+        # 🔗 Divergence Check
+        divergence = False
+        if closes[-1] > ma20 and rsi < 45: divergence = True
+        elif closes[-1] < ma20 and rsi > 55: divergence = True
+
         return {
             "rsi": rsi, "psi": psi, "velocity": velocity, 
             "bb_width": bb_width, "entropy": entropy, 
             "vol_shock": vol_shock, "is_compressed": is_compressed,
             "touch_low": touch_low, "touch_high": touch_high,
             "trend_strong": bb_width > 0.9 and entropy < 0.4,
+            "divergence": divergence,
             "price": closes[-1]
         }
 
@@ -96,28 +102,27 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v120.0 "PREDATOR SOUL"
+    # 🧬 MASTER LOGIC v130.0 "SOVEREIGN KING"
     if intel["is_compressed"]:
-        # Filtro de Rentabilidade: ATR deve ser suficiente para cobrir taxas (0.12% round trip)
-        expected_move_pct = (intel["bb_width"] / 4) # Estimativa simples
-        if expected_move_pct < 0.20:
-             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Profitability Zone"}
-
         # Spring/Upthrust Detection
         candle_size = highs[-1] - lows[-1]
-        rejection_low = closes[-1] > lows[-1] + (candle_size * 0.4) if candle_size > 0 else False
-        rejection_high = closes[-1] < highs[-1] - (candle_size * 0.4) if candle_size > 0 else False
+        rejection_low = closes[-1] > lows[-1] + (candle_size * 0.3) if candle_size > 0 else False
+        rejection_high = closes[-1] < highs[-1] - (candle_size * 0.3) if candle_size > 0 else False
         
-        if intel["touch_low"] and rejection_low and intel["rsi"] < 40 and intel["vol_shock"] > 1.1: 
+        # Sensibilidade Adaptativa (Relaxamento controlado via RSI)
+        if intel["touch_low"] and rejection_low and intel["rsi"] < 45 and intel["vol_shock"] > 1.1: 
             bias = "GOD_LONG"; score = 98
-        elif intel["touch_high"] and rejection_high and intel["rsi"] > 60 and intel["vol_shock"] > 1.1: 
+        elif intel["touch_high"] and rejection_high and intel["rsi"] > 55 and intel["vol_shock"] > 1.1: 
             bias = "GOD_SHORT"; score = 98
     else:
-        if abs(intel["psi"]) > 0.15:
+        if abs(intel["psi"]) > 0.12: # Threshold reduzido para manter atividade
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 80 + (abs(intel["psi"]) * 10)
             
-    decision = "EXECUTE" if score >= 90 else "REJECT"
+    # Filtro Final de Segurança: Divergência anula o score
+    if intel["divergence"]: score -= 15
+            
+    decision = "EXECUTE" if score >= 85 else "REJECT"
 
     return {
         "bias": bias,

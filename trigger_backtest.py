@@ -46,7 +46,7 @@ if __name__ == "__main__":
     
     # Print summary
     print("\n" + "="*70)
-    print("RESUMO DO BACKTEST v110.0 CYBER-KING")
+    print("RESUMO DO BACKTEST v130.0 EVER-ALIVE")
     print("="*70)
     
     total_pnl = 0
