@@ -95,8 +95,9 @@ function initDOM() {
     DOM.pnlValue = document.querySelector('.stats-grid .stat-box:nth-child(1) h3');
     DOM.winRate = document.querySelector('.stat-box:nth-child(2) h3');
     DOM.tradesCount = document.querySelector('.stat-box:nth-child(3) h3');
-    DOM.flowBar = document.getElementById('flow-bar');
+    DOM.ofiBar = document.getElementById('ofi-bar');
     DOM.statusPill = document.querySelector('.status-pill');
+    DOM.levVal = document.getElementById('lev-val');
     DOM.feedLog = document.getElementById('feed');
     DOM.regimeLabel = document.querySelector('.regime-label');
     DOM.assetSymbol = document.getElementById('asset-symbol');
@@ -271,12 +272,19 @@ function updateUI(data) {
         DOM.tradesCount.innerText = data.trades || 0;
     }
 
-    // Flow Bar
-    if (DOM.flowBar) {
-        const obp = data.obp || 0; // Usar OBP real para o fluxo
-        const width = Math.max(5, Math.min(95, 50 + (obp * 50)));
-        DOM.flowBar.style.width = `${width}%`;
-        DOM.flowBar.style.background = obp > 0 ? 'var(--neon-green)' : 'var(--neon-pink)';
+    // Institutional OFI Bar
+    if (DOM.ofiBar) {
+        const ofi = data.ofi || 0;
+        const width = Math.max(5, Math.min(95, 50 + (ofi * 50)));
+        DOM.ofiBar.style.width = `${width}%`;
+        DOM.ofiBar.style.background = ofi > 0 ? 'var(--neon-green)' : 'var(--neon-pink)';
+        DOM.ofiBar.style.boxShadow = ofi > 0 ? '0 0 15px var(--neon-green)' : '0 0 15px var(--neon-pink)';
+    }
+
+    if (DOM.levVal) {
+        // Alavancagem aproximada ou vinda do backend
+        const lev = data.metadata?.leverage || (data.homeostasis > 80 ? 20 : 10);
+        DOM.levVal.innerText = `${lev}x`;
     }
 
     if (DOM.inertiaVal) {
