@@ -635,13 +635,13 @@ class NomadBrain:
         resonance_align = (psi > 0 and resonance > 0.1) or (psi < 0 and resonance < -0.1)
         
         # 🔱 GLOBAL CONSCIOUSNESS FILTER
-        # [v27.1] Anti-Friction: Threshold aumentado para 0.35 para garantir trades de alta qualidade
-        consensus_threshold = 0.40 if self.global_consciousness < 0.6 else 0.35
+        # [v27.2] Sovereign-Alpha: Balanceamento ideal entre taxas e oportunidade
+        consensus_threshold = 0.35 if self.global_consciousness < 0.6 else 0.30
         
-        # Filtro de Volatilidade Mínima: Evita operar em "telas paradas" (Taxa > Lucro)
+        # Filtro de Volatilidade Mínima: Proteção contra "Fee-Burn"
         atr = intel.get("atr", 0.0)
         price = intel.get("price", 1.0)
-        vol_check = (atr / price) > 0.0012 # Exige pelo menos 0.12% de oscilação
+        vol_check = (atr / price) > 0.0008 # 0.08% de oscilação mínima (v27.2)
         
         # Filtro de Inércia [v26.6]
         self.psi_history.append(psi)
@@ -651,10 +651,11 @@ class NomadBrain:
         
         bias = "NEUTRAL"
         if abs(psi) > consensus_threshold and is_correlated and inertia_ok and vol_check:
+            # Filtro Sniper
             high_vol = (vol_ratio > 0.008)
             extreme_rsi = True
             if market_regime == "RANGING" and high_vol:
-                extreme_rsi = (rsi > 78 or rsi < 22) # Mais rigoroso no SOL
+                extreme_rsi = (rsi > 78 or rsi < 22)
             
             if extreme_rsi:
                 bias = "GOD_LONG" if psi > 0 else "GOD_SHORT"
@@ -1837,7 +1838,7 @@ async def run_backtest(data: dict):
                 "avg_loss": round(avg_loss, 2)
             },
             "history": history[-10:],
-            "debug": {"max_psi": round(max_psi, 4), "min_psi": round(min_psi, 0)}
+            "debug": {"max_psi": round(max_psi, 4), "min_psi": round(min_psi, 4)}
         }
     except Exception as e:
         print(f"❌ [BACKTEST-ERROR] {e}")
