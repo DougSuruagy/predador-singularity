@@ -71,6 +71,8 @@ class EngineState:
         self.MAX_DAILY_PROFIT = 5.0 # %
         self.last_trade_time = time.time()
         self.idle_hours = 0.0
+        self.current_balance = 0.0
+        self.MIN_CAPITAL = 20.0
 
     def get_bio_metrics(self):
         # Dopamina: Alta se o winrate ou trades estiverem bons
@@ -119,7 +121,9 @@ class EngineState:
             "trade_log": self.trade_log[-8:] if self.trade_log else [],
             "kill_switch_active": is_locked,
             "apex_mode": self.daily_pnl > 1.0,
-            "executive_efficiency": 98.4 if self.trades > 0 else 100.0
+            "executive_efficiency": 98.4 if self.trades > 0 else 100.0,
+            "balance": round(self.current_balance, 2),
+            "waiting_for_funds": self.current_balance < self.MIN_CAPITAL
         }
     
     async def sync_status_to_supabase(self):
@@ -365,8 +369,20 @@ async def autonomous_hunter_loop():
     print("🦅 PREDADOR SUPREMO & 🦖 SNIPER JUNIOR ATIVOS.")
     while True:
         try:
-            await asyncio.sleep(1) # HFT Speed (Era 4s)
+            await asyncio.sleep(1) # HFT Speed
             
+            # 💵 SYNC BALANCE (Check Fuel)
+            try:
+                bal = await exchange.fetch_balance()
+                engine_state.current_balance = bal.get('USDT', {}).get('free', 0.0)
+            except: 
+                pass
+
+            if engine_state.current_balance < engine_state.MIN_CAPITAL:
+                if int(time.time()) % 10 == 0: # Log a cada 10 ciclos para não spammar
+                    print(f"⏳ [WAITING FOR FUNDS] Saldo: ${engine_state.current_balance:.2f} | Requerido: ${engine_state.MIN_CAPITAL:.2f}")
+                continue
+
             # 🛡️ CHECK KILL SWITCH (Homeostase)
             stats = engine_state.get_stats()
             if stats["kill_switch_active"]:
@@ -520,9 +536,8 @@ async def run_strategy(symbol, mode):
         if exchange.apiKey:
             try:
                 # 💵 DYNAMIC POSITION SIZING (v110.0)
-                # Aloca ~5% do capital livre por trade ajustado pela alavancagem
-                bal = await exchange.fetch_balance()
-                free_usd = bal.get('USDT', {}).get('free', 100) # Fallback 100 USD
+                # Aloca ~5% do capital real livre por trade ajustado pela alavancagem
+                free_usd = engine_state.current_balance
                 
                 # Qty = (Capital * Alavancagem) / Preço
                 qty = (free_usd * 0.05 * config["leverage"]) / price
