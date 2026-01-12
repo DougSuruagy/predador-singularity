@@ -206,7 +206,7 @@ exchange = ccxt.bybit({'apiKey': os.environ.get('BYBIT_API_KEY'), 'secret': os.e
 
 @app.on_event("startup")
 async def startup_event():
-    print("🔋 [v57.0 BIO-SAFETY] NEURAL CORE INICIADO.")
+    print("🔋 [v370.0 SINGULARITY-INFINITY] NEURAL CORE INICIADO.")
     print(f"🛡️ Homeostase: Loss Limit {engine_state.MAX_DAILY_LOSS}% | Profit Limit {engine_state.MAX_DAILY_PROFIT}%")
     asyncio.create_task(exchange.load_markets())
     asyncio.create_task(autonomous_hunter_loop())
@@ -218,7 +218,7 @@ async def get_state(x_token: str = Header(None)):
 
 @app.get("/health")
 async def health():
-    return {"status": "alive", "version": "340.0-VALHALLA"}
+    return {"status": "alive", "version": "370.0-SINGULARITY"}
 
 @app.get("/")
 async def root():
