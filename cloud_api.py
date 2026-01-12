@@ -507,7 +507,7 @@ async def run_strategy(symbol, mode):
         if oversold and points >= 80: bias = "GOD_LONG"
         elif overbought and points >= 80: bias = "GOD_SHORT"
 
-    decision = "EXECUTE" if points >= 85 else "REJECT"
+    decision = "EXECUTE" if points >= 75 else "REJECT"
     
     # 🛡️ ENTROPY SHIELD CALCULATOR
     entropy = intel.get("entropy", 0.5)
@@ -677,7 +677,7 @@ async def run_backtest(payload: WebhookPayload):
             if oversold and points >= 80: bias = "GOD_LONG"
             elif overbought and points >= 80: bias = "GOD_SHORT"
         
-        if points >= 85 and entropy <= 0.85:
+        if points >= 75 and entropy <= 0.85:
             is_sol_backtest = "SOL" in symbol.upper()
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
