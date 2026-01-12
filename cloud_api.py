@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "310.0-SUPREME-ADAPTIVE",
+            "version": "320.0-SUPREME-SHIELD",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -325,7 +325,7 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🕒 LEGEND ADAPTIVE v310.0 (v220 Hybrid)
+    # 🕒 TREND SHIELD v320.0
     is_sol = "SOL" in symbol.upper()
     is_eth = "ETH" in symbol.upper()
     
@@ -334,25 +334,25 @@ async def run_strategy(symbol, mode):
     body_ratio = abs(o - c) / max(0.0001, h - l)
 
     if intel["is_compressed"]:
-        min_w = 0.85 if is_sol else (0.40 if is_eth else 0.30)
+        min_w = 1.05 if is_sol else (0.45 if is_eth else 0.35)
         if intel["bb_width"] < min_w: return
         
-        # Triggers v220 Adaptive
-        lo_rsi = 25 if is_sol else 30
-        hi_rsi = 75 if is_sol else 70
-        
-        oversold = (intel["rsi"] < lo_rsi) and (body_ratio < 0.70)
-        overbought = (intel["rsi"] > hi_rsi) and (body_ratio < 0.70)
-        min_z = 2.5 if is_sol else 2.2
+        # Triggers with Trend Shield
+        oversold = intel["rsi"] < 32 and body_ratio < 0.55 and intel["trend_up"]
+        overbought = intel["rsi"] > 68 and body_ratio < 0.55 and not intel["trend_up"]
+        min_z = 3.2 if is_sol else 2.5
         strong_push = intel["z_vol"] > min_z
 
         if strong_push:
             if oversold: bias = "GOD_LONG"; score = 96
             elif overbought: bias = "GOD_SHORT"; score = 96
     else:
-        if abs(intel["psi"]) > 0.40 and intel["z_vol"] > 3.0:
-            bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 92
+        if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 3.5:
+            bias = "GOD_LONG" if intel["psi"] > 0 and intel["trend_up"] else "GOD_SHORT"
+            if (bias == "GOD_SHORT" and intel["trend_up"]) or (bias == "GOD_LONG" and not intel["trend_up"]):
+                score = 0
+            else:
+                score = 92
     
     if intel["divergence"]: score = 0 
 
@@ -433,30 +433,30 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v310.0 "ADAPTIVE"
+        # 🧬 NEURAL SIMULATION v320.0 "TREND-SHIELD"
         is_sol = "SOL" in symbol.upper()
         o, h, l, c = ohlcv[i][1], ohlcv[i][2], ohlcv[i][3], ohlcv[i][4]
         body_ratio = abs(o - c) / max(0.0001, h - l)
 
         if intel["is_compressed"]:
-            min_w = 0.85 if is_sol else (0.40 if "ETH" in symbol else 0.30)
+            min_w = 1.05 if is_sol else (0.45 if "ETH" in symbol else 0.35)
             if intel["bb_width"] < min_w: i += 1; continue
             
-            lo_rsi = 25 if is_sol else 30
-            hi_rsi = 75 if is_sol else 70
-            
-            oversold = (intel["rsi"] < lo_rsi) and (body_ratio < 0.70)
-            overbought = (intel["rsi"] > hi_rsi) and (body_ratio < 0.70)
-            min_z = 2.5 if is_sol else 2.2
+            oversold = intel["rsi"] < 32 and body_ratio < 0.55 and intel["trend_up"]
+            overbought = intel["rsi"] > 68 and body_ratio < 0.55 and not intel["trend_up"]
+            min_z = 3.2 if is_sol else 2.5
             strong_push = intel["z_vol"] > min_z
 
             if strong_push:
                 if oversold: bias = "GOD_LONG"; score = 96
                 elif overbought: bias = "GOD_SHORT"; score = 96
         else:
-            if abs(intel["psi"]) > 0.40 and intel["z_vol"] > 3.0:
-                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 92
+            if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 3.5:
+                bias = "GOD_LONG" if intel["psi"] > 0 and intel["trend_up"] else "GOD_SHORT"
+                if (bias == "GOD_SHORT" and intel["trend_up"]) or (bias == "GOD_LONG" and not intel["trend_up"]):
+                    score = 0
+                else:
+                    score = 92
         
         if intel["divergence"]: score = 0
             
