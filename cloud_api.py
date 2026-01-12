@@ -121,6 +121,24 @@ class EngineState:
             "apex_mode": self.daily_pnl > 1.0,
             "executive_efficiency": 98.4 if self.trades > 0 else 100.0
         }
+    
+    async def sync_status_to_supabase(self):
+        """ Sincroniza o estado atual do motor com o banco de dados """
+        try:
+            status_data = {
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "version": "371.1",
+                "pnl": round(self.daily_pnl, 2),
+                "trades": self.trades,
+                "win_rate": round((self.wins / max(1, self.trades)) * 100, 2),
+                "entropy": round(self.last_entropy, 2),
+                "shield": self.shield_status,
+                "status": "ONLINE" if self.is_healthy else "ERROR"
+            }
+            supabase.table("system_status").upsert(status_data, on_conflict="version").execute()
+            print(f"📡 [SUPABASE] Health Sync realizado com sucesso.")
+        except Exception as e:
+            print(f"⚠️ [SUPABASE FAIL] Erro no sync de status: {e}")
 
 engine_state = EngineState()
 
@@ -223,19 +241,24 @@ async def startup_event():
     asyncio.create_task(exchange.load_markets())
     asyncio.create_task(autonomous_hunter_loop())
     
-    # 💓 INTERNAL KEEP-ALIVE (Self-Sustaining)
-    # Tenta manter a instância 'quente' fazendo auto-requisições
+    # 💓 INTERNAL KEEP-ALIVE & DB SYNC
     def internal_pulse():
         url = "https://predador-api.onrender.com/health"
-        print(f"💓 [KEEP-ALIVE] Iniciando protocolo de auto-preservação: {url}")
+        print(f"💓 [KEEP-ALIVE] Iniciando protocolo de auto-preservação.")
+        counter = 0
         while True:
-            time.sleep(540) # 9 minutos (Render dorme em 15m)
+            time.sleep(300) # 5 minutos
+            counter += 1
             try:
+                # Auto-Ping
                 with httpx.Client(timeout=10) as client:
-                    r = client.get(url)
-                    print(f"💓 [PULSE] Status: {r.status_code} | Vivo: Sim")
+                    client.get(url)
+                
+                # Sincronização com Supabase (a cada 5 min)
+                asyncio.run(engine_state.sync_status_to_supabase())
+                
             except Exception as e:
-                print(f"⚠️ [PULSE FAIL] {e}")
+                print(f"⚠️ [PULSE/SYNC FAIL] {e}")
 
     import threading
     threading.Thread(target=internal_pulse, daemon=True).start()
