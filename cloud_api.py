@@ -1,11 +1,11 @@
 """
-PREDATOR v351.0 TREND-MOMENTUM - Cloud API (Render)
+PREDATOR v352.0 APEX-FILTER - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-TREND-MOMENTUM STRATEGY:
-1. PULLBACK ENTRIES: Enter on retracements to EMA9/MA20 within trend.
-2. RSI FORCE FILTER: RSI > 50 for longs, RSI < 50 for shorts.
-3. ATR TARGETS: TP = 2.5x ATR, SL = 1.2x ATR (RRR ~2:1).
-4. TREND CONFIRMATION: Must be aligned with EMA200.
+APEX-FILTER STRATEGY:
+1. PULLBACK ENTRIES: Enter on retracements within strong trends.
+2. TREND STACK: EMA9 > MA20 (bull) or EMA9 < MA20 (bear).
+3. ATR TARGETS: TP = 3.5x ATR, SL = 1.5x ATR (RRR ~2.3:1).
+4. MOMENTUM FILTER: RSI 40-65 (healthy, not exhausted).
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "351.0-TREND-MOMENTUM",
+            "version": "352.0-APEX-FILTER",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -335,42 +335,45 @@ async def run_strategy(symbol, mode):
     if entropy > 0.70: lev_mult = 0.50
     elif entropy > 0.55: lev_mult = 0.75
 
-    # PULLBACK DETECTION: Price near EMA9 or MA20
+    # TREND STACK DETECTION: EMA9 vs MA20 alignment
     price = intel["price"]
     ema9 = intel["ema9"]
     ma20 = intel["ma20"]
     atr = intel["atr"]
     
-    pullback_to_ema9 = abs(price - ema9) < atr * 0.5
-    pullback_to_ma20 = abs(price - ma20) < atr * 0.8
-    is_pullback = pullback_to_ema9 or pullback_to_ma20
+    # TREND STACK: Confirma tendência forte
+    trend_stack_bull = ema9 > ma20 and intel["trend_up"]  # EMA9 > MA20 > EMA200
+    trend_stack_bear = ema9 < ma20 and not intel["trend_up"]  # EMA9 < MA20 < EMA200
     
-    # RSI FORCE FILTER: Confirma direção
-    rsi_bullish = intel["rsi"] > 45 and intel["rsi"] < 70  # Força compradora
-    rsi_bearish = intel["rsi"] < 55 and intel["rsi"] > 30  # Força vendedora
+    # PULLBACK: Preço recuou para perto da EMA9 ou MA20
+    pullback_zone = abs(price - ema9) < atr * 0.8 or abs(price - ma20) < atr * 1.2
     
-    # Volume Confirmation
-    min_z = 1.8 if is_sol else 1.5
+    # RSI HEALTHY (não exausto)
+    rsi_healthy_bull = intel["rsi"] > 40 and intel["rsi"] < 65
+    rsi_healthy_bear = intel["rsi"] > 35 and intel["rsi"] < 60
+    
+    # Volume (threshold mais baixo)
+    min_z = 1.2 if is_sol else 1.0
     vol_confirm = intel["z_vol"] > min_z
     
-    # TREND-MOMENTUM TRIGGERS
-    if is_pullback and vol_confirm:
+    # APEX-FILTER TRIGGERS
+    if pullback_zone and vol_confirm:
         if is_sol:
-            # SOL: Long-only em pullbacks de tendência de alta
-            if intel["trend_up"] and rsi_bullish and price > ema9:
+            # SOL: Long-only com trend stack bullish
+            if trend_stack_bull and rsi_healthy_bull:
                 bias = "GOD_LONG"; score = 92
         else:
             # BTC/ETH: Bidirecional
-            if intel["trend_up"] and rsi_bullish and price > ema9:
+            if trend_stack_bull and rsi_healthy_bull:
                 bias = "GOD_LONG"; score = 92
-            elif not intel["trend_up"] and rsi_bearish and price < ema9:
+            elif trend_stack_bear and rsi_healthy_bear:
                 bias = "GOD_SHORT"; score = 92
     
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
     intel["leverage_mult"] = lev_mult
-    intel["sl_factor"] = 1.2  # SL mais apertado
-    intel["tp_factor"] = 2.5  # TP 2.5x ATR
+    intel["sl_factor"] = 1.5  # SL balanceado
+    intel["tp_factor"] = 3.5  # TP maior para RRR ~2.3:1
 
     engine_state.last_score = score
     
@@ -454,39 +457,38 @@ async def run_backtest(payload: WebhookPayload):
         if entropy > 0.70: lev_mult = 0.50
         elif entropy > 0.55: lev_mult = 0.75
 
-        # PULLBACK DETECTION
+        # TREND STACK DETECTION
         price = intel["price"]
         ema9 = intel["ema9"]
         ma20 = intel["ma20"]
         atr = intel["atr"]
         
-        pullback_to_ema9 = abs(price - ema9) < atr * 0.5
-        pullback_to_ma20 = abs(price - ma20) < atr * 0.8
-        is_pullback = pullback_to_ema9 or pullback_to_ma20
+        trend_stack_bull = ema9 > ma20 and intel["trend_up"]
+        trend_stack_bear = ema9 < ma20 and not intel["trend_up"]
         
-        # RSI FORCE FILTER
-        rsi_bullish = intel["rsi"] > 45 and intel["rsi"] < 70
-        rsi_bearish = intel["rsi"] < 55 and intel["rsi"] > 30
+        pullback_zone = abs(price - ema9) < atr * 0.8 or abs(price - ma20) < atr * 1.2
         
-        # Volume Confirmation
-        min_z = 1.8 if is_sol else 1.5
+        rsi_healthy_bull = intel["rsi"] > 40 and intel["rsi"] < 65
+        rsi_healthy_bear = intel["rsi"] > 35 and intel["rsi"] < 60
+        
+        min_z = 1.2 if is_sol else 1.0
         vol_confirm = intel["z_vol"] > min_z
         
-        if is_pullback and vol_confirm:
+        if pullback_zone and vol_confirm:
             if is_sol:
-                if intel["trend_up"] and rsi_bullish and price > ema9:
+                if trend_stack_bull and rsi_healthy_bull:
                     bias = "GOD_LONG"; score = 92
             else:
-                if intel["trend_up"] and rsi_bullish and price > ema9:
+                if trend_stack_bull and rsi_healthy_bull:
                     bias = "GOD_LONG"; score = 92
-                elif not intel["trend_up"] and rsi_bearish and price < ema9:
+                elif trend_stack_bear and rsi_healthy_bear:
                     bias = "GOD_SHORT"; score = 92
             
         if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
-            sl_dist = atr * 1.2  # SL apertado
-            tp_dist = atr * 2.5  # TP 2.5x ATR
+            sl_dist = atr * 1.5  # SL balanceado
+            tp_dist = atr * 3.5  # TP maior para RRR ~2.3:1
             lev = config["leverage"] * lev_mult
             
             pnl_base = 0
