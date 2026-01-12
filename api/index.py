@@ -117,37 +117,32 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v280.0 "QUANTUM-ELITE-REVERSION"
-    # Objetivo: Superar v220 com Precisão de 100% Win Rate
+    # 🧬 MASTER LOGIC v290.0 "REVERSION-SOUL" (v220 RESTORATION)
+    # Objetivo: Recuperar os +92.61% de lucro real.
     is_sol = "SOL" in payload.symbol.upper()
     is_eth = "ETH" in payload.symbol.upper()
     
-    # 🕒 INACTIVITY BOOST
-    idle_minutes = (time.time() - engine_state.last_trade_time) / 60
-    boost = 2 if idle_minutes > 30 else 0
-    
     if intel["is_compressed"]:
-        # Filtros de Rentabilidade de Elite
-        min_width = 1.15 if is_sol else (0.45 if is_eth else 0.35)
+        # Filtros Letais v220
+        min_width = 0.85 if is_sol else (0.40 if is_eth else 0.35)
         if intel["bb_width"] < min_width:
-             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "No Profit Room"}
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Vol"}
 
-        # Triggers de Exaustão Extrema (v220 Souls)
-        # RSI 28/72 + StochRSI Extreme
-        oversold = intel["rsi"] < (28 + boost) and intel["stoch_rsi"] < 15
-        overbought = intel["rsi"] > (72 - boost) and intel["stoch_rsi"] > 85
+        # Triggers de Estilingue v220
+        oversold = intel["rsi"] < 35 or (intel["rsi"] < 40 and intel["rsi_slope"] < -5)
+        overbought = intel["rsi"] > 65 or (intel["rsi"] > 60 and intel["rsi_slope"] > 5)
         
-        # Z-Volume (Barreira Institucional)
-        min_z = 4.2 if is_sol else 3.5
+        # Z-Volume Original (O Ponto Doce)
+        min_z = 2.8 if is_sol else 2.2
         strong_push = intel["z_vol"] > min_z
 
         if strong_push:
-            if oversold: bias = "GOD_LONG"; score = 98
-            elif overbought: bias = "GOD_SHORT"; score = 98
+            if oversold: bias = "GOD_LONG"; score = 96
+            elif overbought: bias = "GOD_SHORT"; score = 96
             
     else:
-        # TREND REVERSION
-        if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 4.5: 
+        # TREND LOGIC v220
+        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 2.8: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 92
             
@@ -158,6 +153,6 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "targets": {"tp": intel["ma20"], "sl_factor": 2.2},
-        "version": "280.0-QUANTUM"
+        "targets": {"tp": intel["ema9"], "sl_factor": 1.8},
+        "version": "290.0-SOUL"
     }
