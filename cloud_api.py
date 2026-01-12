@@ -1,11 +1,11 @@
 """
-PREDATOR v353.0 SCALP-TREND - Cloud API (Render)
+PREDATOR v354.0 MEAN-REVERSION - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-SCALP-TREND STRATEGY:
-1. PULLBACK ENTRIES: Enter on retracements within strong trends.
-2. TREND STACK: EMA9 > MA20 (bull) or EMA9 < MA20 (bear).
-3. SCALP TARGETS: TP = 1.8x ATR, SL = 0.8x ATR (RRR ~2.2:1).
-4. FAST EXECUTION: Hold max 60 candles.
+MEAN-REVERSION STRATEGY:
+1. BUY PANIC: Long when RSI < 25 (extreme oversold).
+2. SELL EUPHORIA: Short when RSI > 75 (extreme overbought).
+3. TARGET = MA20: Price reverts to mean.
+4. SL = 2.5x ATR: Room to breathe.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "353.0-SCALP-TREND",
+            "version": "354.0-MEAN-REVERSION",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -325,9 +325,8 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🚀 TREND-MOMENTUM v351.0 (Pullback Strategy)
+    # 🎯 MEAN-REVERSION v354.0
     is_sol = "SOL" in symbol.upper()
-    is_eth = "ETH" in symbol.upper()
     
     # Entropy Scaling
     entropy = intel["entropy"]
@@ -335,45 +334,36 @@ async def run_strategy(symbol, mode):
     if entropy > 0.70: lev_mult = 0.50
     elif entropy > 0.55: lev_mult = 0.75
 
-    # TREND STACK DETECTION: EMA9 vs MA20 alignment
     price = intel["price"]
-    ema9 = intel["ema9"]
     ma20 = intel["ma20"]
     atr = intel["atr"]
+    rsi = intel["rsi"]
     
-    # TREND STACK: Confirma tendência forte
-    trend_stack_bull = ema9 > ma20 and intel["trend_up"]  # EMA9 > MA20 > EMA200
-    trend_stack_bear = ema9 < ma20 and not intel["trend_up"]  # EMA9 < MA20 < EMA200
+    # EXTREME RSI TRIGGERS
+    extreme_oversold = rsi < 25
+    extreme_overbought = rsi > 75
     
-    # PULLBACK: Preço recuou para perto da EMA9 ou MA20
-    pullback_zone = abs(price - ema9) < atr * 0.8 or abs(price - ma20) < atr * 1.2
+    # Volume Spike (confirmação de capitão)
+    vol_spike = intel["z_vol"] > 1.5
     
-    # RSI HEALTHY (não exausto)
-    rsi_healthy_bull = intel["rsi"] > 40 and intel["rsi"] < 65
-    rsi_healthy_bear = intel["rsi"] > 35 and intel["rsi"] < 60
-    
-    # Volume (threshold mais baixo)
-    min_z = 1.2 if is_sol else 1.0
-    vol_confirm = intel["z_vol"] > min_z
-    
-    # APEX-FILTER TRIGGERS
-    if pullback_zone and vol_confirm:
+    # MEAN-REVERSION LOGIC
+    if vol_spike:
         if is_sol:
-            # SOL: Long-only com trend stack bullish
-            if trend_stack_bull and rsi_healthy_bull:
-                bias = "GOD_LONG"; score = 92
+            # SOL: Long-only em panico
+            if extreme_oversold:
+                bias = "GOD_LONG"; score = 93
         else:
             # BTC/ETH: Bidirecional
-            if trend_stack_bull and rsi_healthy_bull:
-                bias = "GOD_LONG"; score = 92
-            elif trend_stack_bear and rsi_healthy_bear:
-                bias = "GOD_SHORT"; score = 92
+            if extreme_oversold:
+                bias = "GOD_LONG"; score = 93
+            elif extreme_overbought:
+                bias = "GOD_SHORT"; score = 93
     
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
     intel["leverage_mult"] = lev_mult
-    intel["sl_factor"] = 0.8   # SL apertado para scalp
-    intel["tp_factor"] = 1.8   # TP realista (RRR ~2.2:1)
+    intel["sl_factor"] = 2.5  # SL amplo
+    intel["tp_target"] = "ma20"  # Target = Reversão à média
 
     engine_state.last_score = score
     
@@ -450,56 +440,48 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🚀 TREND-MOMENTUM v351.0 (Pullback Backtest)
+        # 🎯 MEAN-REVERSION BACKTEST v354.0
         is_sol = "SOL" in symbol.upper()
         entropy = intel["entropy"]
         lev_mult = 1.0
         if entropy > 0.70: lev_mult = 0.50
         elif entropy > 0.55: lev_mult = 0.75
 
-        # TREND STACK DETECTION
         price = intel["price"]
-        ema9 = intel["ema9"]
         ma20 = intel["ma20"]
         atr = intel["atr"]
+        rsi = intel["rsi"]
         
-        trend_stack_bull = ema9 > ma20 and intel["trend_up"]
-        trend_stack_bear = ema9 < ma20 and not intel["trend_up"]
+        extreme_oversold = rsi < 25
+        extreme_overbought = rsi > 75
+        vol_spike = intel["z_vol"] > 1.5
         
-        pullback_zone = abs(price - ema9) < atr * 0.8 or abs(price - ma20) < atr * 1.2
-        
-        rsi_healthy_bull = intel["rsi"] > 40 and intel["rsi"] < 65
-        rsi_healthy_bear = intel["rsi"] > 35 and intel["rsi"] < 60
-        
-        min_z = 1.2 if is_sol else 1.0
-        vol_confirm = intel["z_vol"] > min_z
-        
-        if pullback_zone and vol_confirm:
+        if vol_spike:
             if is_sol:
-                if trend_stack_bull and rsi_healthy_bull:
-                    bias = "GOD_LONG"; score = 92
+                if extreme_oversold:
+                    bias = "GOD_LONG"; score = 93
             else:
-                if trend_stack_bull and rsi_healthy_bull:
-                    bias = "GOD_LONG"; score = 92
-                elif trend_stack_bear and rsi_healthy_bear:
-                    bias = "GOD_SHORT"; score = 92
+                if extreme_oversold:
+                    bias = "GOD_LONG"; score = 93
+                elif extreme_overbought:
+                    bias = "GOD_SHORT"; score = 93
             
         if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
-            sl_dist = atr * 0.8   # SL apertado para scalp
-            tp_dist = atr * 1.8   # TP realista (RRR ~2.2:1)
+            sl_dist = atr * 2.5  # SL amplo
+            target_price = ma20  # Target = MA20
             lev = config["leverage"] * lev_mult
             
             pnl_base = 0
             
-            for j in range(i+1, min(i+60, len(ohlcv))):  # Max 60 candles
+            for j in range(i+1, min(i+200, len(ohlcv))):  # Max 200 candles para reversão
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
-                    if f[2] >= entry + tp_dist: pnl_base = tp_dist/entry; i = j; break
+                    if f[2] >= target_price: pnl_base = (target_price/entry - 1); i = j; break
                     if f[3] <= entry - sl_dist: pnl_base = -sl_dist/entry; i = j; break
                 else:
-                    if f[3] <= entry - tp_dist: pnl_base = tp_dist/entry; i = j; break
+                    if f[3] <= target_price: pnl_base = (1 - target_price/entry); i = j; break
                     if f[2] >= entry + sl_dist: pnl_base = -sl_dist/entry; i = j; break
             
             if pnl_base != 0:
