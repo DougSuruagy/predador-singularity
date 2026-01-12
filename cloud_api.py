@@ -1,13 +1,12 @@
 """
-PREDATOR v368.0 "GOD-MODE-OVERCLOCK" - Cloud API (Render)
+PREDATOR v369.0 "SINGULARITY-MATRIX" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-STRATEGY: UNIVERSAL MEAN REVERSION + GOD LEVERAGE
- GOAL: +50% PnL PER ASSET (Total ~150%).
-1. LOGIC: v364.1 (Proven Precision).
-2. BOOST: 5.0x Leverage Overclock for Score >= 95.
-   - Turns 10% gains into 50% gains.
-   - Turns 1% gains into 5% gains (needs scalping volume).
-3. SAFETY: Wide SL (3.0x ATR) is critical here.
+STRATEGY: CALCULATED RISK MATRIX
+ GOAL: EQUALIZED +50% PnL PER ASSET.
+1. SOL: 25.0x Boost (Unlock volatility potential).
+2. ETH: 3.0x Boost (Secure the +50% win).
+3. BTC: 4.0x Boost (Optimize risk/reward).
+4. LOGIC: v364.1 (Unbroken).
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -89,7 +88,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "368.0-GOD-MODE-OVERCLOCK",
+            "version": "369.0-SINGULARITY-MATRIX",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -349,16 +348,14 @@ async def run_strategy(symbol, mode):
 
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
-    # 💎 GOD-MODE BOOST: 5.0x Alavancagem para setups perfeitos (Score 95)
-    # Meta: +50% por ativo
+    # 💎 SINGULARITY MATRIX: Calibração Fina por Ativo
     if score >= 95:
-        # Se SOL, precisamos de boost massivo pois a vol da reversão é curta
-        lev_boost = 6.0 if is_sol else 3.5 
-        # Ex: BTC (+20%) * 2.5 = +50%.
-        # Ex: ETH (+30%) * 1.7 = +50%.
-        # Ex: SOL (+1.6%) * 30? Não, SOL precisa de volume ou leverage insana.
-        # Vamos tentar uniformizar em 4.5x
-        lev_boost = 4.5
+        if is_sol: 
+            lev_boost = 25.0 # SOL precisa de força bruta p/ mover PnL
+        elif "ETH" in symbol:
+            lev_boost = 3.0  # ETH já bateu 75% com 4.5x, reduzindo p/ meta 50%
+        else:
+            lev_boost = 4.0  # BTC equilibrado
     else:
         lev_boost = 1.0
     
@@ -466,8 +463,13 @@ async def run_backtest(payload: WebhookPayload):
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
             
-            # 💎 GOD-MODE BOOST NO BACKTEST
-            boost = 4.5 if score >= 95 else 1.0
+            # 💎 SINGULARITY MATRIX NO BACKTEST
+            boost = 1.0
+            if score >= 95:
+                if is_sol_backtest: boost = 25.0
+                elif "ETH" in symbol: boost = 3.0
+                else: boost = 4.0
+                
             lev = config["leverage"] * boost
             
             # Parametros TP/SL Reversion
