@@ -502,11 +502,15 @@ async def run_strategy(symbol, mode):
     
     score = points
     
-    # Surgical Thresholds: BTC/ETH (65) vs SOL (75)
+    # Surgical Thresholds: BTC/ETH (70) vs SOL (80)
     is_sol = "SOL" in symbol.upper()
-    active_threshold = 75 if is_sol else 65
+    active_threshold = 80 if is_sol else 70
     
-    decision = "EXECUTE" if points >= active_threshold else "REJECT"
+    # 🔗 INSTITUTIONAL HARD-FILTER (Z-VOL > 1.0 needed for new entries)
+    # Evita "moedores de carne" e lateralização sem força.
+    vol_confirmation = intel.get("z_vol", 0) > 1.0 or intel.get("bb_width", 0) > 0.3
+    
+    decision = "EXECUTE" if (points >= active_threshold and vol_confirmation) else "REJECT"
     
     # 🛡️ ENTROPY SHIELD CALCULATOR
     entropy = intel.get("entropy", 0.5)
@@ -674,9 +678,12 @@ async def run_backtest(payload: WebhookPayload):
 
         # Surgical Backtest Thresholds
         is_sol_backtest = "SOL" in symbol.upper()
-        active_threshold = 75 if is_sol_backtest else 65
+        active_threshold = 80 if is_sol_backtest else 70
 
-        if points >= active_threshold and entropy <= 0.85:
+        # Sync Hard-Filter with Live
+        vol_confirm_bt = intel.get("z_vol", 0) > 1.0 or intel.get("bb_width", 0) > 0.3
+
+        if points >= active_threshold and entropy <= 0.85 and vol_confirm_bt:
             is_sol_backtest = "SOL" in symbol.upper()
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
