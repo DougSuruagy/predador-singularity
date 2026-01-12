@@ -117,35 +117,35 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v340.0 "VALHALLA-REBORN"
-    # Objetivo: Recuperar Lucratividade com MA20 e Volume Extremo
+    # 🧬 MASTER LOGIC v345.0 "FLEX-ADAPTIVE"
+    # Objetivo: Mais Entradas de Qualidade com Filtros Relaxados
     is_sol = "SOL" in payload.symbol.upper()
     is_eth = "ETH" in payload.symbol.upper()
     
     # Entropy Multiplier (Sobrevivência)
     entropy = intel["entropy"]
     lev_mult = 1.0
-    if entropy > 0.75: lev_mult = 0.25
-    elif entropy > 0.60: lev_mult = 0.60
+    if entropy > 0.75: lev_mult = 0.30
+    elif entropy > 0.60: lev_mult = 0.65
 
-    # Body Ratio (Pavio Institucional)
+    # Body Ratio (Pavio Institucional - Relaxado)
     if len(payload.ohlcv) > 0:
         o, h, l, c = payload.ohlcv[-1][1], payload.ohlcv[-1][2], payload.ohlcv[-1][3], payload.ohlcv[-1][4]
         body_ratio = abs(o - c) / max(0.0001, h - l)
     else: body_ratio = 1.0
 
     if intel["is_compressed"]:
-        # Filtros v340 (Seletividade Máxima)
-        min_width = 1.10 if is_sol else (0.50 if is_eth else 0.40)
+        # Filtros v345 (Flexibilidade Adaptativa)
+        min_width = 0.90 if is_sol else (0.40 if is_eth else 0.30)
         if intel["bb_width"] < min_width:
              return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "No Delta"}
 
-        # Triggers de Exaustão Real (RSI 30/70 + Pavio)
-        oversold = intel["rsi"] < 30 and body_ratio < 0.50
-        overbought = intel["rsi"] > 70 and body_ratio < 0.50
+        # Triggers Relaxados (RSI 33/67 + Body 0.60)
+        oversold = intel["rsi"] < 33 and body_ratio < 0.60
+        overbought = intel["rsi"] > 67 and body_ratio < 0.60
         
-        # Z-Volume (Confirmador de Baleia - Estrito 3.5)
-        min_z = 3.5 if is_sol else 3.2
+        # Z-Volume (Reduzido para 2.8)
+        min_z = 2.8 if is_sol else 2.5
         strong_push = intel["z_vol"] > min_z
 
         if strong_push:
@@ -153,21 +153,21 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
             allowed_long = intel["trend_up"] or intel["divergence"]
             allowed_short = not intel["trend_up"] or intel["divergence"]
             
-            if oversold and allowed_long: bias = "GOD_LONG"; score = 98
-            elif overbought and allowed_short: bias = "GOD_SHORT"; score = 98
+            if oversold and allowed_long: bias = "GOD_LONG"; score = 96
+            elif overbought and allowed_short: bias = "GOD_SHORT"; score = 96
             
     else:
-        # TREND REVERSION (PSI Intenso)
-        if abs(intel["psi"]) > 0.50 and intel["z_vol"] > 4.0: 
+        # TREND REVERSION (PSI Intenso - Relaxado)
+        if abs(intel["psi"]) > 0.40 and intel["z_vol"] > 3.0: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 92
+            score = 90
             
     # Final Decision
-    decision = "EXECUTE" if score >= 90 else "REJECT"
+    decision = "EXECUTE" if score >= 88 else "REJECT"
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "targets": {"tp": intel["ma20"], "sl_factor": 2.5},
+        "targets": {"tp": intel["ma20"], "sl_factor": 2.2},
         "leverage_mult": lev_mult,
-        "version": "340.0-VALHALLA"
+        "version": "345.0-FLEX"
     }
