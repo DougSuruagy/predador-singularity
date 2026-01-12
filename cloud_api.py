@@ -1,13 +1,11 @@
 """
-PREDATOR v358.0 OSCILLATOR-FLOW - Cloud API (Render)
+PREDATOR v359.0 BACK-TO-BASICS - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-OSCILLATOR-FLOW STRATEGY:
-1. HIGH FREQUENCY: Trade based on StochRSI extremes + Momentum Slope.
-2. TRIGGERS:
-   - BUY: Stoch < 15 & Slope > 0.5
-   - SELL: Stoch > 85 & Slope < -0.5
-3. TARGETS: TP 1.5x ATR | SL 1.0x ATR.
-4. FILTER: BB Width > 0.15 (Avoid dead zones).
+BACK-TO-BASICS STRATEGY (Based on v354 Success):
+1. REVERSION: Buy Panic (RSI < 25), Sell Euphoria (RSI > 75).
+2. TARGET: MA20 (Mean Reversion).
+3. FILTER: Profit Distance to MA20 must be > 0.8x ATR.
+4. SL: 2.0x ATR.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -89,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "358.0-OSCILLATOR-FLOW",
+            "version": "359.0-BACK-TO-BASICS",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -327,7 +325,7 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🌊 OSCILLATOR-FLOW v358.0
+    # 🔙 BACK-TO-BASICS v359.0
     is_sol = "SOL" in symbol.upper()
     
     # Entropy Scaling
@@ -335,35 +333,36 @@ async def run_strategy(symbol, mode):
     lev_mult = 1.0
     if entropy > 0.70: lev_mult = 0.50
 
-    stoch = intel["stoch_rsi"]
-    slope = intel["rsi_slope"]
-    width = intel["bb_width"]
+    rsi = intel["rsi"]
+    ma20 = intel["ma20"]
+    atr = intel["atr"]
+    price = intel["price"]
     
-    # TRIGGERS (Agile Scalping)
-    # Stoch extremo + Início da virada (Slope)
-    buy_signal = stoch < 15 and slope > 0.5
-    sell_signal = stoch > 85 and slope < -0.5
+    # TRIGGERS (Reversion)
+    extreme_oversold = rsi < 25
+    extreme_overbought = rsi > 75
     
-    # Filtro de "Morto"
-    alive = width > 0.15
-
-    if alive:
+    # PROFIT DISTANCE CHECK
+    dist = abs(price - ma20)
+    min_dist = atr * 0.8
+    
+    if dist > min_dist:
         if is_sol:
             # SOL: Long-only
-            if buy_signal:
-                bias = "GOD_LONG"; score = 91
+            if extreme_oversold:
+                bias = "GOD_LONG"; score = 93
         else:
             # BTC/ETH: Bidirecional
-            if buy_signal:
-                bias = "GOD_LONG"; score = 91
-            elif sell_signal:
-                bias = "GOD_SHORT"; score = 91
+            if extreme_oversold:
+                bias = "GOD_LONG"; score = 93
+            elif extreme_overbought:
+                bias = "GOD_SHORT"; score = 93
     
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
     intel["leverage_mult"] = lev_mult
-    intel["sl_factor"] = 1.0   # SL Scalp
-    intel["tp_factor"] = 1.5   # TP Scalp (1.5 RRR)
+    intel["sl_factor"] = 2.0  
+    intel["tp_target"] = "ma20"
 
     engine_state.last_score = score
     
@@ -440,47 +439,48 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🌊 OSCILLATOR-FLOW BACKTEST v358.0
+        # 🔙 BACK-TO-BASICS BACKTEST v359.0
         is_sol = "SOL" in symbol.upper()
         entropy = intel["entropy"]
         lev_mult = 1.0
         if entropy > 0.70: lev_mult = 0.50
 
-        stoch = intel["stoch_rsi"]
-        slope = intel["rsi_slope"]
-        width = intel["bb_width"]
+        rsi = intel["rsi"]
+        ma20 = intel["ma20"]
         atr = intel["atr"]
+        price = intel["price"]
         
-        buy_signal = stoch < 15 and slope > 0.5
-        sell_signal = stoch > 85 and slope < -0.5
-        alive = width > 0.15
+        extreme_oversold = rsi < 25
+        extreme_overbought = rsi > 75
+        dist = abs(price - ma20)
+        min_dist = atr * 0.8
         
-        if alive:
+        if dist > min_dist:
             if is_sol:
-                if buy_signal:
-                    bias = "GOD_LONG"; score = 91
+                if extreme_oversold:
+                    bias = "GOD_LONG"; score = 93
             else:
-                if buy_signal:
-                    bias = "GOD_LONG"; score = 91
-                elif sell_signal:
-                    bias = "GOD_SHORT"; score = 91
+                if extreme_oversold:
+                    bias = "GOD_LONG"; score = 93
+                elif extreme_overbought:
+                    bias = "GOD_SHORT"; score = 93
             
         if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
-            sl_dist = atr * 1.0   # SL Scalp
-            tp_dist = atr * 1.5   # TP Scalp
+            sl_dist = atr * 2.0
+            target_price = ma20
             lev = config["leverage"] * lev_mult
             
             pnl_base = 0
             
-            for j in range(i+1, min(i+40, len(ohlcv))): # Max 40 candles (Scalp Rápido)
+            for j in range(i+1, min(i+150, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
-                    if f[2] >= entry + tp_dist: pnl_base = tp_dist/entry; i = j; break
+                    if f[2] >= target_price: pnl_base = (target_price/entry - 1); i = j; break
                     if f[3] <= entry - sl_dist: pnl_base = -sl_dist/entry; i = j; break
                 else:
-                    if f[3] <= entry - tp_dist: pnl_base = tp_dist/entry; i = j; break
+                    if f[3] <= target_price: pnl_base = (1 - target_price/entry); i = j; break
                     if f[2] >= entry + sl_dist: pnl_base = -sl_dist/entry; i = j; break
             
             pnl_base = 0
