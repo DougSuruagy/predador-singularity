@@ -1,11 +1,12 @@
 """
-PREDATOR v355.0 MEAN-REVERSION-PRO - Cloud API (Render)
+PREDATOR v356.0 MEAN-REVERSION-ASYMMETRIC - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-MEAN-REVERSION-PRO STRATEGY:
-1. BUY PANIC: Long when RSI < 30 (oversold).
-2. SELL EUPHORIA: Short when RSI > 70 (overbought).
-3. TARGET = MA20: Price reverts to mean.
-4. SL = 2.0x ATR: Optimized risk.
+ASYMMETRIC STRATEGY:
+1. TRIGGER: RSI 30/70 (Panic/Euphoria).
+2. PROFIT FILTER: Distance to MA20 MUST be > 1.5x ATR.
+   - Ensures we only trade when there is room to profit.
+3. TARGET = MA20.
+4. SL = 1.5x ATR (Tighter risk).
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -87,7 +88,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "355.0-MEAN-REVERSION-PRO",
+            "version": "356.0-MEAN-REVERSION-ASYM",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -348,22 +349,27 @@ async def run_strategy(symbol, mode):
     
     # MEAN-REVERSION LOGIC
     if vol_spike:
-        if is_sol:
-            # SOL: Long-only em panico
-            if extreme_oversold:
-                bias = "GOD_LONG"; score = 93
-        else:
-            # BTC/ETH: Bidirecional
-            if extreme_oversold:
-                bias = "GOD_LONG"; score = 93
-            elif extreme_overbought:
-                bias = "GOD_SHORT"; score = 93
+        # ASYMMETRIC FILTER: Distância mínima até a MA20 deve compensar o risco
+        dist_to_mean = abs(price - ma20)
+        min_dist = atr * 1.5
+        
+        if dist_to_mean > min_dist:
+            if is_sol:
+                # SOL: Long-only
+                if extreme_oversold:
+                    bias = "GOD_LONG"; score = 94
+            else:
+                # BTC/ETH: Bidirecional
+                if extreme_oversold:
+                    bias = "GOD_LONG"; score = 94
+                elif extreme_overbought:
+                    bias = "GOD_SHORT"; score = 94
     
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
     intel["leverage_mult"] = lev_mult
-    intel["sl_factor"] = 2.0  # SL Otimizado
-    intel["tp_target"] = "ma20"  # Target = Reversão à média
+    intel["sl_factor"] = 1.5  # SL Reduzido para assimetria
+    intel["tp_target"] = "ma20"
 
     engine_state.last_score = score
     
@@ -458,19 +464,24 @@ async def run_backtest(payload: WebhookPayload):
         vol_spike = intel["z_vol"] > 1.2
         
         if vol_spike:
-            if is_sol:
-                if extreme_oversold:
-                    bias = "GOD_LONG"; score = 93
-            else:
-                if extreme_oversold:
-                    bias = "GOD_LONG"; score = 93
-                elif extreme_overbought:
-                    bias = "GOD_SHORT"; score = 93
+            # ASYMMETRIC FILTER
+            dist_to_mean = abs(price - ma20)
+            min_dist = atr * 1.5
+            
+            if dist_to_mean > min_dist:
+                if is_sol:
+                    if extreme_oversold:
+                        bias = "GOD_LONG"; score = 94
+                else:
+                    if extreme_oversold:
+                        bias = "GOD_LONG"; score = 94
+                    elif extreme_overbought:
+                        bias = "GOD_SHORT"; score = 94
             
         if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
-            sl_dist = atr * 2.0  # SL otimizado
+            sl_dist = atr * 1.5  # SL Reduzido
             target_price = ma20  # Target = MA20
             lev = config["leverage"] * lev_mult
             
