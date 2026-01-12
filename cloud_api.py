@@ -502,12 +502,11 @@ async def run_strategy(symbol, mode):
     
     score = points
     
-    # Decision Logic v371.2
-    if active_market:
-        if oversold and points >= 80: bias = "GOD_LONG"
-        elif overbought and points >= 80: bias = "GOD_SHORT"
-
-    decision = "EXECUTE" if points >= 75 else "REJECT"
+    # Surgical Thresholds: BTC/ETH (65) vs SOL (75)
+    is_sol = "SOL" in symbol.upper()
+    active_threshold = 75 if is_sol else 65
+    
+    decision = "EXECUTE" if points >= active_threshold else "REJECT"
     
     # 🛡️ ENTROPY SHIELD CALCULATOR
     entropy = intel.get("entropy", 0.5)
@@ -673,11 +672,11 @@ async def run_backtest(payload: WebhookPayload):
         score = points
         entropy = intel.get("entropy", 0.5)
 
-        if active_market and entropy <= 0.85:
-            if oversold and points >= 80: bias = "GOD_LONG"
-            elif overbought and points >= 80: bias = "GOD_SHORT"
-        
-        if points >= 75 and entropy <= 0.85:
+        # Surgical Backtest Thresholds
+        is_sol_backtest = "SOL" in symbol.upper()
+        active_threshold = 75 if is_sol_backtest else 65
+
+        if points >= active_threshold and entropy <= 0.85:
             is_sol_backtest = "SOL" in symbol.upper()
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
