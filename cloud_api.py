@@ -1,11 +1,11 @@
 """
-PREDATOR v56.0 VALHALLA SUPREME - Cloud API (Render)
+PREDATOR v351.0 TREND-MOMENTUM - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-THE ULTIMATE FUSION:
-1. DYNAMIC THRESHOLD: Adapts Aggression based on Market Trend.
-   - Trending? Be Valhalla (0.22) -> Catch Big Moves.
-   - Ranging? Be Iron (0.35) -> Avoid Chop.
-2. JUNIOR SNIPER: Surgical Scalping on SOL.
+TREND-MOMENTUM STRATEGY:
+1. PULLBACK ENTRIES: Enter on retracements to EMA9/MA20 within trend.
+2. RSI FORCE FILTER: RSI > 50 for longs, RSI < 50 for shorts.
+3. ATR TARGETS: TP = 2.5x ATR, SL = 1.2x ATR (RRR ~2:1).
+4. TREND CONFIRMATION: Must be aligned with EMA200.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "350.0-SUPREME-PURE-TREND",
+            "version": "351.0-TREND-MOMENTUM",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -325,49 +325,52 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🕒 PURE-TREND v350.0 (Trend Following)
+    # 🚀 TREND-MOMENTUM v351.0 (Pullback Strategy)
     is_sol = "SOL" in symbol.upper()
     is_eth = "ETH" in symbol.upper()
     
     # Entropy Scaling
     entropy = intel["entropy"]
     lev_mult = 1.0
-    if entropy > 0.70: lev_mult = 0.40
-    elif entropy > 0.55: lev_mult = 0.70
+    if entropy > 0.70: lev_mult = 0.50
+    elif entropy > 0.55: lev_mult = 0.75
 
-    # Body Ratio 
-    o, h, l, c = ohlcv[-1][1], ohlcv[-1][2], ohlcv[-1][3], ohlcv[-1][4]
-    body_ratio = abs(o - c) / max(0.0001, h - l)
-
-    if intel["is_compressed"]:
-        min_w = 0.80 if is_sol else (0.35 if is_eth else 0.25)
-        if intel["bb_width"] < min_w: return
-        
-        # Triggers v350 (PURE TREND)
-        oversold = intel["rsi"] < 35 and body_ratio < 0.65
-        overbought = intel["rsi"] > 65 and body_ratio < 0.65
-        min_z = 2.5 if is_sol else 2.2
-        strong_push = intel["z_vol"] > min_z
-
-        if strong_push:
-            # PURE TREND: Só operar A FAVOR da EMA200
-            if is_sol:
-                if oversold and intel["trend_up"]: bias = "GOD_LONG"; score = 95
-            else:
-                if oversold and intel["trend_up"]: bias = "GOD_LONG"; score = 95
-                elif overbought and not intel["trend_up"]: bias = "GOD_SHORT"; score = 95
-    else:
-        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 2.8:
-            if intel["psi"] > 0 and intel["trend_up"]:
-                bias = "GOD_LONG"; score = 90
-            elif intel["psi"] < 0 and not intel["trend_up"]:
-                bias = "GOD_SHORT"; score = 90
+    # PULLBACK DETECTION: Price near EMA9 or MA20
+    price = intel["price"]
+    ema9 = intel["ema9"]
+    ma20 = intel["ma20"]
+    atr = intel["atr"]
     
-    decision = "EXECUTE" if score >= 88 else "REJECT"
+    pullback_to_ema9 = abs(price - ema9) < atr * 0.5
+    pullback_to_ma20 = abs(price - ma20) < atr * 0.8
+    is_pullback = pullback_to_ema9 or pullback_to_ma20
+    
+    # RSI FORCE FILTER: Confirma direção
+    rsi_bullish = intel["rsi"] > 45 and intel["rsi"] < 70  # Força compradora
+    rsi_bearish = intel["rsi"] < 55 and intel["rsi"] > 30  # Força vendedora
+    
+    # Volume Confirmation
+    min_z = 1.8 if is_sol else 1.5
+    vol_confirm = intel["z_vol"] > min_z
+    
+    # TREND-MOMENTUM TRIGGERS
+    if is_pullback and vol_confirm:
+        if is_sol:
+            # SOL: Long-only em pullbacks de tendência de alta
+            if intel["trend_up"] and rsi_bullish and price > ema9:
+                bias = "GOD_LONG"; score = 92
+        else:
+            # BTC/ETH: Bidirecional
+            if intel["trend_up"] and rsi_bullish and price > ema9:
+                bias = "GOD_LONG"; score = 92
+            elif not intel["trend_up"] and rsi_bearish and price < ema9:
+                bias = "GOD_SHORT"; score = 92
+    
+    decision = "EXECUTE" if score >= 90 else "REJECT"
     
     intel["leverage_mult"] = lev_mult
-    intel["sl_factor"] = 3.0
-    intel["tp_target"] = "ma20"
+    intel["sl_factor"] = 1.2  # SL mais apertado
+    intel["tp_factor"] = 2.5  # TP 2.5x ATR
 
     engine_state.last_score = score
     
@@ -444,57 +447,57 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v350.0 "PURE-TREND"
+        # 🚀 TREND-MOMENTUM v351.0 (Pullback Backtest)
         is_sol = "SOL" in symbol.upper()
         entropy = intel["entropy"]
         lev_mult = 1.0
-        if entropy > 0.70: lev_mult = 0.40
-        elif entropy > 0.55: lev_mult = 0.70
+        if entropy > 0.70: lev_mult = 0.50
+        elif entropy > 0.55: lev_mult = 0.75
 
-        o, h, l, c = ohlcv[i][1], ohlcv[i][2], ohlcv[i][3], ohlcv[i][4]
-        body_ratio = abs(o - c) / max(0.0001, h - l)
-
-        if intel["is_compressed"]:
-            min_w = 0.80 if is_sol else (0.35 if "ETH" in symbol else 0.25)
-            if intel["bb_width"] < min_w: i += 1; continue
+        # PULLBACK DETECTION
+        price = intel["price"]
+        ema9 = intel["ema9"]
+        ma20 = intel["ma20"]
+        atr = intel["atr"]
+        
+        pullback_to_ema9 = abs(price - ema9) < atr * 0.5
+        pullback_to_ma20 = abs(price - ma20) < atr * 0.8
+        is_pullback = pullback_to_ema9 or pullback_to_ma20
+        
+        # RSI FORCE FILTER
+        rsi_bullish = intel["rsi"] > 45 and intel["rsi"] < 70
+        rsi_bearish = intel["rsi"] < 55 and intel["rsi"] > 30
+        
+        # Volume Confirmation
+        min_z = 1.8 if is_sol else 1.5
+        vol_confirm = intel["z_vol"] > min_z
+        
+        if is_pullback and vol_confirm:
+            if is_sol:
+                if intel["trend_up"] and rsi_bullish and price > ema9:
+                    bias = "GOD_LONG"; score = 92
+            else:
+                if intel["trend_up"] and rsi_bullish and price > ema9:
+                    bias = "GOD_LONG"; score = 92
+                elif not intel["trend_up"] and rsi_bearish and price < ema9:
+                    bias = "GOD_SHORT"; score = 92
             
-            oversold = intel["rsi"] < 35 and body_ratio < 0.65
-            overbought = intel["rsi"] > 65 and body_ratio < 0.65
-            min_z = 2.5 if is_sol else 2.2
-            strong_push = intel["z_vol"] > min_z
-
-            if strong_push:
-                # PURE TREND: Só operar A FAVOR da EMA200
-                if is_sol:
-                    if oversold and intel["trend_up"]: bias = "GOD_LONG"; score = 95
-                else:
-                    if oversold and intel["trend_up"]: bias = "GOD_LONG"; score = 95
-                    elif overbought and not intel["trend_up"]: bias = "GOD_SHORT"; score = 95
-        else:
-            if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 2.8:
-                if intel["psi"] > 0 and intel["trend_up"]:
-                    bias = "GOD_LONG"; score = 90
-                elif intel["psi"] < 0 and not intel["trend_up"]:
-                    bias = "GOD_SHORT"; score = 90
-            
-        if score >= 88:
+        if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
-            atr = intel["atr"]
-            sl_dist = atr * 3.0
+            sl_dist = atr * 1.2  # SL apertado
+            tp_dist = atr * 2.5  # TP 2.5x ATR
             lev = config["leverage"] * lev_mult
             
             pnl_base = 0
-            # Target MA 20 (Reversion)
-            target_price = intel["ma20"]
             
-            for j in range(i+1, min(i+250, len(ohlcv))):
+            for j in range(i+1, min(i+120, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
-                    if f[2] >= target_price: pnl_base = (target_price/entry - 1); i = j; break
+                    if f[2] >= entry + tp_dist: pnl_base = tp_dist/entry; i = j; break
                     if f[3] <= entry - sl_dist: pnl_base = -sl_dist/entry; i = j; break
                 else:
-                    if f[3] <= target_price: pnl_base = (1 - target_price/entry); i = j; break
+                    if f[3] <= entry - tp_dist: pnl_base = tp_dist/entry; i = j; break
                     if f[2] >= entry + sl_dist: pnl_base = -sl_dist/entry; i = j; break
             
             if pnl_base != 0:

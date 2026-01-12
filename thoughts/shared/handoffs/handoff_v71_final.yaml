@@ -1,0 +1,42 @@
+version: "71.0-GHOST-FINAL"
+codename: "Singularity Apex - Resilient Evolution"
+status: "OPERATIONAL / LIVE"
+timestamp: "2026-01-11T16:25:00-03:00"
+
+core_engine:
+  logic: "Dual-Regime Bio-Sync (Valhalla Trend + Chop Master)"
+  indicators:
+    - "PSI Intensity (Threshold-based)"
+    - "RSI Deep Exhaustion (Buy < 15-18, Sell > 82-85)"
+    - "Market Entropy (Disorder detection)"
+    - "Bollinger Compression (BB Width < 0.60)"
+  risk_management:
+    - "Homeostasis (Kill Switch): +5% Daily Profit / -2% Daily Loss"
+    - "Resilient SL: 4.0x (BTC/ETH) to 5.0x (SOL) in Chop domains"
+    - "Aggressive TP: 5.5x (Trend) / 1.5x (Scalp-Chop)"
+    - "Dynamic Leverage: 2x (Chop) to 12x (High Confidence Trend)"
+
+frontend_sync:
+  dashboard: "v65.0-v71.0 Unified Apex Dashboard"
+  features:
+    - "Bio-Metrics Visualization: Dopamine, Adrenaline, Homeostasis"
+    - "Neural Event Log: Real-time trade tracking"
+    - "Apex Mode: Triggered at >1% Daily PnL"
+    - "Regime Status: CLEAR / LOCKED display"
+
+deployment_status:
+  backend: "Render (predador-api.onrender.com) - UPDATED"
+  frontend: "Vercel / Local Host - SYNCED"
+  repository: "GitHub (DougSuruagy/predador-singularity) - PUSHED"
+
+critical_optimizations:
+  chop_mastery: "Implemented Ghost Orders for hyper-exhaustion zones to prevent 'Stop-Loss Hunting' in lateral markets."
+  zero_inactivity: "Active monitoring even in low volatility, waiting for extreme liquidity events (RSI outliers)."
+  fee_optimization: "Leverage scaling in chop to ensure trades are net-positive after Bybit taker fees (0.12%)."
+
+instructions_for_next_session:
+  monitoring: "Use 'python monitor_logs.py' for terminal tracking or access the Dashboard via browser."
+  maintenance: "Watch the 'Entropy' metric in logs; if it stays > 0.9 for hours, the market is in 'Dead-Zone' (No trades expected)."
+  evolution: "Consider lowering RSI requirements to 25/75 if the user wants higher trade frequency during high-volume sessions."
+
+philosophy: "Compound, don't compact. Predator doesn't sleep; it waits for the perfect moment."

@@ -30,9 +30,15 @@ async def monitor_loop():
                     os.system('cls' if os.name == 'nt' else 'clear')
                     
                     now = datetime.now().strftime("%H:%M:%S")
+                    version = data.get("version", "v50.0 OMEGA")
+                    is_killed = data.get("kill_switch_active", False)
                     
-                    print(f"🦅 PREDADOR v50.0 OMEGA | {now}")
+                    print(f"🦅 PREDADOR {version} | {now}")
                     print("=" * 60)
+                    if is_killed:
+                        print("🛑 [MODO SEGURANÇA]: HOMEOSTASE ATINGIDA. TRADES SUSPENSOS.")
+                        print("-" * 60)
+                        
                     print(f"🩸 BIO-METRICS (IA VIVA):")
                     print(f"   🧠 Dopamina (Confiança):  {bio.get('dopamine', 0):.2f} " + ("🔥" if bio.get('dopamine',0)>0.8 else "😐"))
                     print(f"   ⚡ Adrenalina (Risco):     {bio.get('adrenaline', 0):.2f} " + ("🚀" if bio.get('adrenaline',0)>0.5 else "💤"))
@@ -40,9 +46,9 @@ async def monitor_loop():
                     print(f"   ❤️ Homeostase (Saúde):     {bio.get('homeostasis', 100):.1f}%")
                     print("-" * 60)
                     print(f"📊 MARKET STATE:")
-                    print(f"   💰 PnL Diário: ${data.get('pnl', 0):.2f}")
+                    print(f"   💰 PnL Diário: {data.get('pnl', 0):.2f}%")
                     print(f"   🛡️ Modo:       {data.get('mode', 'UNKNOWN')}")
-                    print(f"   📈 Trades:     {data.get('trades', 0)}")
+                    print(f"   📈 Trades:     {data.get('trades', 0)} (Vitórias: {data.get('wins', 0)})")
                     print("-" * 60)
                     
                     if last_order and last_order.get("symbol"):
