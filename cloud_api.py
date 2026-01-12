@@ -1,11 +1,11 @@
 """
-PREDATOR v354.0 MEAN-REVERSION - Cloud API (Render)
+PREDATOR v355.0 MEAN-REVERSION-PRO - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-MEAN-REVERSION STRATEGY:
-1. BUY PANIC: Long when RSI < 25 (extreme oversold).
-2. SELL EUPHORIA: Short when RSI > 75 (extreme overbought).
+MEAN-REVERSION-PRO STRATEGY:
+1. BUY PANIC: Long when RSI < 30 (oversold).
+2. SELL EUPHORIA: Short when RSI > 70 (overbought).
 3. TARGET = MA20: Price reverts to mean.
-4. SL = 2.5x ATR: Room to breathe.
+4. SL = 2.0x ATR: Optimized risk.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "354.0-MEAN-REVERSION",
+            "version": "355.0-MEAN-REVERSION-PRO",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -325,7 +325,7 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🎯 MEAN-REVERSION v354.0
+    # 🎯 MEAN-REVERSION PRO v355.0
     is_sol = "SOL" in symbol.upper()
     
     # Entropy Scaling
@@ -339,12 +339,12 @@ async def run_strategy(symbol, mode):
     atr = intel["atr"]
     rsi = intel["rsi"]
     
-    # EXTREME RSI TRIGGERS
-    extreme_oversold = rsi < 25
-    extreme_overbought = rsi > 75
+    # RELAXED TRIGGERS (v355)
+    extreme_oversold = rsi < 30
+    extreme_overbought = rsi > 70
     
-    # Volume Spike (confirmação de capitão)
-    vol_spike = intel["z_vol"] > 1.5
+    # Volume Spike (Threshold reduzido para 1.2)
+    vol_spike = intel["z_vol"] > 1.2
     
     # MEAN-REVERSION LOGIC
     if vol_spike:
@@ -362,7 +362,7 @@ async def run_strategy(symbol, mode):
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
     intel["leverage_mult"] = lev_mult
-    intel["sl_factor"] = 2.5  # SL amplo
+    intel["sl_factor"] = 2.0  # SL Otimizado
     intel["tp_target"] = "ma20"  # Target = Reversão à média
 
     engine_state.last_score = score
@@ -440,7 +440,7 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🎯 MEAN-REVERSION BACKTEST v354.0
+        # 🎯 MEAN-REVERSION BACKTEST v355.0
         is_sol = "SOL" in symbol.upper()
         entropy = intel["entropy"]
         lev_mult = 1.0
@@ -452,9 +452,10 @@ async def run_backtest(payload: WebhookPayload):
         atr = intel["atr"]
         rsi = intel["rsi"]
         
-        extreme_oversold = rsi < 25
-        extreme_overbought = rsi > 75
-        vol_spike = intel["z_vol"] > 1.5
+        # RELAXED TRIGGERS
+        extreme_oversold = rsi < 30
+        extreme_overbought = rsi > 70
+        vol_spike = intel["z_vol"] > 1.2
         
         if vol_spike:
             if is_sol:
@@ -469,7 +470,7 @@ async def run_backtest(payload: WebhookPayload):
         if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
-            sl_dist = atr * 2.5  # SL amplo
+            sl_dist = atr * 2.0  # SL otimizado
             target_price = ma20  # Target = MA20
             lev = config["leverage"] * lev_mult
             
