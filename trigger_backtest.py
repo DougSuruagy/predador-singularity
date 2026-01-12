@@ -8,7 +8,7 @@ load_dotenv()
 API_URL = "https://predador-api.onrender.com" 
 SECRET_TOKEN = os.environ.get("INTERNAL_SECRET_TOKEN", "predador_secret_2026")
 
-def run_remote_backtest(symbol="SOLUSDT", period="1d"):
+def run_remote_backtest(symbol="SOLUSDT", period="1m"):
     endpoint = f"{API_URL}/backtest"
     headers = {
         "X-Token": SECRET_TOKEN,
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     results = {}
     for asset in assets:
         print(f"Testando {asset}...")
-        results[asset] = run_remote_backtest(symbol=asset, period="1d")
+        results[asset] = run_remote_backtest(symbol=asset, period="1m")
     
     # Save to file
     with open("backtest_results.json", "w") as f:
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     
     # Print summary
     print("\n" + "="*70)
-    print("RESUMO DO BACKTEST v371.0 ENTROPY-SHIELD")
+    print("RESUMO DO BACKTEST v370.0 SINGULARITY-INFINITY")
     print("="*70)
     
     total_pnl = 0
