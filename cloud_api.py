@@ -97,7 +97,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "371.0-ENTROPY-SHIELD",
+            "version": "371.1.1-ENTROPY-SHIELD",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -141,7 +141,7 @@ class EngineState:
             print(f"⚠️ [SUPABASE FAIL] Erro no sync de status: {e}")
 
     async def log_event_to_supabase(self, event_type, message, asset=None, meta=None):
-        """ Registra um log de evento crítico no banco de dados """
+        """ Registra um log de evento crítico no banco de dados com fallback de schema """
         try:
             log_data = {
                 "event_type": event_type,
@@ -150,9 +150,17 @@ class EngineState:
                 "meta": meta or {},
                 "time": datetime.now().isoformat()
             }
-            supabase.table("system_logs").insert(log_data).execute()
+            try:
+                supabase.table("system_logs").insert(log_data).execute()
+            except Exception as inner_e:
+                # Se falhar por coluna ausente (PGRST204), tenta logar sem a coluna asset
+                if "asset" in str(inner_e):
+                    del log_data["asset"]
+                    supabase.table("system_logs").insert(log_data).execute()
+                else: raise inner_e
         except Exception as e:
-            print(f"⚠️ [SUPABASE FAIL] Erro ao gravar log: {e}")
+            # Silent fail para não poluir o stdout se o DB estiver fora de sincronia
+            pass
 
 engine_state = EngineState()
 
@@ -245,7 +253,7 @@ class WebhookPayload(BaseModel):
     qty: Optional[float] = 0.01
 
 app = FastAPI(title="PREDATOR v56.0 VALHALLA SUPREME")
-exchange = ccxt.bybit({'apiKey': os.environ.get('BYBIT_API_KEY'), 'secret': os.environ.get('BYBIT_API_SECRET'), 'options': {'defaultType': 'future'}})
+exchange = ccxt.bybit({'apiKey': os.environ.get('BYBIT_API_KEY'), 'secret': os.environ.get('BYBIT_API_SECRET'), 'options': {'defaultType': 'linear'}})
 
 @app.on_event("startup")
 async def startup_event():
@@ -288,11 +296,26 @@ async def get_state(x_token: str = Header(None)):
 
 @app.get("/health")
 async def health():
-    return {"status": "alive", "version": "370.0-SINGULARITY"}
+    return {"status": "alive", "version": "371.1-ENTROPY-SHIELD"}
+
+@app.get("/ping")
+async def ping():
+    return {"status": "pong"}
+
+@app.post("/command/panic")
+async def command_panic(x_token: str = Header(None)):
+    await sovereign_auth(x_token)
+    # Ativa trava de segurança imediata simulando perda máxima
+    engine_state.daily_pnl = engine_state.MAX_DAILY_LOSS - 0.1
+    return {"status": "PANIC_ACTIVATED", "message": "Sovereign Kill-Switch Engaged."}
 
 @app.get("/")
 async def root():
     return {"status": "alive", "message": "PREDATOR API ACTIVE"}
+
+@app.head("/")
+async def root_head():
+    return {}
 
 # ============================================================
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
@@ -410,17 +433,42 @@ async def run_strategy(symbol, mode):
         
     active_market = bb_width > 0.15
     
+    # 🧠 NEURAL SCORING SYSTEM (Weighted Convergence)
+    points = 0
+    if oversold: points += 40
+    if overbought: points += 40
+    
+    # Factor 2: StochRSI Confirmation
+    if intel.get("stoch_rsi", 50) < 10: points += 20
+    if intel.get("stoch_rsi", 50) > 90: points += 20
+    
+    # Factor 3: Volume Shock (Institutional Force)
+    if intel.get("z_vol", 0) > 2.0: points += 15
+    
+    # Factor 4: BB Touch
+    if intel.get("touch_low") or intel.get("touch_high"): points += 15
+    
+    # Factor 5: Trend Alignment (Alpha) - Buy the Dip / Sell the Rip
+    if oversold and intel.get("trend_up"): points += 10 
+    if overbought and not intel.get("trend_up"): points += 10
+    
+    score = points
+    
+    # Decision Logic v371.2
     if active_market:
-        if oversold:
-            bias = "GOD_LONG"; score = 95
-        elif overbought:
-            bias = "GOD_SHORT"; score = 95
+        if oversold and points >= 80: bias = "GOD_LONG"
+        elif overbought and points >= 80: bias = "GOD_SHORT"
 
-    decision = "EXECUTE" if score >= 90 else "REJECT"
+    decision = "EXECUTE" if points >= 85 else "REJECT"
     
     # 🛡️ ENTROPY SHIELD CALCULATOR
-    # Protege contra violinadas em mercados caóticos
     entropy = intel.get("entropy", 0.5)
+    
+    # CRITICAL: Pure Chaos Kill-Switch
+    if entropy > 0.85:
+        print(f"🛑 [KILL-SWITCH] ENTROPIA EXTREMA ({entropy:.2f}). Abortando qualquer execução.")
+        return # Sai da estratégia para este ativo
+    
     shield_mult = 1.0
     sl_reduction = 1.0
     
@@ -435,6 +483,8 @@ async def run_strategy(symbol, mode):
         print(f"🛡️ [ENTROPY SHIELD] ACTIVE! (Entropy: {entropy:.2f})")
         asyncio.create_task(engine_state.log_event_to_supabase("SHIELD", f"DEFENSE ACTIVE (Entropy: {entropy:.2f})", asset=symbol))
         
+    is_sol = "SOL" in symbol.upper()
+    
     # 💎 INFINITY MATRIX: Maximização Final
     if score >= 95:
         if is_sol: 
@@ -459,7 +509,7 @@ async def run_strategy(symbol, mode):
     engine_state.shield_status = "MAX_DEFENSE" if entropy > 0.75 else ("ACTIVE" if entropy > 0.60 else "OFF")
     
     if decision == "EXECUTE":
-        config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
+        config = get_supreme_config(symbol, intel.get("trend_up", True), intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel.get("trend_up", True), intel["is_compressed"])
         print(f"⚡ [EXECUTION-KING] {symbol} | Mode: {mode} | Score: {score:.1f} | Bias: {bias}")
         
         price = intel["price"]
@@ -551,20 +601,30 @@ async def run_backtest(payload: WebhookPayload):
         ma20 = intel["ma20"]
         atr = intel["atr"]
         
-        if "ETH" in symbol:
-            oversold = rsi < 20
-            overbought = rsi > 80
-        else:
-            oversold = rsi < 30
-            overbought = rsi > 70
-            
         active_market = bb_width > 0.15
         
-        if active_market:
-            if oversold: bias = "GOD_LONG"; score = 95
-            elif overbought: bias = "GOD_SHORT"; score = 95
+        # 🧠 NEURAL SCORING SYSTEM (Backtest Sync v3)
+        points = 0
+        if oversold: points += 40
+        if overbought: points += 40
         
-        if score >= 90:
+        if intel.get("stoch_rsi", 50) < 10: points += 20
+        if intel.get("stoch_rsi", 50) > 90: points += 20
+        
+        if intel.get("z_vol", 0) > 2.0: points += 15
+        if intel.get("touch_low") or intel.get("touch_high"): points += 15
+        
+        if oversold and intel.get("trend_up"): points += 10 
+        if overbought and not intel.get("trend_up"): points += 10
+        
+        score = points
+        entropy = intel.get("entropy", 0.5)
+
+        if active_market and entropy <= 0.85:
+            if oversold and points >= 80: bias = "GOD_LONG"
+            elif overbought and points >= 80: bias = "GOD_SHORT"
+        
+        if points >= 85 and entropy <= 0.85:
             is_sol_backtest = "SOL" in symbol.upper()
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
