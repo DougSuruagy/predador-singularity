@@ -371,11 +371,11 @@ def get_supreme_config(symbol, is_trending, is_compressed):
         }
     
     return {
-        "threshold": 0.15, 
-        "min_score": 70, 
-        "sl_mult": 1.2,
-        "tp_mult": 4.0, # Aiming for +50% per trade
-        "leverage": 50,   
+        "threshold": 0.25, 
+        "min_score": 85,  # High Precision 
+        "sl_mult": 2.0,   
+        "tp_mult": 4.5,   
+        "leverage": 4,    # BTC Base
         "shadow_trail": True
     }
 
@@ -391,11 +391,11 @@ def get_sniper_config(symbol, is_trending, is_compressed):
             "shadow_trail": False
         }
     return {
-        "threshold": 0.20,
-        "min_score": 70,
-        "sl_mult": 1.0,
-        "tp_mult": 4.0, # Aiming for +50% per trade
-        "leverage": 100,
+        "threshold": 0.30,
+        "min_score": 85,  # Reversão Certeira
+        "sl_mult": 2.5,   
+        "tp_mult": 5.0,  
+        "leverage": 55,   # SOL Base
         "shadow_trail": True
     }
 
@@ -473,11 +473,11 @@ async def run_strategy(symbol, mode):
     bb_width = intel["bb_width"]
     
     if "ETH" in symbol:
+        oversold = rsi < 20 # "Ether Zero" Logic
+        overbought = rsi > 80
+    else:
         oversold = rsi < 30
         overbought = rsi > 70
-    else:
-        oversold = rsi < 35
-        overbought = rsi > 65
         
     active_market = bb_width > 0.15
     
@@ -502,13 +502,13 @@ async def run_strategy(symbol, mode):
     
     score = points
     
-    # Surgical Thresholds: Super Hunter Mode
-    active_threshold = 60 
+    # Surgical Thresholds: Sovereign Mode (v370.0)
+    active_threshold = 85 
     
     # 🔗 TREND FILTER (The Golden Rule)
     trend_aligned = (oversold and intel.get("trend_up")) or (overbought and not intel.get("trend_up"))
     
-    vol_confirmation = intel.get("z_vol", 0) > 0.5 or intel.get("bb_width", 0) > 0.1
+    vol_confirmation = intel.get("z_vol", 0) > 1.0 or intel.get("bb_width", 0) > 0.25
     
     decision = "EXECUTE" if (points >= active_threshold and vol_confirmation and trend_aligned) else "REJECT"
     
@@ -521,40 +521,38 @@ async def run_strategy(symbol, mode):
         return # Sai da estratégia para este ativo
     
     shield_mult = 1.0
-    sl_reduction = 1.0
+    sl_boost = 1.0
     
     if entropy > 0.75:
-        shield_mult = 0.2 # Sobrevivência (Corta 80%)
-        sl_reduction = 0.6 # SL bem mais curto para sair logo
-        print(f"🛡️ [ENTROPY SHIELD] MAX DEFENSE ACTIVATED! (Entropy: {entropy:.2f})")
-        asyncio.create_task(engine_state.log_event_to_supabase("SHIELD", f"MAX DEFENSE ACTIVATED (Entropy: {entropy:.2f})", asset=symbol))
+        shield_mult = 0.2 # Modo Sobrevivência (Reduz 80%)
+        sl_boost = 1.4    # Abre SL em 40%
+        print(f"🛡️ [ENTROPY SHIELD] SURVIVAL MODE! (Entropy: {entropy:.2f})")
+        asyncio.create_task(engine_state.log_event_to_supabase("SHIELD", f"SURVIVAL MODE ACTIVE (Entropy: {entropy:.2f})", asset=symbol))
     elif entropy > 0.60:
-        shield_mult = 0.5 # Cautela (Corta 50%)
-        sl_reduction = 0.8 # SL 20% menor
-        print(f"🛡️ [ENTROPY SHIELD] ACTIVE! (Entropy: {entropy:.2f})")
-        asyncio.create_task(engine_state.log_event_to_supabase("SHIELD", f"DEFENSE ACTIVE (Entropy: {entropy:.2f})", asset=symbol))
+        shield_mult = 0.5 # Modo Cautela (Reduz 50%)
+        sl_boost = 1.2    # Abre SL em 20%
+        print(f"🛡️ [ENTROPY SHIELD] CAUTION MODE! (Entropy: {entropy:.2f})")
+        asyncio.create_task(engine_state.log_event_to_supabase("SHIELD", f"CAUTION MODE ACTIVE (Entropy: {entropy:.2f})", asset=symbol))
         
     is_sol = "SOL" in symbol.upper()
     
-    # 💎 INFINITY MATRIX: ULTRA PNL TUNING (+150% GOAL)
-    if score >= 85:
-        if is_sol: 
-            target_base_lev = 100.0 
-        elif "ETH" in symbol:
-            target_base_lev = 50.0  
-        else:
-            target_base_lev = 50.0  
+    # 💎 INFINITY MATRIX: SOVEREIGN REFINEMENT (v370.0)
+    if is_sol: 
+        target_base_lev = 55.0 
+    elif "ETH" in symbol:
+        target_base_lev = 3.0  
     else:
-        target_base_lev = 20.0 if is_sol else 10.0
+        target_base_lev = 4.0  
         
     # ALAVANCAGEM FINAL = INFINITY * SHIELD
     effective_leverage = target_base_lev * shield_mult
     final_leverage_int = max(1, int(effective_leverage))
     
     intel["tp_factor"] = 0     
-    intel["sl_factor"] = 3.0 * sl_reduction # Reduz SL se caos
+    intel["sl_factor"] = 3.0 
     intel["tp_target"] = "ma20" 
     intel["leverage"] = final_leverage_int
+    intel["sl_boost"] = sl_boost # Passa para a execução
 
     engine_state.last_score = score
     engine_state.last_entropy = entropy
@@ -566,7 +564,9 @@ async def run_strategy(symbol, mode):
         
         price = intel["price"]
         atr = intel["atr"]
-        sl = price - (atr*config["sl_mult"]) if bias == "GOD_LONG" else price + (atr*config["sl_mult"])
+        effective_sl_mult = config["sl_mult"] * intel.get("sl_boost", 1.0)
+        
+        sl = price - (atr*effective_sl_mult) if bias == "GOD_LONG" else price + (atr*effective_sl_mult)
         tp = price + (atr*config["tp_mult"]) if bias == "GOD_LONG" else price - (atr*config["tp_mult"])
         
         if exchange.apiKey:
@@ -651,11 +651,11 @@ async def run_backtest(payload: WebhookPayload):
         active_market = bb_width > 0.15
         
         if "ETH" in symbol:
+            oversold = rsi < 20
+            overbought = rsi > 80
+        else:
             oversold = rsi < 30
             overbought = rsi > 70
-        else:
-            oversold = rsi < 35
-            overbought = rsi > 65
         
         # 🧠 NEURAL SCORING SYSTEM (Backtest Sync v3)
         points = 0
@@ -674,33 +674,31 @@ async def run_backtest(payload: WebhookPayload):
         score = points
         entropy = intel.get("entropy", 0.5)
 
-        # Surgical Backtest Thresholds: TARGET +150%
-        active_threshold = 60
+        # Surgical Backtest Thresholds: Sovereign v370.0
+        active_threshold = 85
 
         # Sync Trend & Volume Filters
         t_up = intel.get("trend_up", True)
         aligned_bt = (oversold and t_up) or (overbought and not t_up)
-        vol_confirm_bt = intel.get("z_vol", 0) > 0.5 or intel.get("bb_width", 0) > 0.1
+        vol_confirm_bt = intel.get("z_vol", 0) > 1.0 or intel.get("bb_width", 0) > 0.25
 
         if points >= active_threshold and entropy <= 0.85 and vol_confirm_bt and aligned_bt:
             is_sol_backtest = "SOL" in symbol.upper()
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
             
-            # 💎 INFINITY MATRIX BACKTEST SYNC (+150% GOAL)
-            if score >= 85:
-                if is_sol_backtest: target_lev = 100.0
-                elif "ETH" in symbol: target_lev = 50.0
-                else: target_lev = 50.0
-            else:
-                target_lev = 20.0 if is_sol_backtest else 10.0
+            # 💎 INFINITY MATRIX: SOVEREIGN REFINEMENT (v370.0)
+            if is_sol_backtest: target_lev = 55.0 
+            elif "ETH" in symbol: target_lev = 3.0  
+            else: target_lev = 4.0  
             
-            # Shield effect médio no backtest (conservador)
-            lev = target_lev * 1.0 # 100% efficiency in clear backtest
+            # Lev ajustado pela entropia média do momento
+            shield_bt = 0.5 if entropy > 0.60 else (0.2 if entropy > 0.75 else 1.0)
+            lev = target_lev * shield_bt
             
-            # Parametros TP/SL Reversion
-            sl_dist = atr * 3.0 * 0.9 # SL levemente mais curto em média
-            target_price = ma20
+            # Parametros ATR-Based (Sync com config)
+            sl_dist = atr * config["sl_mult"] * (1.2 if entropy > 0.60 else (1.4 if entropy > 0.75 else 1.0))
+            tp_dist = atr * config["tp_mult"]
             
             pnl_base = 0.0
             
@@ -711,8 +709,8 @@ async def run_backtest(payload: WebhookPayload):
                 
                 if bias == "GOD_LONG":
                     # TP
-                    if current_high >= target_price: 
-                        pnl_base = ((target_price - entry) / entry) * lev
+                    if current_high >= entry + tp_dist: 
+                        pnl_base = (tp_dist / entry) * lev
                         i = j; break
                     
                     # SL
@@ -722,8 +720,8 @@ async def run_backtest(payload: WebhookPayload):
                         
                 else: # SHORT
                     # TP
-                    if current_low <= target_price: 
-                        pnl_base = ((entry - target_price) / entry) * lev
+                    if current_low <= entry - tp_dist: 
+                        pnl_base = (tp_dist / entry) * lev
                         i = j; break
 
                     # SL
