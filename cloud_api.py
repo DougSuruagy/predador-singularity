@@ -1,12 +1,13 @@
 """
-PREDATOR v364.0 "ETHER-ZERO" - Cloud API (Render)
+PREDATOR v365.0 "QUANTUM-VELOCITY" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-STRATEGY: UNIVERSAL MEAN REVERSION + ETHER ZERO
-1. BTC/SOL: Pure Reversion (RSI 30/70). Proven Profitable.
-2. ETH: Extreme Reversion (RSI 20/80). Zero tolerance for loss.
-3. TARGET: MA20 (The Mean).
-4. SAFETY: Wide SL (3.0x ATR).
-5. FILTER: BB Width > 0.15.
+STRATEGY: HFT STOCHASTIC SCALPING
+ GOAL: +100% PnL via High Frequency Trading (Volume + Precision).
+1. TRIGGER: StochRSI Extremes (< 10 Buy / > 90 Sell).
+2. LOGIC: Catch every micro-reversal inside the bands.
+3. TARGET: 1.5x ATR (Quick Scalp).
+4. SAFETY: 2.0x ATR (Technical Stop).
+5. FILTER: BB Width > 0.20 (Only active markets).
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -88,7 +89,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "364.0-ETHER-ZERO",
+            "version": "365.0-QUANTUM-VELOCITY",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -326,44 +327,39 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🌐 v362.0 UNIVERSAL-ELASTIC
-    is_sol = "SOL" in symbol.upper()
+    # ⚡ v365.0 QUANTUM-VELOCITY (HFT)
     
-    # DADOS
-    rsi = intel["rsi"]
-    price = intel["price"]
-    ma20 = intel["ma20"]
+    # DADOS HFT
+    stoch = intel["stoch_rsi"]
+    stoch_k = stoch # Assume K
     bb_width = intel["bb_width"]
+    rsi = intel["rsi"] # Secundário para evitar contra-tendência forte
     
-    # LOGICA UNIFICADA: MEAN REVERSION
-    # O mercado provou estar lateral/choppy (Breakouts falharam).
-    # Assumimos reversão para todos os ativos.
+    # LOGICA: Estocástico extremo indica exaustão imediata (1-5 candles)
+    # Trigger HFT (< 10 / > 90)
+    oversold = stoch_k < 10
+    overbought = stoch_k > 90
     
-    # 🛡️ v364.0 ETHER-ZERO Lógica
-    # Trigger: Sobrecompra/Sobrevenda Dinâmica
-    if "ETH" in symbol.upper():
-        # ETH é mais ruidoso, exige extremos absolutos
-        oversold = rsi < 20
-        overbought = rsi > 80
-    else:
-        # BTC/SOL funcionam bem com padrão
-        oversold = rsi < 30
-        overbought = rsi > 70
+    # Filtro: Só opera se tiver espaço (Volatilidade)
+    active_market = bb_width > 0.20
     
-    # Filtro: Evitar consolidação estreita demais (Dead Zone)
-    active_market = bb_width > 0.15
+    # Filtro de Segurança RSI: Não comprar se RSI > 50 (já subiu muito) em HFT short, etc.
+    # Evita facas caindo ou foguetes subindo sem freio.
+    safe_long = rsi < 55 # Pode comprar até o meio do caminho
+    safe_short = rsi > 45 # Pode vender até o meio do caminho
     
     if active_market:
-        if oversold:
-            bias = "GOD_LONG"; score = 93
-        elif overbought:
-            bias = "GOD_SHORT"; score = 93
+        if oversold and safe_long:
+            bias = "GOD_LONG"; score = 94
+        elif overbought and safe_short:
+            bias = "GOD_SHORT"; score = 94
 
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
-    # Configuração de Risco/Retorno
-    intel["tp_target"] = "ma20" # Alvo dinâmico (Média)
-    intel["sl_factor"] = 3.0    # SL Largo para sobreviver ao ruído (Chop)
+    # Configuração Scalp Rápido
+    intel["tp_factor"] = 1.5    # Target Curto (Captura o movimento rápido)
+    intel["sl_factor"] = 2.0    # SL Técnico (Aguenta ruido)
+    intel["tp_target"] = "atr"  # Usar ATR targets
     intel["leverage_mult"] = 1.0
 
     engine_state.last_score = score
@@ -441,49 +437,43 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🌐 v362.0 UNIVERSAL-ELASTIC BACKTEST
-        rsi = intel["rsi"]
-        price = intel["price"]
-        ma20 = intel["ma20"]
+        # ⚡ v365.0 QUANTUM-VELOCITY BACKTEST
+        stoch_k = intel["stoch_rsi"]
         bb_width = intel["bb_width"]
+        rsi = intel["rsi"]
         atr = intel["atr"]
         
-        if "ETH" in symbol.upper():
-            oversold = rsi < 20
-            overbought = rsi > 80
-        else:
-            oversold = rsi < 30
-            overbought = rsi > 70
-            
-        active_market = bb_width > 0.15
+        oversold = stoch_k < 10
+        overbought = stoch_k > 90
+        active_market = bb_width > 0.20
+        safe_long = rsi < 55
+        safe_short = rsi > 45
         
         if active_market:
-            if oversold: bias = "GOD_LONG"; score = 93
-            elif overbought: bias = "GOD_SHORT"; score = 93
+            if oversold and safe_long: bias = "GOD_LONG"; score = 94
+            elif overbought and safe_short: bias = "GOD_SHORT"; score = 94
         
         if score >= 90:
-            is_sol_backtest = "SOL" in symbol.upper() # Local variable fix
+            is_sol_backtest = "SOL" in symbol.upper()
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] # Close do candle de sinal
             lev = config["leverage"]
             
-            # Parametros TP/SL (Consistente com a execução)
-            sl_dist = atr * 3.0
+            # Parametros TP/SL Scalp
+            sl_dist = atr * 2.0
+            tp_dist = atr * 1.5
             
             pnl_base = 0.0
             
-            # Target Fixo = MA20 inicial.
-            target_price = ma20 
-            
-            for j in range(i+1, min(i+300, len(ohlcv))):
+            for j in range(i+1, min(i+100, len(ohlcv))): # Scalp rapido max 100 candles
                 f = ohlcv[j]
                 current_high = f[2]
                 current_low = f[3]
                 
                 if bias == "GOD_LONG":
                     # TP
-                    if current_high >= target_price: 
-                        pnl_base = ((target_price - entry) / entry) * lev
+                    if current_high >= entry + tp_dist: 
+                        pnl_base = (tp_dist / entry) * lev
                         i = j; break
                     
                     # SL
@@ -493,8 +483,8 @@ async def run_backtest(payload: WebhookPayload):
                         
                 else: # SHORT
                     # TP
-                    if current_low <= target_price: 
-                        pnl_base = ((entry - target_price) / entry) * lev
+                    if current_low <= entry - tp_dist: 
+                        pnl_base = (tp_dist / entry) * lev
                         i = j; break
 
                     # SL
