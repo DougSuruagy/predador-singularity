@@ -1,12 +1,13 @@
 """
-PREDATOR v367.0 "TITAN-LEVERAGE" - Cloud API (Render)
+PREDATOR v368.0 "GOD-MODE-OVERCLOCK" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-STRATEGY: UNIVERSAL MEAN REVERSION + TITAN RISK SCALING
- GOAL: +50% DAILY PnL (Compound Growth).
-1. LOGIC: Maintained v364.1 (Proven +28% PnL).
-2. BOOST: Leverage 1.8x for Supreme Setups (Score >= 95).
-3. SIZE: Position Sizing Optimization.
-4. SAFETY: Wide SL (3.0x ATR).
+STRATEGY: UNIVERSAL MEAN REVERSION + GOD LEVERAGE
+ GOAL: +50% PnL PER ASSET (Total ~150%).
+1. LOGIC: v364.1 (Proven Precision).
+2. BOOST: 5.0x Leverage Overclock for Score >= 95.
+   - Turns 10% gains into 50% gains.
+   - Turns 1% gains into 5% gains (needs scalping volume).
+3. SAFETY: Wide SL (3.0x ATR) is critical here.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -88,7 +89,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "367.0-TITAN-LEVERAGE",
+            "version": "368.0-GOD-MODE-OVERCLOCK",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -348,14 +349,23 @@ async def run_strategy(symbol, mode):
 
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
-    # 💎 TITAN BOOST: 1.8x Alavancagem para setups perfeitos (Score 95)
-    # Isso escala os +28% atuais para ~50%
-    lev_boost = 1.8 if score >= 95 else 1.0
+    # 💎 GOD-MODE BOOST: 5.0x Alavancagem para setups perfeitos (Score 95)
+    # Meta: +50% por ativo
+    if score >= 95:
+        # Se SOL, precisamos de boost massivo pois a vol da reversão é curta
+        lev_boost = 6.0 if is_sol else 3.5 
+        # Ex: BTC (+20%) * 2.5 = +50%.
+        # Ex: ETH (+30%) * 1.7 = +50%.
+        # Ex: SOL (+1.6%) * 30? Não, SOL precisa de volume ou leverage insana.
+        # Vamos tentar uniformizar em 4.5x
+        lev_boost = 4.5
+    else:
+        lev_boost = 1.0
     
     intel["tp_factor"] = 0     
     intel["sl_factor"] = 3.0    
     intel["tp_target"] = "ma20" 
-    intel["leverage_mult"] = lev_boost # Aplica o boost
+    intel["leverage_mult"] = lev_boost
 
     engine_state.last_score = score
     
@@ -456,8 +466,8 @@ async def run_backtest(payload: WebhookPayload):
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
             
-            # 💎 TITAN BOOST NO BACKTEST
-            boost = 1.8 if score >= 95 else 1.0
+            # 💎 GOD-MODE BOOST NO BACKTEST
+            boost = 4.5 if score >= 95 else 1.0
             lev = config["leverage"] * boost
             
             # Parametros TP/SL Reversion
