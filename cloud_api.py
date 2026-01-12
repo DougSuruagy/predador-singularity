@@ -255,6 +255,8 @@ class WebhookPayload(BaseModel):
     action: str = "BUY"
     price: Optional[float] = None
     qty: Optional[float] = 0.01
+    period: Optional[str] = "1m"
+    limit: Optional[int] = 2000
 
 app = FastAPI(title="PREDATOR v56.0 VALHALLA SUPREME")
 exchange = ccxt.bybit({'apiKey': os.environ.get('BYBIT_API_KEY'), 'secret': os.environ.get('BYBIT_API_SECRET'), 'options': {'defaultType': 'linear'}})
@@ -594,7 +596,9 @@ async def run_strategy(symbol, mode):
 @app.post("/backtest")
 async def run_backtest(payload: WebhookPayload):
     symbol = normalize_symbol(payload.symbol)
-    ohlcv = await exchange.fetch_ohlcv(symbol, "1m", limit=2000)
+    period = payload.period or "1m"
+    limit = payload.limit or 2000
+    ohlcv = await exchange.fetch_ohlcv(symbol, period, limit=limit)
     
     sim = {"pnl": 0.0, "trades": 0, "wins": 0}
     mode = "SNIPER" if "SOL" in symbol else "SUPREME"

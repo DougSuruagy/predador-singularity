@@ -18,7 +18,7 @@ def run_remote_backtest(symbol="SOLUSDT", period="1d"):
     payload = {
         "symbol": symbol,
         "period": period,
-        "limit": 2000
+        "limit": 1000
     }
     
     try:
