@@ -250,7 +250,11 @@ class NomadBrain:
         trend_up = closes[-1] > ema200
 
         is_compressed = bb_width < 0.65 or entropy > 0.55
+        
+        # 📊 RALF INDICATORS (EMA 9 & EMA 21)
         ema9 = sum(closes[-9:]) / 9
+        ema21 = sum(closes[-21:]) / 21
+        ema_cross_up = ema9 > ema21
         
         # 🔗 Elastic Divergence (Refined)
         divergence = False
@@ -261,8 +265,9 @@ class NomadBrain:
             "rsi": rsi, "stoch_rsi": stoch_rsi, "rsi_slope": rsi_slope, "psi": psi,
             "bb_width": bb_width, "z_vol": z_vol, "is_compressed": is_compressed,
             "touch_low": touch_low, "touch_high": touch_high,
-            "divergence": divergence, "ema9": ema9, "ma20": ma20, "ema200": ema200,
-            "trend_up": trend_up, "price": closes[-1], "entropy": entropy, "atr": std_dev
+            "divergence": divergence, "ema9": ema9, "ema21": ema21, "ema_cross_up": ema_cross_up,
+            "ma20": ma20, "ema200": ema200, "trend_up": trend_up, 
+            "price": closes[-1], "entropy": entropy, "atr": std_dev
         }
 
     def _calc_rsi(self, deltas):
@@ -399,6 +404,17 @@ def get_sniper_config(symbol, is_trending, is_compressed):
         "shadow_trail": True
     }
 
+def get_ralf_config(symbol, is_trending, is_compressed):
+    """ [RALF] SCALPER MODE - Ultra-High Frequency """
+    return {
+        "threshold": 0.05, 
+        "min_score": 50,  
+        "sl_mult": 1.0,   
+        "tp_mult": 2.5,   
+        "leverage": 100,  
+        "shadow_trail": True
+    }
+
 async def autonomous_hunter_loop():
     print("🦅 PREDADOR SUPREMO & 🦖 SNIPER JUNIOR ATIVOS.")
     while True:
@@ -508,9 +524,19 @@ async def run_strategy(symbol, mode):
     # 🔗 TREND FILTER (The Golden Rule)
     trend_aligned = (oversold and intel.get("trend_up")) or (overbought and not intel.get("trend_up"))
     
-    vol_confirmation = intel.get("z_vol", 0) > 1.0 or intel.get("bb_width", 0) > 0.25
-    
-    decision = "EXECUTE" if (points >= active_threshold and vol_confirmation and trend_aligned) else "REJECT"
+    # [RALF OVERRIDE]
+    if mode == "RALF":
+        # Lógica Ralf: Preço longe da MA200 e confirmação de trend EMAs
+        ralf_long = intel.get("ema_cross_up") and intel.get("trend_up")
+        ralf_short = not intel.get("ema_cross_up") and not intel.get("trend_up")
+        if (oversold and ralf_long) or (overbought and ralf_short):
+            points += 50 # Bônus de convergência Ralf
+            decision = "EXECUTE"
+        else:
+            decision = "REJECT"
+    else:
+        vol_confirmation = intel.get("z_vol", 0) > 1.0 or intel.get("bb_width", 0) > 0.25
+        decision = "EXECUTE" if (points >= active_threshold and vol_confirmation and trend_aligned) else "REJECT"
     
     # 🛡️ ENTROPY SHIELD CALCULATOR
     entropy = intel.get("entropy", 0.5)
@@ -559,7 +585,10 @@ async def run_strategy(symbol, mode):
     engine_state.shield_status = "MAX_DEFENSE" if entropy > 0.75 else ("ACTIVE" if entropy > 0.60 else "OFF")
     
     if decision == "EXECUTE":
-        config = get_supreme_config(symbol, intel.get("trend_up", True), intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel.get("trend_up", True), intel["is_compressed"])
+        if mode == "RALF":
+            config = get_ralf_config(symbol, intel.get("trend_up", True), intel["is_compressed"])
+        else:
+            config = get_supreme_config(symbol, intel.get("trend_up", True), intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel.get("trend_up", True), intel["is_compressed"])
         print(f"⚡ [EXECUTION-KING] {symbol} | Mode: {mode} | Score: {score:.1f} | Bias: {bias}")
         
         price = intel["price"]
@@ -633,6 +662,7 @@ async def run_backtest(payload: WebhookPayload):
     
     sim = {"pnl": 0.0, "trades": 0, "wins": 0}
     mode = "SNIPER" if "SOL" in symbol else "SUPREME"
+    if payload.action == "RALF": mode = "RALF"
     
     i = 35
     while i < len(ohlcv) - 1:
@@ -684,7 +714,11 @@ async def run_backtest(payload: WebhookPayload):
 
         if points >= active_threshold and entropy <= 0.85 and vol_confirm_bt and aligned_bt:
             is_sol_backtest = "SOL" in symbol.upper()
-            config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
+            if mode == "RALF":
+                config = get_ralf_config(symbol, True, intel["is_compressed"])
+            else:
+                config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
+            
             entry = ohlcv[i][4] 
             
             # 💎 INFINITY MATRIX: SOVEREIGN REFINEMENT (v370.0)
