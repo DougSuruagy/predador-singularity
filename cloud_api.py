@@ -371,11 +371,11 @@ def get_supreme_config(symbol, is_trending, is_compressed):
         }
     
     return {
-        "threshold": 0.25, 
-        "min_score": 75, 
-        "sl_mult": 1.8,
-        "tp_mult": 6.8,   
-        "leverage": 25,   
+        "threshold": 0.20, 
+        "min_score": 65, 
+        "sl_mult": 1.2,
+        "tp_mult": 2.5,   
+        "leverage": 20,   
         "shadow_trail": True
     }
 
@@ -391,11 +391,11 @@ def get_sniper_config(symbol, is_trending, is_compressed):
             "shadow_trail": False
         }
     return {
-        "threshold": 0.30,
+        "threshold": 0.25,
         "min_score": 75,
-        "sl_mult": 2.5,
-        "tp_mult": 6.0,
-        "leverage": 20,
+        "sl_mult": 1.5,
+        "tp_mult": 3.0,
+        "leverage": 50,
         "shadow_trail": True
     }
 
@@ -536,18 +536,18 @@ async def run_strategy(symbol, mode):
         
     is_sol = "SOL" in symbol.upper()
     
-    # 💎 INFINITY MATRIX: Sovereign Boosters (v371.2)
-    # BTC: 4x | ETH: 3x | SOL: 55x
-    if score >= 95:
+    # 💎 INFINITY MATRIX: PNL TARGET TUNING (v370.0 - TARGET +150%)
+    # Aggressive Scalping Boosters
+    if score >= 90:
         if is_sol: 
-            target_base_lev = 55.0 
+            target_base_lev = 60.0 
         elif "ETH" in symbol:
-            target_base_lev = 3.0  
+            target_base_lev = 20.0  
         else:
-            target_base_lev = 4.0  
+            target_base_lev = 25.0  
     else:
-        # Modo de aproximação (Low energy hunting)
-        target_base_lev = 10.0 if is_sol else 2.0
+        # High Frequency Approximation
+        target_base_lev = 15.0 if is_sol else 5.0
         
     # ALAVANCAGEM FINAL = INFINITY * SHIELD
     effective_leverage = target_base_lev * shield_mult
@@ -688,13 +688,13 @@ async def run_backtest(payload: WebhookPayload):
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
             
-            # 💎 INFINITY MATRIX + SHIELD NO BACKTEST
-            if score >= 95:
-                if is_sol_backtest: target_lev = 55.0
-                elif "ETH" in symbol: target_lev = 3.0
-                else: target_lev = 4.0
+            # 💎 INFINITY MATRIX BACKTEST SYNC
+            if score >= 90:
+                if is_sol_backtest: target_lev = 60.0
+                elif "ETH" in symbol: target_lev = 20.0
+                else: target_lev = 25.0
             else:
-                target_lev = 10.0 if is_sol_backtest else 2.0
+                target_lev = 15.0 if is_sol_backtest else 5.0
             
             # Shield effect médio no backtest (conservador)
             lev = target_lev * 1.0 # 100% efficiency in clear backtest
