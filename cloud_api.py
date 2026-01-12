@@ -450,51 +450,44 @@ async def run_backtest(payload: WebhookPayload):
             elif overbought: bias = "GOD_SHORT"; score = 93
         
         if score >= 90:
-            config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
+            is_sol_backtest = "SOL" in symbol.upper() # Local variable fix
+            config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] # Close do candle de sinal
             lev = config["leverage"]
             
             # Parametros TP/SL (Consistente com a execução)
             sl_dist = atr * 3.0
             
-            pnl_base = 0
+            pnl_base = 0.0
             
-            # Loop de Simulação
-            # Verifica o futuro para ver se tocou no Target (MA20) ou SL
-            # Nota: MA20 muda com o tempo. Usaremos a MA20 do candle J para ser realista.
-            # Mas MA20 precisa ser calculada. Como não temos, usaremos a MA20 do sinal (fixa) como estimativa conservadora,
-            # ou calcularemos on-the-fly se tivermos dados, mas é pesado.
-            # Vamos usar Target Fixo = MA20 inicial.
+            # Target Fixo = MA20 inicial.
             target_price = ma20 
             
             for j in range(i+1, min(i+300, len(ohlcv))):
                 f = ohlcv[j]
                 current_high = f[2]
                 current_low = f[3]
-                current_close = f[4]
                 
                 if bias == "GOD_LONG":
-                    # TP: Preço subiu até a MA20 (Target)
-                    # Lucro: (Target - Entry) / Entry
+                    # TP
                     if current_high >= target_price: 
-                        pnl_base = (target_price - entry) / entry
+                        pnl_base = ((target_price - entry) / entry) * lev
                         i = j; break
                     
-                    # SL: Preço caiu abaixo do SL
+                    # SL
                     if current_low <= entry - sl_dist: 
-                        pnl_base = -sl_dist / entry # Prejuizo limitado ao SL distance
+                        pnl_base = ((-sl_dist) / entry) * lev 
                         i = j; break
                         
                 else: # SHORT
-                    # TP: Preço caiu até a MA20
-                    # Lucro: (Entry - Target) / Entry
+                    # TP
                     if current_low <= target_price: 
-                        pnl_base = (entry - target_price) / entry
+                        pnl_base = ((entry - target_price) / entry) * lev
                         i = j; break
 
-                    # SL: Preço subiu acima do SL
+                    # SL
                     if current_high >= entry + sl_dist:
-                        pnl_base = -sl_dist / entry
+                        pnl_base = ((-sl_dist) / entry) * lev
                         i = j; break
             
             pnl_base = 0
