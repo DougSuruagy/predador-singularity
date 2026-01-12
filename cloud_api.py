@@ -1,11 +1,12 @@
 """
-PREDATOR v220.0 "ELASTIC-SOL-ARMOR" - Cloud API (Render)
+PREDATOR v360.0 "RALPH-FUSION" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-THE ULTIMATE HFT EVOLUTION:
-1. SOL-ARMOR: BB Width > 0.8% + Z-Vol > 3.2 (Filters dirty chop).
-2. ELASTIC REVERSION: Target Fixed at EMA9.
-3. INSTITUTIONAL FLOW: Z-Score Vol > 3.0 required.
-4. RSI SLOPE: Confirm velocity exhaustion.
+🤖 RALPH PROTOCOL (Robust Adaptive Logic Protocol Hybrid):
+O Ralph não adivinha. O Ralph esmaga.
+1. MODE TANK (v220): Lateral? Elastic Reversion na EMA9.
+2. MODE TURBO (v353): Tendência? Pullbacks a favor do fluxo.
+3. MODE PANIC (v359): Crash? Compra o fundo (RSI < 25).
+   - Dynamic Selector: Ativa a melhor arma para o candle atual.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -87,7 +88,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "220.0-ELASTIC-SOL-ARMOR",
+            "version": "360.0-RALPH-FUSION",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -325,63 +326,88 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🦅 v220.0 ELASTIC-SOL-ARMOR
+    # 🤖 RALPH-FUSION CORE v360.0
     is_sol = "SOL" in symbol.upper()
     
-    # Entropy Scaling
+    # 1. COLETAR DADOS DO AMBIENTE
     entropy = intel["entropy"]
-    lev_mult = 1.0
-    if entropy > 0.70: lev_mult = 0.50
-
+    rsi = intel["rsi"]
+    z_vol = intel["z_vol"]
+    bb_width = intel["bb_width"]
     price = intel["price"]
     ema9 = intel["ema9"]
-    bb_width = intel["bb_width"]
-    z_vol = intel["z_vol"]
-    rsi = intel["rsi"]
+    ma20 = intel["ma20"]
     slope = intel["rsi_slope"]
+    trend_up = intel["trend_up"] # Price > EMA200
+    atr = intel["atr"]
 
-    # 🛡️ SOL-ARMOR FILTER
-    # Blindagem total para SOL: Só opera se bandas estiverem largas (0.8%) 
-    # e volume for massivo (Z > 3.2)
-    if is_sol:
-        min_width = 0.80
-        min_z = 3.2
-    else:
-        min_width = 0.25 # BTC/ETH aceitam menor volatilidade
-        min_z = 2.8      # Volume institucional padrão
+    # 2. SELETOR DE REGIME (O Cérebro do Ralph)
+    # Define qual estratégia usar baseada no caos (entropia) e volatilidade
+    
+    strategy_mode = "NONE"
+    
+    # REGIME A: PÂNICO (Prioridade Máxima - A v359 que deu lucro)
+    # Se RSI estiver gritando, ignora tudo e opera a reversão
+    if rsi < 25 or rsi > 75:
+        strategy_mode = "PANIC_REVERSION"
         
-    width_ok = bb_width > min_width
-    vol_ok = z_vol > min_z
+    # REGIME B: TENDÊNCIA (Turbo Mode)
+    # Se entropia baixa (ordem) e BB expandindo
+    elif bb_width > 0.3 and abs(slope) > 0.3:
+        strategy_mode = "TREND_RIDE"
+        
+    # REGIME C: LATERAL (Tank Mode v220)
+    # Se mercado está calmo
+    else:
+        strategy_mode = "ELASTIC_SIDEWAYS"
+
+    # 3. EXECUÇÃO TÁTICA
     
-    # ELASTIC TRIGGERS (Reversão à EMA9)
-    # Compra: Preço esticado pra baixo (RSI < 30) + Slope virando pra cima
-    buy_elastico = rsi < 30 and slope > 0.2
-    
-    # Venda: Preço esticado pra cima (RSI > 70) + Slope virando pra baixo
-    sell_elastico = rsi > 70 and slope < -0.2
-    
-    # FEE AWARE CHECK (Net Profit Guarantee)
-    # Distância até a EMA9 deve cobrir taxas (aprox 0.15% movimento)
-    dist_to_ema9_pct = abs(price - ema9) / price * 100
-    fee_ok = dist_to_ema9_pct > 0.15
-    
-    if width_ok and vol_ok and fee_ok:
-        if is_sol:
-            # SOL ARMOR: Apenas Longs em Dips extremos (Volatilidade segura)
-            if buy_elastico:
-                bias = "GOD_LONG"; score = 96
-        else:
-            # BTC/ETH: Bidirecional
-            if buy_elastico:
-                bias = "GOD_LONG"; score = 95
-            elif sell_elastico:
+    # --- TÁTICA 1: PANIC REVERSION (v359) ---
+    if strategy_mode == "PANIC_REVERSION":
+        dist_ma20 = abs(price - ma20)
+        if dist_ma20 > atr * 0.8: # Filtro de Lucro Mínimo
+            if rsi < 25:
+                if is_sol: bias = "GOD_LONG"; score = 95 # SOL ama panic buys
+                else: bias = "GOD_LONG"; score = 95
+            elif rsi > 75 and not is_sol: # SOL odeia shorts em euforia
                 bias = "GOD_SHORT"; score = 95
-    
+                
+        intel["sl_factor"] = 2.0
+        intel["tp_target"] = "ma20"
+        
+    # --- TÁTICA 2: TREND RIDE (v353) ---
+    elif strategy_mode == "TREND_RIDE":
+        # Pullback na tendência
+        pullback_ema9 = abs(price - ema9) < atr * 0.6
+        if pullback_ema9:
+            if trend_up and rsi > 45: # Tendência Alta Saudável
+                bias = "GOD_LONG"; score = 92
+            elif not trend_up and rsi < 55 and not is_sol:
+                bias = "GOD_SHORT"; score = 92
+        
+        intel["sl_factor"] = 1.0 # Stop curto
+        intel["tp_factor"] = 2.0 # Deixa correr
+
+    # --- TÁTICA 3: ELASTIC SIDEWAYS (v220 Armor) ---
+    elif strategy_mode == "ELASTIC_SIDEWAYS":
+        # Só opera se Z-Vol confirmar interesse institucional
+        min_z = 1.5 # Relaxado da v220 (era 3.2) pra ter volume
+        if z_vol > min_z:
+            # Compra fundo, Vende topo
+            if intel["touch_low"] and slope > 0.1:
+                bias = "GOD_LONG"; score = 90
+            elif intel["touch_high"] and slope < -0.1 and not is_sol:
+                bias = "GOD_SHORT"; score = 90
+                
+        intel["sl_factor"] = 1.5
+        intel["tp_target"] = "ema9" # Alvo curto elástico
+
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
-    intel["leverage_mult"] = lev_mult
-    intel["sl_factor"] = 2.5 # SL Largo para aguentar pavio
-    intel["tp_target"] = "ema9" # 🎯 ALVO: EMA9 (Elastic Core)
+    # Ralph Log
+    if decision == "EXECUTE":
+        print(f"🤖 RALPH: {symbol} -> Modo {strategy_mode} Ativado! ({bias})")
 
     engine_state.last_score = score
     
@@ -458,60 +484,86 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🦅 v220.0 ELASTIC-SOL-ARMOR BACKTEST
+        # 🤖 RALPH-FUSION BACKTEST v360.0
         is_sol = "SOL" in symbol.upper()
+        # Coleta de Dados
         entropy = intel["entropy"]
-        lev_mult = 1.0
-        if entropy > 0.70: lev_mult = 0.50
-
+        rsi = intel["rsi"]
+        z_vol = intel["z_vol"]
+        bb_width = intel["bb_width"]
         price = intel["price"]
         ema9 = intel["ema9"]
-        bb_width = intel["bb_width"]
-        z_vol = intel["z_vol"]
-        rsi = intel["rsi"]
+        ma20 = intel["ma20"]
         slope = intel["rsi_slope"]
+        trend_up = intel["trend_up"]
         atr = intel["atr"]
+        touch_low = intel["touch_low"]
+        touch_high = intel["touch_high"]
         
-        if is_sol:
-            min_width = 0.80
-            min_z = 3.2
-        else:
-            min_width = 0.25
-            min_z = 2.8
-            
-        width_ok = bb_width > min_width
-        vol_ok = z_vol > min_z
-        buy_elastico = rsi < 30 and slope > 0.2
-        sell_elastico = rsi > 70 and slope < -0.2
-        dist_to_ema9_pct = abs(price - ema9) / price * 100
-        fee_ok = dist_to_ema9_pct > 0.15
+        # Lógica RALPH no Backtest
+        strategy_mode = "NONE"
+
+        if rsi < 25 or rsi > 75: strategy_mode = "PANIC_REVERSION"
+        elif bb_width > 0.3 and abs(slope) > 0.3: strategy_mode = "TREND_RIDE"
+        else: strategy_mode = "ELASTIC_SIDEWAYS"
         
-        if width_ok and vol_ok and fee_ok:
-            if is_sol:
-                if buy_elastico:
-                    bias = "GOD_LONG"; score = 96
-            else:
-                if buy_elastico:
-                    bias = "GOD_LONG"; score = 95
-                elif sell_elastico:
-                    bias = "GOD_SHORT"; score = 95
-            
+        # Execução Backtest
+        if strategy_mode == "PANIC_REVERSION":
+            dist_ma20 = abs(price - ma20)
+            if dist_ma20 > atr * 0.8:
+                if rsi < 25: bias = "GOD_LONG"; score = 95
+                elif rsi > 75 and not is_sol: bias = "GOD_SHORT"; score = 95
+                
+        elif strategy_mode == "TREND_RIDE":
+            pullback_ema9 = abs(price - ema9) < atr * 0.6
+            if pullback_ema9:
+                if trend_up and rsi > 45: bias = "GOD_LONG"; score = 92
+                elif not trend_up and rsi < 55 and not is_sol: bias = "GOD_SHORT"; score = 92
+
+        elif strategy_mode == "ELASTIC_SIDEWAYS":
+            if z_vol > 1.5:
+                if touch_low and slope > 0.1: bias = "GOD_LONG"; score = 90
+                elif touch_high and slope < -0.1 and not is_sol: bias = "GOD_SHORT"; score = 90
+        
         if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
-            sl_dist = atr * 2.5
-            target_price = ema9 # 🎯 ALVO: EMA9
-            lev = config["leverage"] * lev_mult
+            lev = config["leverage"]
             
+            # Parametros Dinamicos de TP/SL
+            sl_dist = atr * 1.5 # Default
+            target_price = 0
+            tp_dist = 0
+            
+            if strategy_mode == "PANIC_REVERSION":
+                sl_dist = atr * 2.0
+                target_price = ma20
+            elif strategy_mode == "TREND_RIDE":
+                sl_dist = atr * 1.0
+                tp_dist = atr * 2.0
+            elif strategy_mode == "ELASTIC_SIDEWAYS":
+                sl_dist = atr * 1.5
+                target_price = ema9
+
             pnl_base = 0
             
             for j in range(i+1, min(i+200, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
-                    if f[2] >= target_price: pnl_base = (target_price/entry - 1); i = j; break
+                    # Check TP
+                    if tp_dist > 0: # TP Fixo
+                        if f[2] >= entry + tp_dist: pnl_base = tp_dist/entry; i = j; break
+                    elif target_price > 0: # Target Dinamico
+                        if f[2] >= target_price: pnl_base = (target_price/entry - 1); i = j; break
+                    
+                    # Check SL
                     if f[3] <= entry - sl_dist: pnl_base = -sl_dist/entry; i = j; break
                 else:
-                    if f[3] <= target_price: pnl_base = (1 - target_price/entry); i = j; break
+                    if tp_dist > 0:
+                        if f[3] <= entry - tp_dist: pnl_base = tp_dist/entry; i = j; break
+                    elif target_price > 0:
+                        if f[3] <= target_price: pnl_base = (1 - target_price/entry); i = j; break
+                        
                     if f[2] >= entry + sl_dist: pnl_base = -sl_dist/entry; i = j; break
             
             pnl_base = 0
