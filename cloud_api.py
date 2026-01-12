@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "290.0-REVERSION-SOUL",
+            "version": "300.0-SUPREME-LEGEND",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -325,31 +325,38 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🕒 REVERSION SOUL v290.0 (v220 Parity)
+    # 🕒 ELASTIC LEGEND v300.0
     is_sol = "SOL" in symbol.upper()
     is_eth = "ETH" in symbol.upper()
     
+    # Wick Detection (Body Ratio)
+    o, h, l, c = ohlcv[-1][1], ohlcv[-1][2], ohlcv[-1][3], ohlcv[-1][4]
+    body_ratio = abs(o - c) / max(0.0001, h - l)
+
     if intel["is_compressed"]:
-        min_w = 0.85 if is_sol else (0.40 if is_eth else 0.35)
+        min_w = 1.10 if is_sol else (0.50 if is_eth else 0.35)
         if intel["bb_width"] < min_w: return
         
-        # Triggers Soul
-        oversold = intel["rsi"] < 35 or (intel["rsi"] < 40 and intel["rsi_slope"] < -5)
-        overbought = intel["rsi"] > 65 or (intel["rsi"] > 60 and intel["rsi_slope"] > 5)
-        min_z = 2.8 if is_sol else 2.2
+        # Triggers Extremas
+        lo_rsi = 22 if is_sol else 25
+        hi_rsi = 78 if is_sol else 75
+        
+        oversold = (intel["rsi"] < lo_rsi) and (body_ratio < 0.45)
+        overbought = (intel["rsi"] > hi_rsi) and (body_ratio < 0.45)
+        min_z = 3.2 if is_sol else 2.5
         strong_push = intel["z_vol"] > min_z
 
         if strong_push:
-            if oversold: bias = "GOD_LONG"; score = 96
-            elif overbought: bias = "GOD_SHORT"; score = 96
+            if oversold: bias = "GOD_LONG"; score = 98
+            elif overbought: bias = "GOD_SHORT"; score = 98
     else:
-        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 2.8:
+        if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 4.5:
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 92
     
     if intel["divergence"]: score = 0 
 
-    decision = "EXECUTE" if score >= 90 else "REJECT"
+    decision = "EXECUTE" if score >= 94 else "REJECT"
 
     engine_state.last_score = score
     
@@ -426,28 +433,35 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v290.0 "REVERSION-SOUL"
+        # 🧬 NEURAL SIMULATION v300.0 "ELASTIC-LEGEND"
         is_sol = "SOL" in symbol.upper()
+        # Wick Detection
+        o, h, l, c = ohlcv[i][1], ohlcv[i][2], ohlcv[i][3], ohlcv[i][4]
+        body_ratio = abs(o - c) / max(0.0001, h - l)
+
         if intel["is_compressed"]:
-            min_w = 0.85 if is_sol else (0.40 if "ETH" in symbol else 0.35)
+            min_w = 1.10 if is_sol else (0.50 if "ETH" in symbol else 0.35)
             if intel["bb_width"] < min_w: i += 1; continue
             
-            oversold = intel["rsi"] < 35 or (intel["rsi"] < 40 and intel["rsi_slope"] < -5)
-            overbought = intel["rsi"] > 65 or (intel["rsi"] > 60 and intel["rsi_slope"] > 5)
-            min_z = 2.8 if is_sol else 2.2
+            lo_rsi = 22 if is_sol else 25
+            hi_rsi = 78 if is_sol else 75
+            
+            oversold = (intel["rsi"] < lo_rsi) and (body_ratio < 0.45)
+            overbought = (intel["rsi"] > hi_rsi) and (body_ratio < 0.45)
+            min_z = 3.2 if is_sol else 2.5
             strong_push = intel["z_vol"] > min_z
 
             if strong_push:
-                if oversold: bias = "GOD_LONG"; score = 96
-                elif overbought: bias = "GOD_SHORT"; score = 96
+                if oversold: bias = "GOD_LONG"; score = 98
+                elif overbought: bias = "GOD_SHORT"; score = 98
         else:
-            if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 2.8:
+            if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 4.5:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
                 score = 92
         
         if intel["divergence"]: score = 0
             
-        if score >= 90:
+        if score >= 94:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
             atr = intel["atr"]
@@ -455,10 +469,10 @@ async def run_backtest(payload: WebhookPayload):
             lev = config["leverage"]
             
             pnl_base = 0
-            # Target EMA 9 (A alma da v220)
-            target_price = intel["ema9"]
+            # Target MA20 (Full Reversion)
+            target_price = intel["ma20"]
             
-            for j in range(i+1, min(i+150, len(ohlcv))):
+            for j in range(i+1, min(i+250, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
                     if f[2] >= target_price: pnl_base = (target_price/entry - 1); i = j; break

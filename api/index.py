@@ -117,42 +117,56 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v290.0 "REVERSION-SOUL" (v220 RESTORATION)
-    # Objetivo: Recuperar os +92.61% de lucro real.
+    # 🧬 MASTER LOGIC v300.0 "ELASTIC-LEGEND"
+    # Objetivo: Recuperar a Precisão v220 (+111% BTC / +72% SOL)
     is_sol = "SOL" in payload.symbol.upper()
     is_eth = "ETH" in payload.symbol.upper()
     
-    if intel["is_compressed"]:
-        # Filtros Letais v220
-        min_width = 0.85 if is_sol else (0.40 if is_eth else 0.35)
-        if intel["bb_width"] < min_width:
-             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Vol"}
+    # Detecção de Wick (Pavio) - v200 Legacy High Conviction
+    # (High - Low) vs (Open - Close)
+    if len(payload.ohlcv) > 0:
+        o, h, l, c = payload.ohlcv[-1][1], payload.ohlcv[-1][2], payload.ohlcv[-1][3], payload.ohlcv[-1][4]
+        body = abs(o - c)
+        range_ = max(0.0001, h - l)
+        body_ratio = body / range_
+    else:
+        body_ratio = 1.0
 
-        # Triggers de Estilingue v220
-        oversold = intel["rsi"] < 35 or (intel["rsi"] < 40 and intel["rsi_slope"] < -5)
-        overbought = intel["rsi"] > 65 or (intel["rsi"] > 60 and intel["rsi_slope"] > 5)
+    if intel["is_compressed"]:
+        # Filtros de Ouro para Rentabilidade Real
+        min_width = 1.10 if is_sol else (0.50 if is_eth else 0.35)
+        if intel["bb_width"] < min_width:
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Trap Zone"}
+
+        # Triggers de Exaustão "Estilingue" (RSI Extremo + Wick)
+        # SUPREME: 25/75 | SOL: 22/78 (Mais seletivo pela volatilidade)
+        lo_rsi = 22 if is_sol else 25
+        hi_rsi = 78 if is_sol else 75
         
-        # Z-Volume Original (O Ponto Doce)
-        min_z = 2.8 if is_sol else 2.2
+        oversold = (intel["rsi"] < lo_rsi) and (body_ratio < 0.45)
+        overbought = (intel["rsi"] > hi_rsi) and (body_ratio < 0.45)
+        
+        # Z-Volume (Confirmador de Fluxo de Baleia)
+        min_z = 3.2 if is_sol else 2.5
         strong_push = intel["z_vol"] > min_z
 
         if strong_push:
-            if oversold: bias = "GOD_LONG"; score = 96
-            elif overbought: bias = "GOD_SHORT"; score = 96
+            if oversold: bias = "GOD_LONG"; score = 98
+            elif overbought: bias = "GOD_SHORT"; score = 98
             
     else:
-        # TREND LOGIC v220
-        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 2.8: 
+        # TREND LOGIC: Apenas com volume dominante
+        if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 4.5: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 92
             
     # Hard Divergence Reject
     if intel["divergence"]: score = 0 
             
-    decision = "EXECUTE" if score >= 90 else "REJECT"
+    decision = "EXECUTE" if score >= 94 else "REJECT"
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "targets": {"tp": intel["ema9"], "sl_factor": 1.8},
-        "version": "290.0-SOUL"
+        "targets": {"tp": intel["ma20"], "sl_factor": 2.5},
+        "version": "300.0-LEGEND"
     }
