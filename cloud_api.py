@@ -502,29 +502,50 @@ async def run_backtest(payload: WebhookPayload):
                         pnl_base = ((-sl_dist) / entry) * lev
                         i = j; break
             
-            pnl_base = 0
-            
-            for j in range(i+1, min(i+200, len(ohlcv))):  # Max 200 candles para reversão
-                f = ohlcv[j]
-                if bias == "GOD_LONG":
-                    if f[2] >= target_price: pnl_base = (target_price/entry - 1); i = j; break
-                    if f[3] <= entry - sl_dist: pnl_base = -sl_dist/entry; i = j; break
-                else:
-                    if f[3] <= target_price: pnl_base = (1 - target_price/entry); i = j; break
-                    if f[2] >= entry + sl_dist: pnl_base = -sl_dist/entry; i = j; break
-            
             if pnl_base != 0:
-                fee = 0.0008 
-                pnl_final = (pnl_base - fee) * lev * 100
-                if score > 96: pnl_final *= 1.2
+                fee = 0.0006 * lev # Taxa Taker aprox
+                # Se pnl_base já tem lev, fee também deve ser escalada ou subtraída do percentual total?
+                # PnL bruto (ex: 10%) - Taxa (ex: 0.06% * 10x = 0.6%) -> 9.4%
+                # pnl_base já é percentual alavancado (ex: 0.10)
+                # pnl_final_pct = (pnl_base - fee) * 100
                 
-                sim["pnl"] += pnl_final
+                final_pnl = (pnl_base - fee) * 100
+                sim["pnl"] += final_pnl
                 sim["trades"] += 1
-                if pnl_base > 0: sim["wins"] += 1
+                if final_pnl > 0: sim["wins"] += 1
+                
+                # Para Sharpe/DD
+                if "history" not in sim: sim["history"] = []
+                sim["history"].append(final_pnl)
         
         i += 1
 
     win_rate = (sim["wins"] / max(1, sim["trades"])) * 100
+    
+    # Calc Metrics
+    sharpe = 0.0
+    drawdown = 0.0
+    history = sim.get("history", [])
+    
+    if history:
+        # Sharpe (Mean / StdDev) * Sqrt(N)
+        mean_ret = sum(history) / len(history)
+        variance = sum([(x - mean_ret)**2 for x in history]) / len(history)
+        std_dev = variance**0.5
+        if std_dev > 0:
+            sharpe = (mean_ret / std_dev) * (len(history)**0.5)
+            
+        # Drawdown (Peak to Valley)
+        peak = 0
+        curve = 0
+        max_dd = 0
+        for ret in history:
+            curve += ret
+            if curve > peak: peak = curve
+            dd = peak - curve
+            if dd > max_dd: max_dd = dd
+        drawdown = max_dd
+
     return {
         "symbol": symbol, 
         "total_pnl_percent": round(sim["pnl"], 2), 
@@ -532,6 +553,8 @@ async def run_backtest(payload: WebhookPayload):
         "win_rate": round(win_rate, 2),
         "metrics": {
             "rrr": 1.3 if "SOL" not in symbol else 1.2,
-            "safety_rating": "SOVEREIGN" if sim["pnl"] > 0 else "CAUTION"
+            "sharpe_ratio": round(sharpe, 2),
+            "max_drawdown": round(drawdown, 2),
+            "safety_rating": "SOVEREIGN" if sim["pnl"] > 0 and sharpe > 1.0 else ("OK" if sim["pnl"] > 0 else "CAUTION")
         }
     }
