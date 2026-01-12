@@ -1,12 +1,13 @@
 """
-PREDATOR v370.0 "SINGULARITY-INFINITY" - Cloud API (Render)
+PREDATOR v371.0 "ENTROPY-SHIELD" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-STRATEGY: INFINITE SCALING MATRIX
- GOAL: +50% PnL PER ASSET (Total > 100%).
+STRATEGY: INFINITY MATRIX + ENTROPY SHIELD
+ GOAL: MAX PROFIT WITH CHAOS PROTECTION.
 1. SOL: 55.0x Boost (The "Infinity" Trade).
 2. ETH: 3.0x Boost (Locked at +50%).
 3. BTC: 4.0x Boost (Standard).
-4. MODE: 24/7 AUTONOMOUS HUNTING READY.
+4. SHIELD: Reduces leverage by 50-80% if Entropy > 0.6.
+5. MODE: 24/7 AUTONOMOUS HUNTING READY.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -55,6 +56,8 @@ class EngineState:
         self.mode = "SUPREME"
         self.last_price = 0.0
         self.last_score = 0
+        self.last_entropy = 0.0
+        self.shield_status = "OFF"
         self.trade_log = []
         
         # 🛡️ TRAVAS DE SEGURANÇA
@@ -88,7 +91,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "370.0-SINGULARITY-INFINITY",
+            "version": "371.0-ENTROPY-SHIELD",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -98,6 +101,8 @@ class EngineState:
             "regime": "GHOST-HUNTING" if not is_locked else "LOCKED",
             "price": self.last_price,
             "prob": self.last_score,
+            "entropy": self.last_entropy,
+            "shield": self.shield_status
             "confidence": self.last_score,
             "is_locked": is_locked,
             "is_hunting": not is_locked,
@@ -365,23 +370,43 @@ async def run_strategy(symbol, mode):
 
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
+    # 🛡️ ENTROPY SHIELD CALCULATOR
+    # Protege contra violinadas em mercados caóticos
+    entropy = intel.get("entropy", 0.5)
+    shield_mult = 1.0
+    sl_reduction = 1.0
+    
+    if entropy > 0.75:
+        shield_mult = 0.2 # Sobrevivência (Corta 80%)
+        sl_reduction = 0.6 # SL bem mais curto para sair logo
+        print(f"🛡️ [ENTROPY SHIELD] MAX DEFENSE ACTIVATED! (Entropy: {entropy:.2f})")
+    elif entropy > 0.60:
+        shield_mult = 0.5 # Cautela (Corta 50%)
+        sl_reduction = 0.8 # SL 20% menor
+        print(f"🛡️ [ENTROPY SHIELD] ACTIVE! (Entropy: {entropy:.2f})")
+        
     # 💎 INFINITY MATRIX: Maximização Final
     if score >= 95:
         if is_sol: 
-            lev_boost = 55.0 # SOL precisa de 55x para bater +50% (baseado em +23% c/ 25x)
+            base_boost = 55.0 
         elif "ETH" in symbol:
-            lev_boost = 3.0  # ETH cravado em +50%
+            base_boost = 3.0  
         else:
-            lev_boost = 4.0  # BTC seguro
+            base_boost = 4.0  
     else:
-        lev_boost = 1.0
+        base_boost = 1.0
+        
+    # ALAVANCAGEM FINAL = INFINITY * SHIELD
+    final_lev_mult = base_boost * shield_mult
     
     intel["tp_factor"] = 0     
-    intel["sl_factor"] = 3.0    
+    intel["sl_factor"] = 3.0 * sl_reduction # Reduz SL se caos
     intel["tp_target"] = "ma20" 
-    intel["leverage_mult"] = lev_boost
+    intel["leverage_mult"] = final_lev_mult
 
     engine_state.last_score = score
+    engine_state.last_entropy = entropy
+    engine_state.shield_status = "MAX_DEFENSE" if entropy > 0.75 else ("ACTIVE" if entropy > 0.60 else "OFF")
     
     if decision == "EXECUTE":
         config = get_supreme_config(symbol, intel["trend_strong"], intel["is_compressed"]) if mode == "SUPREME" else get_sniper_config(symbol, intel["trend_strong"], intel["is_compressed"])
@@ -480,16 +505,25 @@ async def run_backtest(payload: WebhookPayload):
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
             
-            # 💎 INFINITY MATRIX NO BACKTEST
+            # 💎 INFINITY MATRIX + SHIELD NO BACKTEST
+            # Simula a Entropia (Randomizado levemente ou fixo se não tiver dados)
+            # Como backtest não calcula entropia candle a candle no loop simplificado acima (necessitaria recalculo pesado),
+            # Vamos assumir Entropy Shield médio para ser conservador no SOL (0.8x effect)
+            
             boost = 1.0
             if score >= 95:
                 if is_sol_backtest: boost = 55.0
                 elif "ETH" in symbol: boost = 3.0
                 else: boost = 4.0
-                
-            lev = config["leverage"] * boost
+            
+            # Aplica penalidade de entropia aleatória para testar robustez (Monte Carlo leve)
+            # Em 20% dos casos, o shield ativaria (corta pela metade)
+            # Para backtest deterministico, usaremos um fator médio "Shield Drag = 0.9"
+            
+            lev = config["leverage"] * boost * 0.9 # 10% de drag devido ao shield médio
             
             # Parametros TP/SL Reversion
+            sl_dist = atr * 3.0 * 0.9 # SL levemente mais curto em média
             sl_dist = atr * 3.0
             target_price = ma20
             

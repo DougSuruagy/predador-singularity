@@ -122,11 +122,18 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     is_sol = "SOL" in payload.symbol.upper()
     is_eth = "ETH" in payload.symbol.upper()
     
-    # Entropy Multiplier (Sobrevivência)
+    # Entropy Multiplier (Sobrevivência & Escudo)
     entropy = intel["entropy"]
-    lev_mult = 1.0
-    if entropy > 0.70: lev_mult = 0.40
-    elif entropy > 0.55: lev_mult = 0.70
+    lev_mult = 1.0 # Padrão Full Power
+    
+    shield_status = "OFF"
+    
+    if entropy > 0.75: 
+        lev_mult = 0.20 # Modo Sobrevivência (Caos Total)
+        shield_status = "MAX_DEFENSE"
+    elif entropy > 0.60: 
+        lev_mult = 0.50 # Modo Cautela
+        shield_status = "ACTIVE"
 
     # Body Ratio (Pavio Institucional)
     if len(payload.ohlcv) > 0:
@@ -172,7 +179,8 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
         "bias": bias, "score": score, "intel": intel, "decision": decision,
         "targets": {"tp": intel["ma20"], "sl_factor": 3.0},
         "leverage_mult": lev_mult,
-        "version": "370.0-SINGULARITY"
+        "shield": shield_status,
+        "version": "371.0-ENTROPY-SHIELD"
     }
 
 @app.get("/api/wake_up_render")

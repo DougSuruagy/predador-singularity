@@ -97,14 +97,24 @@ function updateUI(data) {
 
     // Biometrics (Gauges)
     updateGauge('dopamine-fill', data.bio?.dopamine || 50);
-    updateGauge('adrenaline-fill', (data.bio?.adrenaline || 0.5) * 100);
+    // Biometrics Update
+    document.getElementById('bio-dopamine').textContent = data.bio_metrics.dopamine;
+    document.getElementById('bar-dopamine').style.width = (data.bio_metrics.dopamine * 100) + '%';
 
-    const entropy = data.intel?.entropy || 0;
-    const entropyEl = document.getElementById('entropy');
-    if (entropyEl) {
-        entropyEl.innerText = entropy.toFixed(2);
-        entropyEl.style.color = entropy > 0.75 ? 'var(--danger)' : (entropy > 0.60 ? 'var(--warning)' : 'var(--success)');
-    }
+    document.getElementById('bio-adrenaline').textContent = data.bio_metrics.adrenaline;
+    document.getElementById('bar-adrenaline').style.width = (data.bio_metrics.adrenaline * 100) + '%';
+
+    // Entropy Visuals
+    const entropy = data.entropy || 0;
+    const shield = data.shield || "OFF";
+    document.getElementById('val-entropy').textContent = entropy.toFixed(2);
+    document.getElementById('bar-entropy').style.width = (entropy * 100) + '%';
+
+    const shieldEl = document.getElementById('bio-shield');
+    shieldEl.textContent = shield;
+    if (shield === "MAX_DEFENSE") shieldEl.className = "text-xs font-bold text-red-500 animate-pulse";
+    else if (shield === "ACTIVE") shieldEl.className = "text-xs font-bold text-yellow-400";
+    else shieldEl.className = "text-xs font-bold text-blue-400";
 
     document.getElementById('uptime').innerText = `UP ${formatUptime(data.uptime)}`;
     document.getElementById('efficiency').innerText = `${data.executive_efficiency || 100}%`;

@@ -138,6 +138,61 @@
                     </div>
                 </div>
 
+                <!-- BIOMETRICS -->
+                <div class="glass-panel p-6 border-l-4 border-purple-500 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-2 opacity-20">
+                        <i class="fas fa-dna text-6xl text-purple-300"></i>
+                    </div>
+                    <h3 class="text-xs font-bold text-gray-400 tracking-widest uppercase mb-4 flex items-center gap-2">
+                        <i class="fas fa-heartbeat text-purple-400"></i> Neural Biometrics
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- Dopamine -->
+                        <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700/50">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs text-gray-400">Dopamine</span>
+                                <span id="bio-dopamine" class="text-xs font-bold text-green-400">0.0</span>
+                            </div>
+                            <div class="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                                <div id="bar-dopamine"
+                                    class="h-full bg-gradient-to-r from-green-600 to-green-400 w-0 transition-all duration-1000">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Adrenaline -->
+                        <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700/50">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs text-gray-400">Adrenaline</span>
+                                <span id="bio-adrenaline" class="text-xs font-bold text-yellow-400">0.0</span>
+                            </div>
+                            <div class="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                                <div id="bar-adrenaline"
+                                    class="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 w-0 transition-all duration-1000">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Entropy Shield (Novo) -->
+                        <div class="bg-gray-800/50 p-3 rounded-lg border border-gray-700/50 col-span-2">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs text-gray-400 flex items-center gap-1"><i
+                                        class="fas fa-shield-alt text-blue-400"></i> Entropy Shield</span>
+                                <span id="bio-shield" class="text-xs font-bold text-blue-400">OFF</span>
+                            </div>
+                            <div class="flex items-center gap-2 mt-1">
+                                <div class="text-[10px] text-gray-500">Chaos Level:</div>
+                                <div class="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                                    <div id="bar-entropy"
+                                        class="h-full bg-gradient-to-r from-blue-500 to-red-500 w-0 transition-all duration-1000">
+                                    </div>
+                                </div>
+                                <div id="val-entropy" class="text-[10px] text-gray-300 font-mono">0.00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div style="margin-top: 20px; border-top: 1px solid var(--border-dim); padding-top: 15px;">
                     <span class="panel-title" style="display: block; margin-bottom: 10px;">Recent Synapses</span>
                     <div id="trades-list" style="font-size: 0.75rem; font-family: 'JetBrains Mono';">
