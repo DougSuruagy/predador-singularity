@@ -12,6 +12,7 @@ O **PREDATOR v370.0** representa o ápice da segurança e do lucro. Combinamos a
 | **BTC** | **4.0x** | Base Segura e Equilibrada | Reduz p/ 0.8x | **+88.34%** 👑 |
 | **ETH** | **3.0x** | Versão "Ether Zero" (RSI 20/80) | Reduz p/ 0.6x | **+45.11%** ✅ |
 | **SOL** | **55.0x** | Volatilidade Suprimida, Reversão Certeira | Reduz p/ 11x | **+46.15%** ✅ |
+| **RALF** | **100.0x** | Scalper de Alta Frequência (EMA 9/21) | Dinâmico | **New Mode** 🔥 |
 | **TOTAL** | **-** | **Combinação Soberana** | **Ativo** | **+179.60%** 💰 |
 
 ---
