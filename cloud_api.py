@@ -372,9 +372,9 @@ def get_supreme_config(symbol, is_trending, is_compressed):
     
     return {
         "threshold": 0.15, 
-        "min_score": 75, # Higher precision
-        "sl_mult": 1.0,  # Tight stop for 50x
-        "tp_mult": 2.0,  # 2.0 RR
+        "min_score": 70, 
+        "sl_mult": 1.2,
+        "tp_mult": 4.0, # Aiming for +50% per trade
         "leverage": 50,   
         "shadow_trail": True
     }
@@ -392,9 +392,9 @@ def get_sniper_config(symbol, is_trending, is_compressed):
         }
     return {
         "threshold": 0.20,
-        "min_score": 80, # More rigor for SOL 100x
-        "sl_mult": 0.8,  # Extreme tight for 100x
-        "tp_mult": 1.6,  # Fast scalp
+        "min_score": 70,
+        "sl_mult": 1.0,
+        "tp_mult": 4.0, # Aiming for +50% per trade
         "leverage": 100,
         "shadow_trail": True
     }
@@ -502,9 +502,9 @@ async def run_strategy(symbol, mode):
     
     score = points
     
-    # Surgical Thresholds: High-Gain Mode (Precision over Frequency)
+    # Surgical Thresholds: High-Gain Mode
     is_sol = "SOL" in symbol.upper()
-    active_threshold = 80 if is_sol else 75
+    active_threshold = 70 
     
     # 🔗 TREND FILTER (The Golden Rule)
     # Only BUY if above EMA 200, Only SELL if below EMA 200
@@ -678,13 +678,12 @@ async def run_backtest(payload: WebhookPayload):
         entropy = intel.get("entropy", 0.5)
 
         # Surgical Backtest Thresholds: TARGET +150%
-        is_sol_bt = "SOL" in symbol.upper()
-        active_threshold = 80 if is_sol_bt else 75
+        active_threshold = 70
 
         # Sync Trend & Volume Filters
         t_up = intel.get("trend_up", True)
         aligned_bt = (oversold and t_up) or (overbought and not t_up)
-        vol_confirm_bt = intel.get("z_vol", 0) > 1.2 or intel.get("bb_width", 0) > 0.2
+        vol_confirm_bt = intel.get("z_vol", 0) > 0.8 or intel.get("bb_width", 0) > 0.15
 
         if points >= active_threshold and entropy <= 0.85 and vol_confirm_bt and aligned_bt:
             is_sol_backtest = "SOL" in symbol.upper()
