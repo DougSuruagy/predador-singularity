@@ -210,6 +210,23 @@ async def startup_event():
     print(f"🛡️ Homeostase: Loss Limit {engine_state.MAX_DAILY_LOSS}% | Profit Limit {engine_state.MAX_DAILY_PROFIT}%")
     asyncio.create_task(exchange.load_markets())
     asyncio.create_task(autonomous_hunter_loop())
+    
+    # 💓 INTERNAL KEEP-ALIVE (Self-Sustaining)
+    # Tenta manter a instância 'quente' fazendo auto-requisições
+    def internal_pulse():
+        url = "https://predador-api.onrender.com/health"
+        print(f"💓 [KEEP-ALIVE] Iniciando protocolo de auto-preservação: {url}")
+        while True:
+            time.sleep(540) # 9 minutos (Render dorme em 15m)
+            try:
+                with httpx.Client(timeout=10) as client:
+                    r = client.get(url)
+                    print(f"💓 [PULSE] Status: {r.status_code} | Vivo: Sim")
+            except Exception as e:
+                print(f"⚠️ [PULSE FAIL] {e}")
+
+    import threading
+    threading.Thread(target=internal_pulse, daemon=True).start()
 
 @app.get("/state")
 async def get_state(x_token: str = Header(None)):
