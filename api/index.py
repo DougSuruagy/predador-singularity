@@ -104,41 +104,47 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v250.0 "SOVEREIGN-PULSE"
+    # 🧬 MASTER LOGIC v260.0 "ELASTIC-LEGACY"
+    # Objetivo: Recuperar a rentabilidade da v220 usando o "Estilingue" EMA 9.
     is_sol = "SOL" in payload.symbol.upper()
     is_eth = "ETH" in payload.symbol.upper()
     
+    # 🕒 INACTIVITY BUSTER: Relaxa thresholds se o robô estiver parado
+    idle_time = (time.time() - engine_state.last_trade_time) / 3600
+    relax = min(5, int(idle_time * 2)) # Até 5 pontos de relaxamento
+    
     if intel["is_compressed"]:
-        # Filtro de Rentabilidade Adaptativo (Busca o Equilíbrio)
-        min_width = 0.65 if is_sol else (0.35 if is_eth else 0.25)
+        # Filtro de Rentabilidade Real (v220 Style)
+        min_width = 0.85 if is_sol else 0.35
         if intel["bb_width"] < min_width:
              return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Vol"}
 
-        # Triggers de Estilingue Pulsonal (StochRSI + RSI)
-        oversold = (intel["rsi"] < 35 and intel["stoch_rsi"] < 35)
-        overbought = (intel["rsi"] > 65 and intel["stoch_rsi"] > 65)
+        # Triggers de Estilingue (Exaustão Extrema + Slope)
+        oversold = (intel["rsi"] < (32 + relax) or (intel["rsi"] < (38 + relax) and intel["rsi_slope"] < -6))
+        overbought = (intel["rsi"] > (68 - relax) or (intel["rsi"] > (62 - relax) and intel["rsi_slope"] > 6))
         
-        # Z-Volume Sincronizado
-        min_z = 2.5 if is_sol else 2.0
+        # Z-Volume Crítico (Fluxo Institucional Confirmado)
+        min_z = 3.0 if is_sol else 2.5
         strong_push = intel["z_vol"] > min_z
 
-        if strong_push:
-            if oversold: bias = "GOD_LONG"; score = 95
-            elif overbought: bias = "GOD_SHORT"; score = 95
+        if strong_push and oversold:
+            bias = "GOD_LONG"; score = 98 
+        elif strong_push and overbought:
+            bias = "GOD_SHORT"; score = 98
             
     else:
-        # TREND LOGIC: Apenas se o volume for real
-        if abs(intel["psi"]) > 0.30 and intel["z_vol"] > 2.8: 
+        # TREND SCALPING
+        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 3.0: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 90
+            score = 92
             
-    # Divergence Hard-Reject
+    # Hard Divergence Reject
     if intel["divergence"]: score = 0 
             
-    decision = "EXECUTE" if score >= 88 else "REJECT"
+    decision = "EXECUTE" if score >= 90 else "REJECT"
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "targets": {"tp": intel["ma20"], "sl_factor": 2.0 if is_sol else 1.5},
-        "version": "250.0-PULSE"
+        "targets": {"tp": intel["ema9"], "sl_factor": 2.2 if is_sol else 1.8},
+        "version": "260.0-ELASTIC"
     }

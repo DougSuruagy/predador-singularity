@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "250.0-SOVEREIGN-PULSE",
+            "version": "260.0-ELASTIC-LEGACY",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -227,35 +227,34 @@ async def root():
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v250.0 PULSE """
-    is_eth = "ETH" in symbol.upper()
+    """ [BTC/ETH] SINGULARITY APEX - v260.0 ELASTIC """
     if is_compressed:
         return {
             "threshold": 0.10, 
-            "min_score": 88,  
+            "min_score": 90,  
             "sl_mult": 1.5,   
-            "tp_mult": 1.0,   
+            "tp_mult": 1.2,   
             "leverage": 15,    
             "shadow_trail": False
         }
     
     return {
-        "threshold": 0.25, 
+        "threshold": 0.28, 
         "min_score": 75, 
-        "sl_mult": 2.0,
-        "tp_mult": 6.0,   
+        "sl_mult": 1.8,
+        "tp_mult": 6.8,   
         "leverage": 20,   
         "shadow_trail": True
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v250.0 PULSE """
+    """ [SOL] SNIPER v260.0 ELASTIC """
     if is_compressed:
         return {
             "threshold": 0.15,
-            "min_score": 90,
-            "sl_mult": 2.0,   
-            "tp_mult": 1.0, 
+            "min_score": 95,
+            "sl_mult": 2.2,   
+            "tp_mult": 1.2, 
             "leverage": 10,   
             "shadow_trail": False
         }
@@ -263,7 +262,7 @@ def get_sniper_config(symbol, is_trending, is_compressed):
         "threshold": 0.35,
         "min_score": 75,
         "sl_mult": 2.5,
-        "tp_mult": 5.0,
+        "tp_mult": 6.0,
         "leverage": 15,
         "shadow_trail": True
     }
@@ -326,31 +325,30 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🕒 SOVEREIGN PULSE v250.0
+    # 🕒 ELASTIC LEGACY v260.0
     is_sol = "SOL" in symbol.upper()
     is_eth = "ETH" in symbol.upper()
     
     if intel["is_compressed"]:
-        min_w = 0.65 if is_sol else (0.35 if is_eth else 0.25)
+        min_w = 0.85 if is_sol else 0.35
         if intel["bb_width"] < min_w: return
         
-        oversold = (intel["rsi"] < 35 and intel["stoch_rsi"] < 35)
-        overbought = (intel["rsi"] > 65 and intel["stoch_rsi"] > 65)
-        min_z = 2.5 if is_sol else 2.0
+        # Triggers Elastic
+        oversold = (intel["rsi"] < 32 or (intel["rsi"] < 38 and intel["rsi_slope"] < -6))
+        overbought = (intel["rsi"] > 68 or (intel["rsi"] > 62 and intel["rsi_slope"] > 6))
+        min_z = 3.0 if is_sol else 2.5
         strong_push = intel["z_vol"] > min_z
 
-        if strong_push:
-            if oversold: bias = "GOD_LONG"; score = 95
-            elif overbought: bias = "GOD_SHORT"; score = 95
+        if strong_push and oversold: bias = "GOD_LONG"; score = 98 
+        elif strong_push and overbought: bias = "GOD_SHORT"; score = 98
     else:
-        min_trend_z = 3.5 if is_sol else 2.8
-        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > min_trend_z:
+        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 3.0:
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 90
+            score = 92
     
     if intel["divergence"]: score = 0 
 
-    decision = "EXECUTE" if score >= 88 else "REJECT"
+    decision = "EXECUTE" if score >= 90 else "REJECT"
 
     engine_state.last_score = score
     
@@ -427,57 +425,54 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v250.0 "SOVEREIGN-PULSE"
+        # 🧬 NEURAL SIMULATION v260.0 "ELASTIC-LEGACY"
         is_sol = "SOL" in symbol.upper()
-        is_eth = "ETH" in symbol.upper()
-        
         if intel["is_compressed"]:
-            min_w = 0.65 if is_sol else (0.35 if is_eth else 0.25)
+            min_w = 0.85 if is_sol else 0.35
             if intel["bb_width"] < min_w: i += 1; continue
             
-            oversold = (intel["rsi"] < 35 and intel["stoch_rsi"] < 35)
-            overbought = (intel["rsi"] > 65 and intel["stoch_rsi"] > 65)
-            min_z = 2.5 if is_sol else 2.0
+            oversold = (intel["rsi"] < 32 or (intel["rsi"] < 38 and intel["rsi_slope"] < -6))
+            overbought = (intel["rsi"] > 68 or (intel["rsi"] > 62 and intel["rsi_slope"] > 6))
+            min_z = 3.0 if is_sol else 2.5
             strong_push = intel["z_vol"] > min_z
 
-            if strong_push:
-                if oversold: bias = "GOD_LONG"; score = 95
-                elif overbought: bias = "GOD_SHORT"; score = 95
+            if strong_push and oversold: bias = "GOD_LONG"; score = 98
+            elif strong_push and overbought: bias = "GOD_SHORT"; score = 98
         else:
-            min_trend_z = 3.5 if is_sol else 2.8
-            if abs(intel["psi"]) > 0.35 and intel["z_vol"] > min_trend_z:
+            if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 3.0:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 90
+                score = 92
         
         if intel["divergence"]: score = 0
             
-        if score >= 88:
+        if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
             atr = intel["atr"]
             sl_dist = atr * config["sl_mult"]
             lev = config["leverage"]
             
-            pnl_raw = 0
-            target_price = intel["ma20"]
+            pnl_base = 0
+            # Target EMA 9 (A alma da v220)
+            target_price = intel["ema9"]
             
-            for j in range(i+1, min(i+100, len(ohlcv))):
+            for j in range(i+1, min(i+150, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
-                    if f[2] >= target_price: pnl_raw = (target_price/entry - 1); i = j; break
-                    if f[3] <= entry - sl_dist: pnl_raw = -sl_dist/entry; i = j; break
+                    if f[2] >= target_price: pnl_base = (target_price/entry - 1); i = j; break
+                    if f[3] <= entry - sl_dist: pnl_base = -sl_dist/entry; i = j; break
                 else:
-                    if f[3] <= target_price: pnl_raw = (1 - target_price/entry); i = j; break
-                    if f[2] >= entry + sl_dist: pnl_raw = -sl_dist/entry; i = j; break
+                    if f[3] <= target_price: pnl_base = (1 - target_price/entry); i = j; break
+                    if f[2] >= entry + sl_dist: pnl_base = -sl_dist/entry; i = j; break
             
-            if pnl_raw != 0:
-                fee_total = 0.0012 
-                pnl_net_capital = (pnl_raw - fee_total) * lev * 100
-                if score > 95: pnl_net_capital *= 1.2
+            if pnl_base != 0:
+                fee = 0.0008 # 0.08% net
+                pnl_final = (pnl_base - fee) * lev * 100
+                if score > 96: pnl_final *= 1.2
                 
-                sim["pnl"] += pnl_net_capital
+                sim["pnl"] += pnl_final
                 sim["trades"] += 1
-                if pnl_raw > 0: sim["wins"] += 1
+                if pnl_base > 0: sim["wins"] += 1
         
         i += 1
 
