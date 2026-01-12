@@ -501,24 +501,27 @@ async def run_strategy(symbol, mode):
         
     is_sol = "SOL" in symbol.upper()
     
-    # 💎 INFINITY MATRIX: Maximização Final
+    # 💎 INFINITY MATRIX: Sovereign Boosters (v371.2)
+    # BTC: 4x | ETH: 3x | SOL: 55x
     if score >= 95:
         if is_sol: 
-            base_boost = 55.0 
+            target_base_lev = 55.0 
         elif "ETH" in symbol:
-            base_boost = 3.0  
+            target_base_lev = 3.0  
         else:
-            base_boost = 4.0  
+            target_base_lev = 4.0  
     else:
-        base_boost = 1.0
+        # Modo de aproximação (Low energy hunting)
+        target_base_lev = 10.0 if is_sol else 2.0
         
     # ALAVANCAGEM FINAL = INFINITY * SHIELD
-    final_lev_mult = base_boost * shield_mult
+    effective_leverage = target_base_lev * shield_mult
+    final_leverage_int = max(1, int(effective_leverage))
     
     intel["tp_factor"] = 0     
     intel["sl_factor"] = 3.0 * sl_reduction # Reduz SL se caos
     intel["tp_target"] = "ma20" 
-    intel["leverage_mult"] = final_lev_mult
+    intel["leverage"] = final_leverage_int
 
     engine_state.last_score = score
     engine_state.last_entropy = entropy
@@ -540,27 +543,21 @@ async def run_strategy(symbol, mode):
                 free_usd = engine_state.current_balance
                 
                 # Qty = (Capital * Alavancagem) / Preço
-                qty = (free_usd * 0.05 * config["leverage"]) / price
+                qty = (free_usd * 0.05 * effective_leverage) / price
                 qty = float(exchange.amount_to_precision(symbol, qty))
                 
                 side = "buy" if bias == "GOD_LONG" else "sell"
-                
-                # DNA APEX: Alavancagem Dinâmica
-                final_leverage = config["leverage"]
-                if score > 95: 
-                    final_leverage = int(config["leverage"] * 1.5)
-                    print(f"👑 [KING SURGE] Overclock de Alavancagem: {final_leverage}x")
                 
                 params = {
                     'stopLoss': float(exchange.price_to_precision(symbol, sl)), 
                     'takeProfit': float(exchange.price_to_precision(symbol, tp))
                 }
                 
-                try: await exchange.set_leverage(final_leverage, symbol)
+                try: await exchange.set_leverage(final_leverage_int, symbol)
                 except: pass
                 
                 order = await exchange.create_order(symbol, 'market', side, qty, params=params)
-                print(f"✅ KING ORDER EXECUTED! ID: {order['id']} | Qty: {qty} | Lev: {final_leverage}x")
+                print(f"✅ KING ORDER EXECUTED! ID: {order['id']} | Qty: {qty} | Lev: {final_leverage_int}x (Eff: {effective_leverage:.2f}x)")
                 
                 engine_state.trades += 1
                 engine_state.last_order = order
@@ -574,7 +571,7 @@ async def run_strategy(symbol, mode):
                     "qty": float(qty),
                     "leverage": int(final_leverage),
                     "pnl": 0.0, # Será preenchido no fechamento
-                    "version": "371.0"
+                    "version": "371.1.3"
                 }
                 
                 engine_state.trade_log.append(trade_data)
@@ -652,21 +649,15 @@ async def run_backtest(payload: WebhookPayload):
             entry = ohlcv[i][4] 
             
             # 💎 INFINITY MATRIX + SHIELD NO BACKTEST
-            # Simula a Entropia (Randomizado levemente ou fixo se não tiver dados)
-            # Como backtest não calcula entropia candle a candle no loop simplificado acima (necessitaria recalculo pesado),
-            # Vamos assumir Entropy Shield médio para ser conservador no SOL (0.8x effect)
-            
-            boost = 1.0
             if score >= 95:
-                if is_sol_backtest: boost = 55.0
-                elif "ETH" in symbol: boost = 3.0
-                else: boost = 4.0
+                if is_sol_backtest: target_lev = 55.0
+                elif "ETH" in symbol: target_lev = 3.0
+                else: target_lev = 4.0
+            else:
+                target_lev = 10.0 if is_sol_backtest else 2.0
             
-            # Aplica penalidade de entropia aleatória para testar robustez (Monte Carlo leve)
-            # Em 20% dos casos, o shield ativaria (corta pela metade)
-            # Para backtest deterministico, usaremos um fator médio "Shield Drag = 0.9"
-            
-            lev = config["leverage"] * boost * 0.9 # 10% de drag devido ao shield médio
+            # Shield effect médio no backtest (conservador)
+            lev = target_lev * 1.0 # 100% efficiency in clear backtest
             
             # Parametros TP/SL Reversion
             sl_dist = atr * 3.0 * 0.9 # SL levemente mais curto em média
