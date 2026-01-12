@@ -1,12 +1,12 @@
 """
-PREDATOR v362.0 "UNIVERSAL-ELASTIC" - Cloud API (Render)
+PREDATOR v363.0 "ETH-DEFENSE" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-STRATEGY: UNIVERSAL MEAN REVERSION
-1. LOGIC: All assets (BTC, ETH, SOL) revert to mean in chop.
-2. TRIGGERS: RSI < 30 (Buy) / RSI > 70 (Sell).
+STRATEGY: UNIVERSAL MEAN REVERSION + ETH DEFENSE
+1. BTC/SOL: Pure Reversion (RSI 30/70). Proven Profitable.
+2. ETH: Strict Reversion (RSI 25/75). Filters noise/wicks.
 3. TARGET: MA20 (The Mean).
-4. SAFETY: Wide SL (3.0x ATR) to survive volatility/wicks.
-5. FILTER: BB Width > 0.15 (Avoid dead zones).
+4. SAFETY: Wide SL (3.0x ATR).
+5. FILTER: BB Width > 0.15.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -88,7 +88,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "362.0-UNIVERSAL-ELASTIC",
+            "version": "363.0-ETH-DEFENSE",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -339,9 +339,16 @@ async def run_strategy(symbol, mode):
     # O mercado provou estar lateral/choppy (Breakouts falharam).
     # Assumimos reversão para todos os ativos.
     
-    # Trigger: Sobrecompra/Sobrevenda Clássica
-    oversold = rsi < 30
-    overbought = rsi > 70
+    # 🛡️ v363.0 ETH-DEFENSE Lógica
+    # Trigger: Sobrecompra/Sobrevenda Dinâmica
+    if "ETH" in symbol.upper():
+        # ETH é mais ruidoso, exige extremos maiores
+        oversold = rsi < 25
+        overbought = rsi > 75
+    else:
+        # BTC/SOL funcionam bem com padrão
+        oversold = rsi < 30
+        overbought = rsi > 70
     
     # Filtro: Evitar consolidação estreita demais (Dead Zone)
     active_market = bb_width > 0.15
@@ -441,8 +448,13 @@ async def run_backtest(payload: WebhookPayload):
         bb_width = intel["bb_width"]
         atr = intel["atr"]
         
-        oversold = rsi < 30
-        overbought = rsi > 70
+        if "ETH" in symbol.upper():
+            oversold = rsi < 25
+            overbought = rsi > 75
+        else:
+            oversold = rsi < 30
+            overbought = rsi > 70
+            
         active_market = bb_width > 0.15
         
         if active_market:
