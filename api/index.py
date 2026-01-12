@@ -117,18 +117,16 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v335.0 "SHIELD-FLEX"
-    # Objetivo: Flexibilidade em Exaustão Extrema (v220 Elite)
+    # 🧬 MASTER LOGIC v340.0 "VALHALLA-REBORN"
+    # Objetivo: Recuperar Lucratividade com MA20 e Volume Extremo
     is_sol = "SOL" in payload.symbol.upper()
     is_eth = "ETH" in payload.symbol.upper()
     
-    # Entropy & Risk Scaling
+    # Entropy Multiplier (Sobrevivência)
     entropy = intel["entropy"]
     lev_mult = 1.0
-    sl_base = 2.8 if not is_sol else 2.2 # BTC/ETH precisam de mais espaço
-    
-    if entropy > 0.75: lev_mult = 0.25; sl_base -= 0.5
-    elif entropy > 0.60: lev_mult = 0.60; sl_base -= 0.2
+    if entropy > 0.75: lev_mult = 0.25
+    elif entropy > 0.60: lev_mult = 0.60
 
     # Body Ratio (Pavio Institucional)
     if len(payload.ohlcv) > 0:
@@ -137,40 +135,39 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     else: body_ratio = 1.0
 
     if intel["is_compressed"]:
-        # Filtros v335
-        min_width = 1.00 if is_sol else (0.40 if is_eth else 0.30)
+        # Filtros v340 (Seletividade Máxima)
+        min_width = 1.10 if is_sol else (0.50 if is_eth else 0.40)
         if intel["bb_width"] < min_width:
-             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Delta"}
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "No Delta"}
 
-        # Triggers com Trend Flex (Exaustão > Tendência)
-        # Se RSI < 20 ou > 80, o Shield de EMA200 é ignorado
-        is_exhausted = intel["rsi"] < 20 or intel["rsi"] > 80
+        # Triggers de Exaustão Real (RSI 30/70 + Pavio)
+        oversold = intel["rsi"] < 30 and body_ratio < 0.50
+        overbought = intel["rsi"] > 70 and body_ratio < 0.50
         
-        oversold = intel["rsi"] < 32 and body_ratio < 0.65 and (intel["trend_up"] or is_exhausted)
-        overbought = intel["rsi"] > 68 and body_ratio < 0.65 and (not intel["trend_up"] or is_exhausted)
-        
-        # Z-Volume 
-        min_z = 3.0 if is_sol else 2.2
+        # Z-Volume (Confirmador de Baleia - Estrito 3.5)
+        min_z = 3.5 if is_sol else 3.2
         strong_push = intel["z_vol"] > min_z
 
         if strong_push:
-            if oversold: bias = "GOD_LONG"; score = 98
-            elif overbought: bias = "GOD_SHORT"; score = 98
+            # Shield Flexível: Divergência anula bloqueio de tendência
+            allowed_long = intel["trend_up"] or intel["divergence"]
+            allowed_short = not intel["trend_up"] or intel["divergence"]
+            
+            if oversold and allowed_long: bias = "GOD_LONG"; score = 98
+            elif overbought and allowed_short: bias = "GOD_SHORT"; score = 98
             
     else:
-        # TREND REVERSION
-        if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 3.2: 
+        # TREND REVERSION (PSI Intenso)
+        if abs(intel["psi"]) > 0.50 and intel["z_vol"] > 4.0: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 92
             
-    # Hard Divergence Reject
-    if intel["divergence"]: score = 0 
-            
-    decision = "EXECUTE" if score >= 92 else "REJECT"
+    # Final Decision
+    decision = "EXECUTE" if score >= 90 else "REJECT"
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "targets": {"tp": intel["ema9"], "sl_factor": sl_base},
+        "targets": {"tp": intel["ma20"], "sl_factor": 2.5},
         "leverage_mult": lev_mult,
-        "version": "335.0-FLEX"
+        "version": "340.0-VALHALLA"
     }
