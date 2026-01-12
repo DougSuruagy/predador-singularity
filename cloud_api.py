@@ -372,9 +372,9 @@ def get_supreme_config(symbol, is_trending, is_compressed):
     
     return {
         "threshold": 0.15, 
-        "min_score": 60, 
-        "sl_mult": 1.5,
-        "tp_mult": 3.5,   
+        "min_score": 75, # Higher precision
+        "sl_mult": 1.0,  # Tight stop for 50x
+        "tp_mult": 2.0,  # 2.0 RR
         "leverage": 50,   
         "shadow_trail": True
     }
@@ -392,9 +392,9 @@ def get_sniper_config(symbol, is_trending, is_compressed):
         }
     return {
         "threshold": 0.20,
-        "min_score": 60,
-        "sl_mult": 1.8,
-        "tp_mult": 4.5,
+        "min_score": 80, # More rigor for SOL 100x
+        "sl_mult": 0.8,  # Extreme tight for 100x
+        "tp_mult": 1.6,  # Fast scalp
         "leverage": 100,
         "shadow_trail": True
     }
@@ -502,14 +502,18 @@ async def run_strategy(symbol, mode):
     
     score = points
     
-    # Surgical Thresholds: High-Gain Mode
+    # Surgical Thresholds: High-Gain Mode (Precision over Frequency)
     is_sol = "SOL" in symbol.upper()
-    active_threshold = 60 # Ultra-Aggressive for all
+    active_threshold = 80 if is_sol else 75
     
-    # 🔗 INSTITUTIONAL HARD-FILTER (Relaxed for +150% Target)
-    vol_confirmation = intel.get("z_vol", 0) > 0.5 or intel.get("bb_width", 0) > 0.15
+    # 🔗 TREND FILTER (The Golden Rule)
+    # Only BUY if above EMA 200, Only SELL if below EMA 200
+    # No fighting the trend with 100x leverage.
+    trend_aligned = (oversold and intel.get("trend_up")) or (overbought and not intel.get("trend_up"))
     
-    decision = "EXECUTE" if (points >= active_threshold and vol_confirmation) else "REJECT"
+    vol_confirmation = intel.get("z_vol", 0) > 1.2 or intel.get("bb_width", 0) > 0.2
+    
+    decision = "EXECUTE" if (points >= active_threshold and vol_confirmation and trend_aligned) else "REJECT"
     
     # 🛡️ ENTROPY SHIELD CALCULATOR
     entropy = intel.get("entropy", 0.5)
@@ -674,13 +678,15 @@ async def run_backtest(payload: WebhookPayload):
         entropy = intel.get("entropy", 0.5)
 
         # Surgical Backtest Thresholds: TARGET +150%
-        is_sol_backtest = "SOL" in symbol.upper()
-        active_threshold = 60
+        is_sol_bt = "SOL" in symbol.upper()
+        active_threshold = 80 if is_sol_bt else 75
 
-        # Sync Hard-Filter with Live
-        vol_confirm_bt = intel.get("z_vol", 0) > 0.5 or intel.get("bb_width", 0) > 0.15
+        # Sync Trend & Volume Filters
+        t_up = intel.get("trend_up", True)
+        aligned_bt = (oversold and t_up) or (overbought and not t_up)
+        vol_confirm_bt = intel.get("z_vol", 0) > 1.2 or intel.get("bb_width", 0) > 0.2
 
-        if points >= active_threshold and entropy <= 0.85 and vol_confirm_bt:
+        if points >= active_threshold and entropy <= 0.85 and vol_confirm_bt and aligned_bt:
             is_sol_backtest = "SOL" in symbol.upper()
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
