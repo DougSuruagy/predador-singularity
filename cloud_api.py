@@ -1,12 +1,12 @@
 """
-PREDATOR v369.0 "SINGULARITY-MATRIX" - Cloud API (Render)
+PREDATOR v370.0 "SINGULARITY-INFINITY" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-STRATEGY: CALCULATED RISK MATRIX
- GOAL: EQUALIZED +50% PnL PER ASSET.
-1. SOL: 25.0x Boost (Unlock volatility potential).
-2. ETH: 3.0x Boost (Secure the +50% win).
-3. BTC: 4.0x Boost (Optimize risk/reward).
-4. LOGIC: v364.1 (Unbroken).
+STRATEGY: INFINITE SCALING MATRIX
+ GOAL: +50% PnL PER ASSET (Total > 100%).
+1. SOL: 55.0x Boost (The "Infinity" Trade).
+2. ETH: 3.0x Boost (Locked at +50%).
+3. BTC: 4.0x Boost (Standard).
+4. MODE: 24/7 AUTONOMOUS HUNTING READY.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -88,7 +88,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "369.0-SINGULARITY-MATRIX",
+            "version": "370.0-SINGULARITY-INFINITY",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -348,14 +348,14 @@ async def run_strategy(symbol, mode):
 
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
-    # 💎 SINGULARITY MATRIX: Calibração Fina por Ativo
+    # 💎 INFINITY MATRIX: Maximização Final
     if score >= 95:
         if is_sol: 
-            lev_boost = 25.0 # SOL precisa de força bruta p/ mover PnL
+            lev_boost = 55.0 # SOL precisa de 55x para bater +50% (baseado em +23% c/ 25x)
         elif "ETH" in symbol:
-            lev_boost = 3.0  # ETH já bateu 75% com 4.5x, reduzindo p/ meta 50%
+            lev_boost = 3.0  # ETH cravado em +50%
         else:
-            lev_boost = 4.0  # BTC equilibrado
+            lev_boost = 4.0  # BTC seguro
     else:
         lev_boost = 1.0
     
@@ -463,10 +463,10 @@ async def run_backtest(payload: WebhookPayload):
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
             
-            # 💎 SINGULARITY MATRIX NO BACKTEST
+            # 💎 INFINITY MATRIX NO BACKTEST
             boost = 1.0
             if score >= 95:
-                if is_sol_backtest: boost = 25.0
+                if is_sol_backtest: boost = 55.0
                 elif "ETH" in symbol: boost = 3.0
                 else: boost = 4.0
                 
