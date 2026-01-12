@@ -104,47 +104,48 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v260.0 "ELASTIC-LEGACY"
-    # Objetivo: Recuperar a rentabilidade da v220 usando o "Estilingue" EMA 9.
+    # 🧬 MASTER LOGIC v270.0 "ELASTIC-GOLD"
+    # Objetivo: IGUALAR OU SUPERAR A v220 (+92.61% PnL)
     is_sol = "SOL" in payload.symbol.upper()
     is_eth = "ETH" in payload.symbol.upper()
     
-    # 🕒 INACTIVITY BUSTER: Relaxa thresholds se o robô estiver parado
-    idle_time = (time.time() - engine_state.last_trade_time) / 3600
-    relax = min(5, int(idle_time * 2)) # Até 5 pontos de relaxamento
+    # 🕒 CRITICAL INACTIVITY PULSE: Evita que o robô fique parado
+    idle_minutes = (time.time() - engine_state.last_trade_time) / 60
+    inactivity_boost = 0
+    if idle_minutes > 30: inactivity_boost = 5 # Facilita a entrada após 30min parado
     
     if intel["is_compressed"]:
-        # Filtro de Rentabilidade Real (v220 Style)
-        min_width = 0.85 if is_sol else 0.35
+        # Filtros ORIGINAIS v220 (Os Lucrativos)
+        min_width = 0.80 if is_sol else 0.35
         if intel["bb_width"] < min_width:
              return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Vol"}
 
-        # Triggers de Estilingue (Exaustão Extrema + Slope)
-        oversold = (intel["rsi"] < (32 + relax) or (intel["rsi"] < (38 + relax) and intel["rsi_slope"] < -6))
-        overbought = (intel["rsi"] > (68 - relax) or (intel["rsi"] > (62 - relax) and intel["rsi_slope"] > 6))
+        # Triggers de Estilingue de Alta Probabilidade
+        oversold = (intel["rsi"] < 35 or (intel["rsi"] < 40 and intel["rsi_slope"] < -5))
+        overbought = (intel["rsi"] > 65 or (intel["rsi"] > 60 and intel["rsi_slope"] > 5))
         
-        # Z-Volume Crítico (Fluxo Institucional Confirmado)
-        min_z = 3.0 if is_sol else 2.5
+        # Z-Volume (Confirmador de Fluxo Institucional)
+        min_z = 3.2 if is_sol else 2.2 # v220 Pure Levels
         strong_push = intel["z_vol"] > min_z
 
         if strong_push and oversold:
-            bias = "GOD_LONG"; score = 98 
+            bias = "GOD_LONG"; score = 95 + inactivity_boost
         elif strong_push and overbought:
-            bias = "GOD_SHORT"; score = 98
+            bias = "GOD_SHORT"; score = 95 + inactivity_boost
             
     else:
-        # TREND SCALPING
-        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 3.0: 
+        # TREND LOGIC (v220 levels)
+        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 2.8: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 92
+            score = 90 + (inactivity_boost / 2)
             
     # Hard Divergence Reject
     if intel["divergence"]: score = 0 
             
-    decision = "EXECUTE" if score >= 90 else "REJECT"
+    decision = "EXECUTE" if score >= (92 - (inactivity_boost)) else "REJECT"
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "targets": {"tp": intel["ema9"], "sl_factor": 2.2 if is_sol else 1.8},
-        "version": "260.0-ELASTIC"
+        "targets": {"tp": intel["ema9"], "sl_factor": 2.5 if is_sol else 1.8},
+        "version": "270.0-GOLD"
     }
