@@ -217,7 +217,7 @@ async def get_state(x_token: str = Header(None)):
 
 @app.get("/health")
 async def health():
-    return {"status": "alive", "version": "200.0"}
+    return {"status": "alive", "version": "340.0-VALHALLA"}
 
 @app.get("/")
 async def root():

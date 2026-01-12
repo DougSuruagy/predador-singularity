@@ -97,7 +97,7 @@ class HuntRequest(BaseModel):
 
 @app.get("/")
 async def health():
-    return {"status": "BRAIN_ACTIVE", "location": "VERCEL", "version": "271.0"}
+    return {"status": "BRAIN_ACTIVE", "location": "VERCEL", "version": "340.0-VALHALLA"}
 
 @app.post("/api/hunt")
 async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
