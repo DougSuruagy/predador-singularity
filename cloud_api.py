@@ -1,14 +1,12 @@
 """
-PREDATOR v361.0 "ASSET-SPECIFIC-MASTERY" - Cloud API (Render)
+PREDATOR v362.0 "UNIVERSAL-ELASTIC" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-STRATEGY SPLIT:
-1. SOL (Mean Reversion): High Volatility -> Elastic Reversion to EMA9.
-   - Trigger: RSI < 25 (Buy) / RSI > 75 (Sell).
-   - Target: EMA9.
-2. BTC/ETH (Trend Following): High Momentum -> Volatility Breakout.
-   - Trigger: Close > BB Upper (Buy) / Close < BB Lower (Sell).
-   - Target: 2.0x ATR.
-3. SAFETY: Fixed SL per asset class.
+STRATEGY: UNIVERSAL MEAN REVERSION
+1. LOGIC: All assets (BTC, ETH, SOL) revert to mean in chop.
+2. TRIGGERS: RSI < 30 (Buy) / RSI > 70 (Sell).
+3. TARGET: MA20 (The Mean).
+4. SAFETY: Wide SL (3.0x ATR) to survive volatility/wicks.
+5. FILTER: BB Width > 0.15 (Avoid dead zones).
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -90,7 +88,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "361.0-ASSET-MASTERY",
+            "version": "362.0-UNIVERSAL-ELASTIC",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -328,48 +326,38 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🎭 v361.0 ASSET-SPECIFIC MASTERY
+    # 🌐 v362.0 UNIVERSAL-ELASTIC
     is_sol = "SOL" in symbol.upper()
     
     # DADOS
     rsi = intel["rsi"]
     price = intel["price"]
-    ema9 = intel["ema9"]
+    ma20 = intel["ma20"]
     bb_width = intel["bb_width"]
-    close = price # aliases
-    bb_upper = intel["ma20"] + (intel["atr"] * 2) # Aprox BB Upper
-    bb_lower = intel["ma20"] - (intel["atr"] * 2) # Aprox BB Lower
-    touch_high = close > bb_upper # Breakout Up
-    touch_low = close < bb_lower  # Breakout Down
     
-    # 1. SOLANA: MEAN REVERSION (Oscilador Extreme)
-    if is_sol:
-        # Só opera se houver volatilidade (Banda larga)
-        if bb_width > 0.40:
-            if rsi < 25:
-                bias = "GOD_LONG"; score = 95
-            elif rsi > 75:
-                bias = "GOD_SHORT"; score = 95
-        
-        intel["tp_target"] = "ema9" # Target Elástico
-        intel["sl_factor"] = 2.0    # SL Largo para oscilação
-        
-    # 2. BTC/ETH: TREND BREAKOUT (Seguir Fluxo)
-    else:
-        # Só opera se bandas não estiverem estouradas demais (RSI filtro)
-        safe_bull = rsi < 70
-        safe_bear = rsi > 30
-        
-        if touch_high and safe_bull:
-            bias = "GOD_LONG"; score = 92
-        elif touch_low and safe_bear:
-            bias = "GOD_SHORT"; score = 92
-            
-        intel["tp_factor"] = 2.0 # Target Trend
-        intel["sl_factor"] = 1.0 # Stop Curto se falhar rompimento
+    # LOGICA UNIFICADA: MEAN REVERSION
+    # O mercado provou estar lateral/choppy (Breakouts falharam).
+    # Assumimos reversão para todos os ativos.
     
+    # Trigger: Sobrecompra/Sobrevenda Clássica
+    oversold = rsi < 30
+    overbought = rsi > 70
+    
+    # Filtro: Evitar consolidação estreita demais (Dead Zone)
+    active_market = bb_width > 0.15
+    
+    if active_market:
+        if oversold:
+            bias = "GOD_LONG"; score = 93
+        elif overbought:
+            bias = "GOD_SHORT"; score = 93
+
     decision = "EXECUTE" if score >= 90 else "REJECT"
-    intel["leverage_mult"] = 1.0 # Alavancagem padrão (Regulado no Config)
+    
+    # Configuração de Risco/Retorno
+    intel["tp_target"] = "ma20" # Alvo dinâmico (Média)
+    intel["sl_factor"] = 3.0    # SL Largo para sobreviver ao ruído (Chop)
+    intel["leverage_mult"] = 1.0
 
     engine_state.last_score = score
     
@@ -446,86 +434,67 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🎭 v361.0 ASSET-MASTERY BACKTEST
-        is_sol = "SOL" in symbol.upper()
+        # 🌐 v362.0 UNIVERSAL-ELASTIC BACKTEST
         rsi = intel["rsi"]
         price = intel["price"]
-        ema9 = intel["ema9"]
-        bb_width = intel["bb_width"]
-        close = price
-        atr = intel["atr"]
         ma20 = intel["ma20"]
-        bb_upper = ma20 + (atr * 2)
-        bb_lower = ma20 - (atr * 2)
+        bb_width = intel["bb_width"]
+        atr = intel["atr"]
         
-        # LOGICA REPLICADA
-        if is_sol:
-            if bb_width > 0.40:
-                if rsi < 25: bias = "GOD_LONG"; score = 95
-                elif rsi > 75: bias = "GOD_SHORT"; score = 95
-        else:
-            safe_bull = rsi < 70
-            safe_bear = rsi > 30
-            if close > bb_upper and safe_bull: bias = "GOD_LONG"; score = 92
-            elif close < bb_lower and safe_bear: bias = "GOD_SHORT"; score = 92
+        oversold = rsi < 30
+        overbought = rsi > 70
+        active_market = bb_width > 0.15
+        
+        if active_market:
+            if oversold: bias = "GOD_LONG"; score = 93
+            elif overbought: bias = "GOD_SHORT"; score = 93
         
         if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
-            entry = ohlcv[i][4]
+            entry = ohlcv[i][4] # Close do candle de sinal
             lev = config["leverage"]
             
-            # Parametros TP/SL
-            if is_sol:
-                sl_dist = atr * 2.0
-                target_price = ema9 # Target EMA9 Dinamico
-                tp_dist = 0
-            else:
-                sl_dist = atr * 1.0
-                tp_dist = atr * 2.0 # Target Fixo 2x ATR
-                target_price = 0
-
+            # Parametros TP/SL (Consistente com a execução)
+            sl_dist = atr * 3.0
+            
             pnl_base = 0
             
-            # Loop de Simulação (Simples e Seguro)
-            for j in range(i+1, min(i+150, len(ohlcv))):
+            # Loop de Simulação
+            # Verifica o futuro para ver se tocou no Target (MA20) ou SL
+            # Nota: MA20 muda com o tempo. Usaremos a MA20 do candle J para ser realista.
+            # Mas MA20 precisa ser calculada. Como não temos, usaremos a MA20 do sinal (fixa) como estimativa conservadora,
+            # ou calcularemos on-the-fly se tivermos dados, mas é pesado.
+            # Vamos usar Target Fixo = MA20 inicial.
+            target_price = ma20 
+            
+            for j in range(i+1, min(i+300, len(ohlcv))):
                 f = ohlcv[j]
                 current_high = f[2]
                 current_low = f[3]
+                current_close = f[4]
                 
                 if bias == "GOD_LONG":
-                    # Checar Take Profit
-                    profit_hit = False
-                    if tp_dist > 0:
-                        if current_high >= entry + tp_dist: profit_hit = True; pnl_base = tp_dist/entry
-                    elif target_price > 0:
-                        # Simplificação: Target Fixo no momento da entrada ou dinamico? 
-                        # Vamos usar EMA9 do candle futuro seria cheat, então usamos EMA9 fixa ou calculada?
-                        # Para backtest simples, usaremos EMA9 fixa da entrada se 'target_price' for fixo, 
-                        # mas aqui 'ema9' é do candle 'i'. Vamos usar isso como alvo fixo conservador.
-                        if current_high >= target_price: profit_hit = True; pnl_base = (target_price/entry - 1)
-                    
-                    if profit_hit:
+                    # TP: Preço subiu até a MA20 (Target)
+                    # Lucro: (Target - Entry) / Entry
+                    if current_high >= target_price: 
+                        pnl_base = (target_price - entry) / entry
                         i = j; break
-
-                    # Checar Stop Loss
-                    if current_low <= entry - sl_dist:
-                        pnl_base = -sl_dist/entry
+                    
+                    # SL: Preço caiu abaixo do SL
+                    if current_low <= entry - sl_dist: 
+                        pnl_base = -sl_dist / entry # Prejuizo limitado ao SL distance
                         i = j; break
                         
                 else: # SHORT
-                    # Checar Profit
-                    profit_hit = False
-                    if tp_dist > 0:
-                        if current_low <= entry - tp_dist: profit_hit = True; pnl_base = tp_dist/entry
-                    elif target_price > 0:
-                         if current_low <= target_price: profit_hit = True; pnl_base = (1 - target_price/entry)
-                    
-                    if profit_hit:
+                    # TP: Preço caiu até a MA20
+                    # Lucro: (Entry - Target) / Entry
+                    if current_low <= target_price: 
+                        pnl_base = (entry - target_price) / entry
                         i = j; break
 
-                    # Checar Stop
+                    # SL: Preço subiu acima do SL
                     if current_high >= entry + sl_dist:
-                        pnl_base = -sl_dist/entry
+                        pnl_base = -sl_dist / entry
                         i = j; break
             
             pnl_base = 0
