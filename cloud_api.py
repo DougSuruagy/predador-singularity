@@ -618,6 +618,13 @@ async def run_backtest(payload: WebhookPayload):
         
         active_market = bb_width > 0.15
         
+        if "ETH" in symbol:
+            oversold = rsi < 20
+            overbought = rsi > 80
+        else:
+            oversold = rsi < 30
+            overbought = rsi > 70
+        
         # 🧠 NEURAL SCORING SYSTEM (Backtest Sync v3)
         points = 0
         if oversold: points += 40
