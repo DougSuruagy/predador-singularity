@@ -1,13 +1,14 @@
 """
-PREDATOR v365.0 "QUANTUM-VELOCITY" - Cloud API (Render)
+PREDATOR v366.0 "QUANTUM-SNIPER" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-STRATEGY: HFT STOCHASTIC SCALPING
- GOAL: +100% PnL via High Frequency Trading (Volume + Precision).
-1. TRIGGER: StochRSI Extremes (< 10 Buy / > 90 Sell).
-2. LOGIC: Catch every micro-reversal inside the bands.
-3. TARGET: 1.5x ATR (Quick Scalp).
-4. SAFETY: 2.0x ATR (Technical Stop).
-5. FILTER: BB Width > 0.20 (Only active markets).
+STRATEGY: HYBRID HFT PRECISION
+ GOAL: TRIPLE DIGIT RETURNS (+100%+)
+1. TRIGGER: StochRSI Extremes (<10/>90) -> Generates VOLUME.
+2. FILTER: RSI Trend Confirmation -> Ensures PRECISION.
+   - Buy: Stoch < 10 AND RSI < 40.
+   - Sell: Stoch > 90 AND RSI > 60.
+3. TARGET: 1.5x ATR (Rapid Fire).
+4. SAFETY: 2.0x ATR.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -89,7 +90,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "365.0-QUANTUM-VELOCITY",
+            "version": "366.0-QUANTUM-SNIPER",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -327,38 +328,40 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # ⚡ v365.0 QUANTUM-VELOCITY (HFT)
+    # 🚀 v366.0 QUANTUM-SNIPER
     
-    # DADOS HFT
-    stoch = intel["stoch_rsi"]
-    stoch_k = stoch # Assume K
+    stoch_k = intel["stoch_rsi"]
+    rsi = intel["rsi"]
     bb_width = intel["bb_width"]
-    rsi = intel["rsi"] # Secundário para evitar contra-tendência forte
     
-    # LOGICA: Estocástico extremo indica exaustão imediata (1-5 candles)
-    # Trigger HFT (< 10 / > 90)
-    oversold = stoch_k < 10
-    overbought = stoch_k > 90
+    # 1. VOLUME (StochRSI Detecta o momento exato)
+    stoch_buy = stoch_k < 10
+    stoch_sell = stoch_k > 90
     
-    # Filtro: Só opera se tiver espaço (Volatilidade)
-    active_market = bb_width > 0.20
-    
-    # Filtro de Segurança RSI: Não comprar se RSI > 50 (já subiu muito) em HFT short, etc.
-    # Evita facas caindo ou foguetes subindo sem freio.
-    safe_long = rsi < 55 # Pode comprar até o meio do caminho
-    safe_short = rsi > 45 # Pode vender até o meio do caminho
+    # 2. PRECISÃO (RSI Confirma que o movimento 'esticou')
+    if is_sol or "ETH" in symbol:
+        # Ativos ariscos: Filtro médio
+        rsi_buy = rsi < 35 
+        rsi_sell = rsi > 65
+    else:
+        # BTC: Filtro leve (aceita mais trades)
+        rsi_buy = rsi < 40
+        rsi_sell = rsi > 60
+        
+    # Filtro de Mercado Morto
+    active_market = bb_width > 0.15
     
     if active_market:
-        if oversold and safe_long:
-            bias = "GOD_LONG"; score = 94
-        elif overbought and safe_short:
-            bias = "GOD_SHORT"; score = 94
+        if stoch_buy and rsi_buy:
+            bias = "GOD_LONG"; score = 95
+        elif stoch_sell and rsi_sell:
+            bias = "GOD_SHORT"; score = 95
 
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
-    # Configuração Scalp Rápido
-    intel["tp_factor"] = 1.5    # Target Curto (Captura o movimento rápido)
-    intel["sl_factor"] = 2.0    # SL Técnico (Aguenta ruido)
+    # Configuração Sniper
+    intel["tp_factor"] = 1.5    # Target Curto 
+    intel["sl_factor"] = 2.0    # SL Técnico
     intel["tp_target"] = "atr"  # Usar ATR targets
     intel["leverage_mult"] = 1.0
 
@@ -437,26 +440,32 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # ⚡ v365.0 QUANTUM-VELOCITY BACKTEST
+        # 🚀 v366.0 QUANTUM-SNIPER BACKTEST
         stoch_k = intel["stoch_rsi"]
-        bb_width = intel["bb_width"]
         rsi = intel["rsi"]
+        bb_width = intel["bb_width"]
         atr = intel["atr"]
         
-        oversold = stoch_k < 10
-        overbought = stoch_k > 90
-        active_market = bb_width > 0.20
-        safe_long = rsi < 55
-        safe_short = rsi > 45
+        stoch_buy = stoch_k < 10
+        stoch_sell = stoch_k > 90
+        
+        if "SOL" in symbol or "ETH" in symbol:
+            rsi_buy = rsi < 35 
+            rsi_sell = rsi > 65
+        else:
+            rsi_buy = rsi < 40
+            rsi_sell = rsi > 60
+            
+        active_market = bb_width > 0.15
         
         if active_market:
-            if oversold and safe_long: bias = "GOD_LONG"; score = 94
-            elif overbought and safe_short: bias = "GOD_SHORT"; score = 94
+            if stoch_buy and rsi_buy: bias = "GOD_LONG"; score = 95
+            elif stoch_sell and rsi_sell: bias = "GOD_SHORT"; score = 95
         
         if score >= 90:
             is_sol_backtest = "SOL" in symbol.upper()
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
-            entry = ohlcv[i][4] # Close do candle de sinal
+            entry = ohlcv[i][4] 
             lev = config["leverage"]
             
             # Parametros TP/SL Scalp
@@ -465,7 +474,7 @@ async def run_backtest(payload: WebhookPayload):
             
             pnl_base = 0.0
             
-            for j in range(i+1, min(i+100, len(ohlcv))): # Scalp rapido max 100 candles
+            for j in range(i+1, min(i+100, len(ohlcv))): 
                 f = ohlcv[j]
                 current_high = f[2]
                 current_low = f[3]
