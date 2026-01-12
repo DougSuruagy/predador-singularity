@@ -126,6 +126,34 @@ class EngineState:
             "waiting_for_funds": self.current_balance < self.MIN_CAPITAL
         }
     
+    async def sync_balance(self, exchange):
+        """ Sincroniza o saldo real da Bybit com tratamento para contas unificadas """
+        try:
+            if not exchange.apiKey:
+                return
+                
+            bal = await exchange.fetch_balance()
+            
+            # Tratamento robusto para Bybit (USDT é a moeda base do HFT)
+            # CCXT geralmente mapeia para bal['USDT']['free']
+            usdt_info = bal.get('USDT', {})
+            
+            # Tenta diversas formas de identificar o saldo livre (Free/Available)
+            free_balance = usdt_info.get('free')
+            
+            if free_balance is None:
+                # Fallback para Unified Account (UTA) se o mapeamento for direto
+                free_balance = bal.get('total', {}).get('USDT', 0.0)
+
+            self.current_balance = float(free_balance or 0.0)
+            
+            # Log de atualização periódica ou mudança crítica
+            if int(time.time()) % 60 == 0: 
+                print(f"💰 [WALLET-SYNC] Saldo Atual: ${self.current_balance:.2f} USDT")
+                
+        except Exception as e:
+            print(f"⚠️ [BALANCE ERROR] Falha ao ler saldo: {e}")
+
     async def sync_status_to_supabase(self):
         """ Sincroniza o estado atual do motor com o banco de dados """
         try:
@@ -271,6 +299,10 @@ async def startup_event():
     asyncio.create_task(engine_state.log_event_to_supabase("STARTUP", "Sistema Predator v370.0 Iniciado com Sucesso."))
     
     asyncio.create_task(exchange.load_markets())
+    
+    # 💵 Initial Balance Sync
+    await engine_state.sync_balance(exchange)
+    
     asyncio.create_task(autonomous_hunter_loop())
     
     # 💓 INTERNAL KEEP-ALIVE & DB SYNC
@@ -373,16 +405,14 @@ async def autonomous_hunter_loop():
         try:
             await asyncio.sleep(1) # HFT Speed
             
-            # 💵 SYNC BALANCE (Check Fuel)
-            try:
-                bal = await exchange.fetch_balance()
-                engine_state.current_balance = bal.get('USDT', {}).get('free', 0.0)
-            except: 
-                pass
+            # 💵 SYNC BALANCE (Check Fuel every 30s or on demand)
+            if int(time.time()) % 30 == 0:
+                await engine_state.sync_balance(exchange)
 
             if engine_state.current_balance < engine_state.MIN_CAPITAL:
-                if int(time.time()) % 10 == 0: # Log a cada 10 ciclos para não spammar
-                    print(f"⏳ [WAITING FOR FUNDS] Saldo: ${engine_state.current_balance:.2f} | Requerido: ${engine_state.MIN_CAPITAL:.2f}")
+                if int(time.time()) % 60 == 0: # Log menos frequente
+                    print(f"⏳ [WAITING FOR FUNDS] Saldo insuficiente: ${engine_state.current_balance:.2f} | Mínimo: ${engine_state.MIN_CAPITAL:.2f}")
+                await asyncio.sleep(5)
                 continue
 
             # 🛡️ CHECK KILL SWITCH (Homeostase)
