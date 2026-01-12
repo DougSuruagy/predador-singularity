@@ -1,12 +1,13 @@
 """
-PREDATOR v357.0 HYBRID-APEX - Cloud API (Render)
+PREDATOR v358.0 OSCILLATOR-FLOW - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-HYBRID-APEX STRATEGY:
-1. BUY THE DIP: RSI < 35 AND Price > EMA200 (Uptrend).
-2. SELL THE RALLY: RSI > 65 AND Price < EMA200 (Downtrend).
-3. FILTER: Don't fight the Trend. Don't pegue a faca caindo.
-4. TARGET: 3.0x ATR (Swing).
-5. SL: 2.0x ATR.
+OSCILLATOR-FLOW STRATEGY:
+1. HIGH FREQUENCY: Trade based on StochRSI extremes + Momentum Slope.
+2. TRIGGERS:
+   - BUY: Stoch < 15 & Slope > 0.5
+   - SELL: Stoch > 85 & Slope < -0.5
+3. TARGETS: TP 1.5x ATR | SL 1.0x ATR.
+4. FILTER: BB Width > 0.15 (Avoid dead zones).
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -88,7 +89,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "357.0-HYBRID-APEX",
+            "version": "358.0-OSCILLATOR-FLOW",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -326,45 +327,43 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🦁 HYBRID-APEX v357.0
+    # 🌊 OSCILLATOR-FLOW v358.0
     is_sol = "SOL" in symbol.upper()
     
     # Entropy Scaling
     entropy = intel["entropy"]
     lev_mult = 1.0
     if entropy > 0.70: lev_mult = 0.50
-    elif entropy > 0.55: lev_mult = 0.75
 
-    price = intel["price"]
-    ema200 = intel["ema200"]
-    atr = intel["atr"]
-    rsi = intel["rsi"]
-    trend_up = intel["trend_up"] # Price > EMA200
+    stoch = intel["stoch_rsi"]
+    slope = intel["rsi_slope"]
+    width = intel["bb_width"]
     
-    # TRIGGERS: RSI Extremos A FAVOR DA TENDÊNCIA
-    buy_dip = rsi < 35 and trend_up
-    sell_rally = rsi > 65 and not trend_up
+    # TRIGGERS (Agile Scalping)
+    # Stoch extremo + Início da virada (Slope)
+    buy_signal = stoch < 15 and slope > 0.5
+    sell_signal = stoch > 85 and slope < -0.5
     
-    # Volume Confirm
-    vol_ok = intel["z_vol"] > 1.0
+    # Filtro de "Morto"
+    alive = width > 0.15
 
-    if vol_ok:
+    if alive:
         if is_sol:
-            # SOL: Long-only (apenas Dips em tendência de alta)
-            if buy_dip:
-                bias = "GOD_LONG"; score = 95
+            # SOL: Long-only
+            if buy_signal:
+                bias = "GOD_LONG"; score = 91
         else:
             # BTC/ETH: Bidirecional
-            if buy_dip:
-                bias = "GOD_LONG"; score = 95
-            elif sell_rally:
-                bias = "GOD_SHORT"; score = 95
+            if buy_signal:
+                bias = "GOD_LONG"; score = 91
+            elif sell_signal:
+                bias = "GOD_SHORT"; score = 91
     
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
     intel["leverage_mult"] = lev_mult
-    intel["sl_factor"] = 2.0  
-    intel["tp_factor"] = 3.0  # Swing Target
+    intel["sl_factor"] = 1.0   # SL Scalp
+    intel["tp_factor"] = 1.5   # TP Scalp (1.5 RRR)
 
     engine_state.last_score = score
     
@@ -441,43 +440,41 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🦁 HYBRID-APEX BACKTEST v357.0
+        # 🌊 OSCILLATOR-FLOW BACKTEST v358.0
         is_sol = "SOL" in symbol.upper()
         entropy = intel["entropy"]
         lev_mult = 1.0
         if entropy > 0.70: lev_mult = 0.50
-        elif entropy > 0.55: lev_mult = 0.75
 
-        price = intel["price"]
-        ema200 = intel["ema200"]
+        stoch = intel["stoch_rsi"]
+        slope = intel["rsi_slope"]
+        width = intel["bb_width"]
         atr = intel["atr"]
-        rsi = intel["rsi"]
-        trend_up = intel["trend_up"]
         
-        buy_dip = rsi < 35 and trend_up
-        sell_rally = rsi > 65 and not trend_up
-        vol_ok = intel["z_vol"] > 1.0
+        buy_signal = stoch < 15 and slope > 0.5
+        sell_signal = stoch > 85 and slope < -0.5
+        alive = width > 0.15
         
-        if vol_ok:
+        if alive:
             if is_sol:
-                if buy_dip:
-                    bias = "GOD_LONG"; score = 95
+                if buy_signal:
+                    bias = "GOD_LONG"; score = 91
             else:
-                if buy_dip:
-                    bias = "GOD_LONG"; score = 95
-                elif sell_rally:
-                    bias = "GOD_SHORT"; score = 95
+                if buy_signal:
+                    bias = "GOD_LONG"; score = 91
+                elif sell_signal:
+                    bias = "GOD_SHORT"; score = 91
             
         if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
-            sl_dist = atr * 2.0
-            tp_dist = atr * 3.0
+            sl_dist = atr * 1.0   # SL Scalp
+            tp_dist = atr * 1.5   # TP Scalp
             lev = config["leverage"] * lev_mult
             
             pnl_base = 0
             
-            for j in range(i+1, min(i+250, len(ohlcv))):
+            for j in range(i+1, min(i+40, len(ohlcv))): # Max 40 candles (Scalp Rápido)
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
                     if f[2] >= entry + tp_dist: pnl_base = tp_dist/entry; i = j; break
