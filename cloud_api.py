@@ -32,6 +32,12 @@ import httpx
 # ============================================================
 load_dotenv()
 INTERNAL_SECRET_TOKEN = os.environ.get("INTERNAL_SECRET_TOKEN", "predador_secret_2026")
+
+# 📡 SUPABASE BLACK-BOX (Telemetry)
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://xayaogxbjudpmwylaiuf.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "sb_publishable_wNuQ-HzDYPoD3YEPB-v5VA_zi21tBxs")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 def normalize_symbol(symbol: str) -> str:
     return symbol.replace("/", "").replace("-", "").upper()
 
@@ -211,7 +217,8 @@ exchange = ccxt.bybit({'apiKey': os.environ.get('BYBIT_API_KEY'), 'secret': os.e
 
 @app.on_event("startup")
 async def startup_event():
-    print("🔋 [v370.0 SINGULARITY-INFINITY] NEURAL CORE INICIADO.")
+    print("🔋 [v371.0 ENTROPY-SHIELD] NEURAL CORE INICIADO.")
+    print(f"📡 Telemetria: Black Box conectada em {SUPABASE_URL}")
     print(f"🛡️ Homeostase: Loss Limit {engine_state.MAX_DAILY_LOSS}% | Profit Limit {engine_state.MAX_DAILY_PROFIT}%")
     asyncio.create_task(exchange.load_markets())
     asyncio.create_task(autonomous_hunter_loop())
@@ -449,14 +456,27 @@ async def run_strategy(symbol, mode):
                 
                 engine_state.trades += 1
                 engine_state.last_order = order
-                engine_state.trade_log.append({
-                    "time": datetime.now().strftime("%H:%M:%S"),
+                
+                trade_data = {
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "action": side.upper(),
                     "symbol": symbol,
                     "confidence": int(score),
-                    "price": price,
-                    "qty": qty
-                })
+                    "price": float(price),
+                    "qty": float(qty),
+                    "leverage": int(final_leverage),
+                    "pnl": 0.0, # Será preenchido no fechamento
+                    "version": "371.0"
+                }
+                
+                engine_state.trade_log.append(trade_data)
+                
+                # 📡 REGISTRO PERSISTENTE (Supabase)
+                try:
+                    supabase.table("trades").insert(trade_data).execute()
+                    print(f"📡 [BLACK BOX] Trade sincronizado com Sucesso.")
+                except Exception as s_ex:
+                    print(f"⚠️ [BLACK BOX FAIL] Erro ao sincronizar: {s_ex}")
             except Exception as ex:
                 print(f"❌ [EXECUTION FAIL] {ex}")
         
