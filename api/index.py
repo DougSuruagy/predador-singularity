@@ -77,7 +77,7 @@ class NomadBrain:
             "bb_width": bb_width, "z_vol": z_vol, "is_compressed": is_compressed,
             "touch_low": touch_low, "touch_high": touch_high,
             "divergence": divergence, "ema9": ema9, "ma20": ma20, "ema200": ema200,
-            "trend_up": trend_up, "price": closes[-1]
+            "trend_up": trend_up, "price": closes[-1], "entropy": entropy, "atr": std_dev
         }
 
     def _calc_rsi(self, deltas):
