@@ -172,5 +172,24 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
         "bias": bias, "score": score, "intel": intel, "decision": decision,
         "targets": {"tp": intel["ma20"], "sl_factor": 3.0},
         "leverage_mult": lev_mult,
-        "version": "350.0-PURE"
+        "version": "370.0-SINGULARITY"
     }
+
+@app.get("/api/wake_up_render")
+async def wake_up_render():
+    """ 
+    Endpoint chamado pelo Vercel Cron a cada 10 min 
+    para manter o Render (Python Backend) acordado.
+    """
+    import urllib.request
+    try:
+        url = "https://predador-api.onrender.com/health"
+        req = urllib.request.Request(
+            url, 
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        with urllib.request.urlopen(req) as response:
+            status = response.getcode()
+        return {"status": "WAKE_UP_SENT", "render_status": status, "timestamp": time.time()}
+    except Exception as e:
+        return {"status": "WAKE_UP_FAILED", "detail": str(e)}
