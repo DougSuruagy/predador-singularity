@@ -1,9 +1,9 @@
 """
-PREDATOR v363.0 "ETH-DEFENSE" - Cloud API (Render)
+PREDATOR v364.0 "ETHER-ZERO" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-STRATEGY: UNIVERSAL MEAN REVERSION + ETH DEFENSE
+STRATEGY: UNIVERSAL MEAN REVERSION + ETHER ZERO
 1. BTC/SOL: Pure Reversion (RSI 30/70). Proven Profitable.
-2. ETH: Strict Reversion (RSI 25/75). Filters noise/wicks.
+2. ETH: Extreme Reversion (RSI 20/80). Zero tolerance for loss.
 3. TARGET: MA20 (The Mean).
 4. SAFETY: Wide SL (3.0x ATR).
 5. FILTER: BB Width > 0.15.
@@ -88,7 +88,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "363.0-ETH-DEFENSE",
+            "version": "364.0-ETHER-ZERO",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -339,12 +339,12 @@ async def run_strategy(symbol, mode):
     # O mercado provou estar lateral/choppy (Breakouts falharam).
     # Assumimos reversão para todos os ativos.
     
-    # 🛡️ v363.0 ETH-DEFENSE Lógica
+    # 🛡️ v364.0 ETHER-ZERO Lógica
     # Trigger: Sobrecompra/Sobrevenda Dinâmica
     if "ETH" in symbol.upper():
-        # ETH é mais ruidoso, exige extremos maiores
-        oversold = rsi < 25
-        overbought = rsi > 75
+        # ETH é mais ruidoso, exige extremos absolutos
+        oversold = rsi < 20
+        overbought = rsi > 80
     else:
         # BTC/SOL funcionam bem com padrão
         oversold = rsi < 30
@@ -449,8 +449,8 @@ async def run_backtest(payload: WebhookPayload):
         atr = intel["atr"]
         
         if "ETH" in symbol.upper():
-            oversold = rsi < 25
-            overbought = rsi > 75
+            oversold = rsi < 20
+            overbought = rsi > 80
         else:
             oversold = rsi < 30
             overbought = rsi > 70
