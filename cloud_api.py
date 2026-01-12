@@ -473,11 +473,11 @@ async def run_strategy(symbol, mode):
     bb_width = intel["bb_width"]
     
     if "ETH" in symbol:
-        oversold = rsi < 20
-        overbought = rsi > 80
-    else:
         oversold = rsi < 30
         overbought = rsi > 70
+    else:
+        oversold = rsi < 35
+        overbought = rsi > 65
         
     active_market = bb_width > 0.15
     
@@ -502,16 +502,13 @@ async def run_strategy(symbol, mode):
     
     score = points
     
-    # Surgical Thresholds: High-Gain Mode
-    is_sol = "SOL" in symbol.upper()
-    active_threshold = 70 
+    # Surgical Thresholds: Super Hunter Mode
+    active_threshold = 60 
     
     # 🔗 TREND FILTER (The Golden Rule)
-    # Only BUY if above EMA 200, Only SELL if below EMA 200
-    # No fighting the trend with 100x leverage.
     trend_aligned = (oversold and intel.get("trend_up")) or (overbought and not intel.get("trend_up"))
     
-    vol_confirmation = intel.get("z_vol", 0) > 1.2 or intel.get("bb_width", 0) > 0.2
+    vol_confirmation = intel.get("z_vol", 0) > 0.5 or intel.get("bb_width", 0) > 0.1
     
     decision = "EXECUTE" if (points >= active_threshold and vol_confirmation and trend_aligned) else "REJECT"
     
@@ -654,11 +651,11 @@ async def run_backtest(payload: WebhookPayload):
         active_market = bb_width > 0.15
         
         if "ETH" in symbol:
-            oversold = rsi < 20
-            overbought = rsi > 80
-        else:
             oversold = rsi < 30
             overbought = rsi > 70
+        else:
+            oversold = rsi < 35
+            overbought = rsi > 65
         
         # 🧠 NEURAL SCORING SYSTEM (Backtest Sync v3)
         points = 0
@@ -678,12 +675,12 @@ async def run_backtest(payload: WebhookPayload):
         entropy = intel.get("entropy", 0.5)
 
         # Surgical Backtest Thresholds: TARGET +150%
-        active_threshold = 70
+        active_threshold = 60
 
         # Sync Trend & Volume Filters
         t_up = intel.get("trend_up", True)
         aligned_bt = (oversold and t_up) or (overbought and not t_up)
-        vol_confirm_bt = intel.get("z_vol", 0) > 0.8 or intel.get("bb_width", 0) > 0.15
+        vol_confirm_bt = intel.get("z_vol", 0) > 0.5 or intel.get("bb_width", 0) > 0.1
 
         if points >= active_threshold and entropy <= 0.85 and vol_confirm_bt and aligned_bt:
             is_sol_backtest = "SOL" in symbol.upper()
