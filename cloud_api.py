@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "345.0-SUPREME-FLEX",
+            "version": "350.0-SUPREME-PURE-TREND",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -325,45 +325,48 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🕒 FLEX-ADAPTIVE v345.0 (Filtros Relaxados)
+    # 🕒 PURE-TREND v350.0 (Trend Following)
     is_sol = "SOL" in symbol.upper()
     is_eth = "ETH" in symbol.upper()
     
     # Entropy Scaling
     entropy = intel["entropy"]
     lev_mult = 1.0
-    if entropy > 0.75: lev_mult = 0.30
-    elif entropy > 0.60: lev_mult = 0.65
+    if entropy > 0.70: lev_mult = 0.40
+    elif entropy > 0.55: lev_mult = 0.70
 
     # Body Ratio 
     o, h, l, c = ohlcv[-1][1], ohlcv[-1][2], ohlcv[-1][3], ohlcv[-1][4]
     body_ratio = abs(o - c) / max(0.0001, h - l)
 
     if intel["is_compressed"]:
-        min_w = 0.90 if is_sol else (0.40 if is_eth else 0.30)
+        min_w = 0.80 if is_sol else (0.35 if is_eth else 0.25)
         if intel["bb_width"] < min_w: return
         
-        # Triggers v345 (Relaxados)
-        oversold = intel["rsi"] < 33 and body_ratio < 0.60
-        overbought = intel["rsi"] > 67 and body_ratio < 0.60
-        min_z = 2.8 if is_sol else 2.5
+        # Triggers v350 (PURE TREND)
+        oversold = intel["rsi"] < 35 and body_ratio < 0.65
+        overbought = intel["rsi"] > 65 and body_ratio < 0.65
+        min_z = 2.5 if is_sol else 2.2
         strong_push = intel["z_vol"] > min_z
 
         if strong_push:
-            allowed_long = intel["trend_up"] or intel["divergence"]
-            allowed_short = not intel["trend_up"] or intel["divergence"]
-            
-            if oversold and allowed_long: bias = "GOD_LONG"; score = 96
-            elif overbought and allowed_short: bias = "GOD_SHORT"; score = 96
+            # PURE TREND: Só operar A FAVOR da EMA200
+            if is_sol:
+                if oversold and intel["trend_up"]: bias = "GOD_LONG"; score = 95
+            else:
+                if oversold and intel["trend_up"]: bias = "GOD_LONG"; score = 95
+                elif overbought and not intel["trend_up"]: bias = "GOD_SHORT"; score = 95
     else:
-        if abs(intel["psi"]) > 0.40 and intel["z_vol"] > 3.0:
-            bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 90
+        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 2.8:
+            if intel["psi"] > 0 and intel["trend_up"]:
+                bias = "GOD_LONG"; score = 90
+            elif intel["psi"] < 0 and not intel["trend_up"]:
+                bias = "GOD_SHORT"; score = 90
     
     decision = "EXECUTE" if score >= 88 else "REJECT"
     
     intel["leverage_mult"] = lev_mult
-    intel["sl_factor"] = 2.2
+    intel["sl_factor"] = 3.0
     intel["tp_target"] = "ma20"
 
     engine_state.last_score = score
@@ -441,41 +444,44 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v345.0 "FLEX-ADAPTIVE"
+        # 🧬 NEURAL SIMULATION v350.0 "PURE-TREND"
         is_sol = "SOL" in symbol.upper()
         entropy = intel["entropy"]
         lev_mult = 1.0
-        if entropy > 0.75: lev_mult = 0.30
-        elif entropy > 0.60: lev_mult = 0.65
+        if entropy > 0.70: lev_mult = 0.40
+        elif entropy > 0.55: lev_mult = 0.70
 
         o, h, l, c = ohlcv[i][1], ohlcv[i][2], ohlcv[i][3], ohlcv[i][4]
         body_ratio = abs(o - c) / max(0.0001, h - l)
 
         if intel["is_compressed"]:
-            min_w = 0.90 if is_sol else (0.40 if "ETH" in symbol else 0.30)
+            min_w = 0.80 if is_sol else (0.35 if "ETH" in symbol else 0.25)
             if intel["bb_width"] < min_w: i += 1; continue
             
-            oversold = intel["rsi"] < 33 and body_ratio < 0.60
-            overbought = intel["rsi"] > 67 and body_ratio < 0.60
-            min_z = 2.8 if is_sol else 2.5
+            oversold = intel["rsi"] < 35 and body_ratio < 0.65
+            overbought = intel["rsi"] > 65 and body_ratio < 0.65
+            min_z = 2.5 if is_sol else 2.2
             strong_push = intel["z_vol"] > min_z
 
             if strong_push:
-                allowed_long = intel["trend_up"] or intel["divergence"]
-                allowed_short = not intel["trend_up"] or intel["divergence"]
-                
-                if oversold and allowed_long: bias = "GOD_LONG"; score = 96
-                elif overbought and allowed_short: bias = "GOD_SHORT"; score = 96
+                # PURE TREND: Só operar A FAVOR da EMA200
+                if is_sol:
+                    if oversold and intel["trend_up"]: bias = "GOD_LONG"; score = 95
+                else:
+                    if oversold and intel["trend_up"]: bias = "GOD_LONG"; score = 95
+                    elif overbought and not intel["trend_up"]: bias = "GOD_SHORT"; score = 95
         else:
-            if abs(intel["psi"]) > 0.40 and intel["z_vol"] > 3.0:
-                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-                score = 90
+            if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 2.8:
+                if intel["psi"] > 0 and intel["trend_up"]:
+                    bias = "GOD_LONG"; score = 90
+                elif intel["psi"] < 0 and not intel["trend_up"]:
+                    bias = "GOD_SHORT"; score = 90
             
         if score >= 88:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
             atr = intel["atr"]
-            sl_dist = atr * 2.2
+            sl_dist = atr * 3.0
             lev = config["leverage"] * lev_mult
             
             pnl_base = 0

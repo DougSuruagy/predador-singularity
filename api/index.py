@@ -117,57 +117,60 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v345.0 "FLEX-ADAPTIVE"
-    # Objetivo: Mais Entradas de Qualidade com Filtros Relaxados
+    # 🧬 MASTER LOGIC v350.0 "PURE-TREND"
+    # Objetivo: Seguir a Tendência Principal (EMA200) Sem Exceções
     is_sol = "SOL" in payload.symbol.upper()
     is_eth = "ETH" in payload.symbol.upper()
     
     # Entropy Multiplier (Sobrevivência)
     entropy = intel["entropy"]
     lev_mult = 1.0
-    if entropy > 0.75: lev_mult = 0.30
-    elif entropy > 0.60: lev_mult = 0.65
+    if entropy > 0.70: lev_mult = 0.40
+    elif entropy > 0.55: lev_mult = 0.70
 
-    # Body Ratio (Pavio Institucional - Relaxado)
+    # Body Ratio (Pavio Institucional)
     if len(payload.ohlcv) > 0:
         o, h, l, c = payload.ohlcv[-1][1], payload.ohlcv[-1][2], payload.ohlcv[-1][3], payload.ohlcv[-1][4]
         body_ratio = abs(o - c) / max(0.0001, h - l)
     else: body_ratio = 1.0
 
     if intel["is_compressed"]:
-        # Filtros v345 (Flexibilidade Adaptativa)
-        min_width = 0.90 if is_sol else (0.40 if is_eth else 0.30)
+        # Filtros v350 (Trend Following)
+        min_width = 0.80 if is_sol else (0.35 if is_eth else 0.25)
         if intel["bb_width"] < min_width:
              return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "No Delta"}
 
-        # Triggers Relaxados (RSI 33/67 + Body 0.60)
-        oversold = intel["rsi"] < 33 and body_ratio < 0.60
-        overbought = intel["rsi"] > 67 and body_ratio < 0.60
+        # Triggers PURE TREND (RSI 35/65 + Body 0.65)
+        oversold = intel["rsi"] < 35 and body_ratio < 0.65
+        overbought = intel["rsi"] > 65 and body_ratio < 0.65
         
-        # Z-Volume (Reduzido para 2.8)
-        min_z = 2.8 if is_sol else 2.5
+        # Z-Volume (Mais Sensível)
+        min_z = 2.5 if is_sol else 2.2
         strong_push = intel["z_vol"] > min_z
 
         if strong_push:
-            # Shield Flexível: Divergência anula bloqueio de tendência
-            allowed_long = intel["trend_up"] or intel["divergence"]
-            allowed_short = not intel["trend_up"] or intel["divergence"]
-            
-            if oversold and allowed_long: bias = "GOD_LONG"; score = 96
-            elif overbought and allowed_short: bias = "GOD_SHORT"; score = 96
+            # PURE TREND: Só operar A FAVOR da EMA200
+            # SOL: Apenas LONGS (moeda volátil demais para shorts)
+            if is_sol:
+                if oversold and intel["trend_up"]: bias = "GOD_LONG"; score = 95
+            else:
+                if oversold and intel["trend_up"]: bias = "GOD_LONG"; score = 95
+                elif overbought and not intel["trend_up"]: bias = "GOD_SHORT"; score = 95
             
     else:
-        # TREND REVERSION (PSI Intenso - Relaxado)
-        if abs(intel["psi"]) > 0.40 and intel["z_vol"] > 3.0: 
-            bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 90
+        # TREND MOMENTUM (Seguir o PSI na direção da tendência)
+        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 2.8: 
+            if intel["psi"] > 0 and intel["trend_up"]:
+                bias = "GOD_LONG"; score = 90
+            elif intel["psi"] < 0 and not intel["trend_up"]:
+                bias = "GOD_SHORT"; score = 90
             
     # Final Decision
     decision = "EXECUTE" if score >= 88 else "REJECT"
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "targets": {"tp": intel["ma20"], "sl_factor": 2.2},
+        "targets": {"tp": intel["ma20"], "sl_factor": 3.0},
         "leverage_mult": lev_mult,
-        "version": "345.0-FLEX"
+        "version": "350.0-PURE"
     }
