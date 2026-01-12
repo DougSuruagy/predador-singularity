@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "270.0-ELASTIC-SUPREME-GOLD",
+            "version": "270.5-SUPREME-GOLD-ELITE",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -325,23 +325,23 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🕒 ELASTIC GOLD v270.0 (v220 Parity)
+    # 🕒 ELASTIC GOLD ELITE v270.5 (Surgical SOL)
     is_sol = "SOL" in symbol.upper()
     is_eth = "ETH" in symbol.upper()
     
     if intel["is_compressed"]:
-        min_w = 0.80 if is_sol else 0.35
+        min_w = 0.95 if is_sol else 0.35
         if intel["bb_width"] < min_w: return
         
         oversold = (intel["rsi"] < 35 or (intel["rsi"] < 40 and intel["rsi_slope"] < -5))
         overbought = (intel["rsi"] > 65 or (intel["rsi"] > 60 and intel["rsi_slope"] > 5))
-        min_z = 3.2 if is_sol else 2.2
+        min_z = 3.8 if is_sol else 2.2
         strong_push = intel["z_vol"] > min_z
 
         if strong_push and oversold: bias = "GOD_LONG"; score = 96
         elif strong_push and overbought: bias = "GOD_SHORT"; score = 96
     else:
-        min_trend_z = 4.0 if is_sol else 2.8
+        min_trend_z = 4.2 if is_sol else 2.8
         if abs(intel["psi"]) > 0.35 and intel["z_vol"] > min_trend_z:
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 92
@@ -425,15 +425,15 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v270.0 "ELASTIC-GOLD"
+        # 🧬 NEURAL SIMULATION v270.5 "ELASTIC-GOLD-ELITE"
         is_sol = "SOL" in symbol.upper()
         if intel["is_compressed"]:
-            min_w = 0.80 if is_sol else 0.35
+            min_w = 0.95 if is_sol else 0.35
             if intel["bb_width"] < min_w: i += 1; continue
             
             oversold = (intel["rsi"] < 35 or (intel["rsi"] < 40 and intel["rsi_slope"] < -5))
             overbought = (intel["rsi"] > 65 or (intel["rsi"] > 60 and intel["rsi_slope"] > 5))
-            min_z = 3.2 if is_sol else 2.2
+            min_z = 3.8 if is_sol else 2.2
             strong_push = intel["z_vol"] > min_z
 
             if strong_push and oversold: bias = "GOD_LONG"; score = 98

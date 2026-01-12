@@ -115,8 +115,8 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     if idle_minutes > 30: inactivity_boost = 5 # Facilita a entrada após 30min parado
     
     if intel["is_compressed"]:
-        # Filtros ORIGINAIS v220 (Os Lucrativos)
-        min_width = 0.80 if is_sol else 0.35
+        # Filtros ORIGINAIS v220 + Ajuste Cirúrgico SOL
+        min_width = 0.95 if is_sol else 0.35
         if intel["bb_width"] < min_width:
              return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Vol"}
 
@@ -125,7 +125,7 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
         overbought = (intel["rsi"] > 65 or (intel["rsi"] > 60 and intel["rsi_slope"] > 5))
         
         # Z-Volume (Confirmador de Fluxo Institucional)
-        min_z = 3.2 if is_sol else 2.2 # v220 Pure Levels
+        min_z = 3.8 if is_sol else 2.2 # Surgical Shield for SOL
         strong_push = intel["z_vol"] > min_z
 
         if strong_push and oversold:
