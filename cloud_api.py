@@ -1,11 +1,11 @@
 """
-PREDATOR v359.0 BACK-TO-BASICS - Cloud API (Render)
+PREDATOR v220.0 "ELASTIC-SOL-ARMOR" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-BACK-TO-BASICS STRATEGY (Based on v354 Success):
-1. REVERSION: Buy Panic (RSI < 25), Sell Euphoria (RSI > 75).
-2. TARGET: MA20 (Mean Reversion).
-3. FILTER: Profit Distance to MA20 must be > 0.8x ATR.
-4. SL: 2.0x ATR.
+THE ULTIMATE HFT EVOLUTION:
+1. SOL-ARMOR: BB Width > 0.8% + Z-Vol > 3.2 (Filters dirty chop).
+2. ELASTIC REVERSION: Target Fixed at EMA9.
+3. INSTITUTIONAL FLOW: Z-Score Vol > 3.0 required.
+4. RSI SLOPE: Confirm velocity exhaustion.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "359.0-BACK-TO-BASICS",
+            "version": "220.0-ELASTIC-SOL-ARMOR",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -325,7 +325,7 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🔙 BACK-TO-BASICS v359.0
+    # 🦅 v220.0 ELASTIC-SOL-ARMOR
     is_sol = "SOL" in symbol.upper()
     
     # Entropy Scaling
@@ -333,36 +333,55 @@ async def run_strategy(symbol, mode):
     lev_mult = 1.0
     if entropy > 0.70: lev_mult = 0.50
 
-    rsi = intel["rsi"]
-    ma20 = intel["ma20"]
-    atr = intel["atr"]
     price = intel["price"]
+    ema9 = intel["ema9"]
+    bb_width = intel["bb_width"]
+    z_vol = intel["z_vol"]
+    rsi = intel["rsi"]
+    slope = intel["rsi_slope"]
+
+    # 🛡️ SOL-ARMOR FILTER
+    # Blindagem total para SOL: Só opera se bandas estiverem largas (0.8%) 
+    # e volume for massivo (Z > 3.2)
+    if is_sol:
+        min_width = 0.80
+        min_z = 3.2
+    else:
+        min_width = 0.25 # BTC/ETH aceitam menor volatilidade
+        min_z = 2.8      # Volume institucional padrão
+        
+    width_ok = bb_width > min_width
+    vol_ok = z_vol > min_z
     
-    # TRIGGERS (Reversion)
-    extreme_oversold = rsi < 25
-    extreme_overbought = rsi > 75
+    # ELASTIC TRIGGERS (Reversão à EMA9)
+    # Compra: Preço esticado pra baixo (RSI < 30) + Slope virando pra cima
+    buy_elastico = rsi < 30 and slope > 0.2
     
-    # PROFIT DISTANCE CHECK
-    dist = abs(price - ma20)
-    min_dist = atr * 0.8
+    # Venda: Preço esticado pra cima (RSI > 70) + Slope virando pra baixo
+    sell_elastico = rsi > 70 and slope < -0.2
     
-    if dist > min_dist:
+    # FEE AWARE CHECK (Net Profit Guarantee)
+    # Distância até a EMA9 deve cobrir taxas (aprox 0.15% movimento)
+    dist_to_ema9_pct = abs(price - ema9) / price * 100
+    fee_ok = dist_to_ema9_pct > 0.15
+    
+    if width_ok and vol_ok and fee_ok:
         if is_sol:
-            # SOL: Long-only
-            if extreme_oversold:
-                bias = "GOD_LONG"; score = 93
+            # SOL ARMOR: Apenas Longs em Dips extremos (Volatilidade segura)
+            if buy_elastico:
+                bias = "GOD_LONG"; score = 96
         else:
             # BTC/ETH: Bidirecional
-            if extreme_oversold:
-                bias = "GOD_LONG"; score = 93
-            elif extreme_overbought:
-                bias = "GOD_SHORT"; score = 93
+            if buy_elastico:
+                bias = "GOD_LONG"; score = 95
+            elif sell_elastico:
+                bias = "GOD_SHORT"; score = 95
     
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
     intel["leverage_mult"] = lev_mult
-    intel["sl_factor"] = 2.0  
-    intel["tp_target"] = "ma20"
+    intel["sl_factor"] = 2.5 # SL Largo para aguentar pavio
+    intel["tp_target"] = "ema9" # 🎯 ALVO: EMA9 (Elastic Core)
 
     engine_state.last_score = score
     
@@ -439,42 +458,54 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🔙 BACK-TO-BASICS BACKTEST v359.0
+        # 🦅 v220.0 ELASTIC-SOL-ARMOR BACKTEST
         is_sol = "SOL" in symbol.upper()
         entropy = intel["entropy"]
         lev_mult = 1.0
         if entropy > 0.70: lev_mult = 0.50
 
-        rsi = intel["rsi"]
-        ma20 = intel["ma20"]
-        atr = intel["atr"]
         price = intel["price"]
+        ema9 = intel["ema9"]
+        bb_width = intel["bb_width"]
+        z_vol = intel["z_vol"]
+        rsi = intel["rsi"]
+        slope = intel["rsi_slope"]
+        atr = intel["atr"]
         
-        extreme_oversold = rsi < 25
-        extreme_overbought = rsi > 75
-        dist = abs(price - ma20)
-        min_dist = atr * 0.8
+        if is_sol:
+            min_width = 0.80
+            min_z = 3.2
+        else:
+            min_width = 0.25
+            min_z = 2.8
+            
+        width_ok = bb_width > min_width
+        vol_ok = z_vol > min_z
+        buy_elastico = rsi < 30 and slope > 0.2
+        sell_elastico = rsi > 70 and slope < -0.2
+        dist_to_ema9_pct = abs(price - ema9) / price * 100
+        fee_ok = dist_to_ema9_pct > 0.15
         
-        if dist > min_dist:
+        if width_ok and vol_ok and fee_ok:
             if is_sol:
-                if extreme_oversold:
-                    bias = "GOD_LONG"; score = 93
+                if buy_elastico:
+                    bias = "GOD_LONG"; score = 96
             else:
-                if extreme_oversold:
-                    bias = "GOD_LONG"; score = 93
-                elif extreme_overbought:
-                    bias = "GOD_SHORT"; score = 93
+                if buy_elastico:
+                    bias = "GOD_LONG"; score = 95
+                elif sell_elastico:
+                    bias = "GOD_SHORT"; score = 95
             
         if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
-            sl_dist = atr * 2.0
-            target_price = ma20
+            sl_dist = atr * 2.5
+            target_price = ema9 # 🎯 ALVO: EMA9
             lev = config["leverage"] * lev_mult
             
             pnl_base = 0
             
-            for j in range(i+1, min(i+150, len(ohlcv))):
+            for j in range(i+1, min(i+200, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
                     if f[2] >= target_price: pnl_base = (target_price/entry - 1); i = j; break
