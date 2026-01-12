@@ -140,6 +140,20 @@ class EngineState:
         except Exception as e:
             print(f"⚠️ [SUPABASE FAIL] Erro no sync de status: {e}")
 
+    async def log_event_to_supabase(self, event_type, message, asset=None, meta=None):
+        """ Registra um log de evento crítico no banco de dados """
+        try:
+            log_data = {
+                "event_type": event_type,
+                "message": message,
+                "asset": asset,
+                "meta": meta or {},
+                "time": datetime.now().isoformat()
+            }
+            supabase.table("system_logs").insert(log_data).execute()
+        except Exception as e:
+            print(f"⚠️ [SUPABASE FAIL] Erro ao gravar log: {e}")
+
 engine_state = EngineState()
 
 # ============================================================
@@ -235,9 +249,13 @@ exchange = ccxt.bybit({'apiKey': os.environ.get('BYBIT_API_KEY'), 'secret': os.e
 
 @app.on_event("startup")
 async def startup_event():
-    print("🔋 [v371.0 ENTROPY-SHIELD] NEURAL CORE INICIADO.")
+    print("🔋 [v371.1 ENTROPY-SHIELD] NEURAL CORE INICIADO.")
     print(f"📡 Telemetria: Black Box conectada em {SUPABASE_URL}")
     print(f"🛡️ Homeostase: Loss Limit {engine_state.MAX_DAILY_LOSS}% | Profit Limit {engine_state.MAX_DAILY_PROFIT}%")
+    
+    # Log de Startup
+    asyncio.create_task(engine_state.log_event_to_supabase("STARTUP", "Sistema Predator v371.1 Iniciado com Sucesso."))
+    
     asyncio.create_task(exchange.load_markets())
     asyncio.create_task(autonomous_hunter_loop())
     
@@ -410,10 +428,12 @@ async def run_strategy(symbol, mode):
         shield_mult = 0.2 # Sobrevivência (Corta 80%)
         sl_reduction = 0.6 # SL bem mais curto para sair logo
         print(f"🛡️ [ENTROPY SHIELD] MAX DEFENSE ACTIVATED! (Entropy: {entropy:.2f})")
+        asyncio.create_task(engine_state.log_event_to_supabase("SHIELD", f"MAX DEFENSE ACTIVATED (Entropy: {entropy:.2f})", asset=symbol))
     elif entropy > 0.60:
         shield_mult = 0.5 # Cautela (Corta 50%)
         sl_reduction = 0.8 # SL 20% menor
         print(f"🛡️ [ENTROPY SHIELD] ACTIVE! (Entropy: {entropy:.2f})")
+        asyncio.create_task(engine_state.log_event_to_supabase("SHIELD", f"DEFENSE ACTIVE (Entropy: {entropy:.2f})", asset=symbol))
         
     # 💎 INFINITY MATRIX: Maximização Final
     if score >= 95:
@@ -502,6 +522,7 @@ async def run_strategy(symbol, mode):
                     print(f"⚠️ [BLACK BOX FAIL] Erro ao sincronizar: {s_ex}")
             except Exception as ex:
                 print(f"❌ [EXECUTION FAIL] {ex}")
+                asyncio.create_task(engine_state.log_event_to_supabase("ERROR", str(ex), asset=symbol))
         
         await asyncio.sleep(8) # Recovery time reduzido para HFT
 
