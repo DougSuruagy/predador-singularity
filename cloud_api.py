@@ -1,5 +1,5 @@
 """
-PREDATOR v371.0 "ENTROPY-SHIELD" - Cloud API (Render)
+PREDATOR v370.0 "SINGULARITY-INFINITY" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
 STRATEGY: INFINITY MATRIX + ENTROPY SHIELD
  GOAL: MAX PROFIT WITH CHAOS PROTECTION.
@@ -99,7 +99,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "371.1.2-ENTROPY-SHIELD",
+            "version": "370.0-SINGULARITY-INFINITY",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -131,7 +131,7 @@ class EngineState:
         try:
             status_data = {
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "version": "371.1",
+                "version": "370.0",
                 "pnl": round(self.daily_pnl, 2),
                 "trades": self.trades,
                 "win_rate": round((self.wins / max(1, self.trades)) * 100, 2),
@@ -263,12 +263,12 @@ exchange = ccxt.bybit({'apiKey': os.environ.get('BYBIT_API_KEY'), 'secret': os.e
 
 @app.on_event("startup")
 async def startup_event():
-    print("🔋 [v371.1 ENTROPY-SHIELD] NEURAL CORE INICIADO.")
+    print("🔋 [v370.0 SINGULARITY-INFINITY] NEURAL CORE INICIADO.")
     print(f"📡 Telemetria: Black Box conectada em {SUPABASE_URL}")
     print(f"🛡️ Homeostase: Loss Limit {engine_state.MAX_DAILY_LOSS}% | Profit Limit {engine_state.MAX_DAILY_PROFIT}%")
     
     # Log de Startup
-    asyncio.create_task(engine_state.log_event_to_supabase("STARTUP", "Sistema Predator v371.1 Iniciado com Sucesso."))
+    asyncio.create_task(engine_state.log_event_to_supabase("STARTUP", "Sistema Predator v370.0 Iniciado com Sucesso."))
     
     asyncio.create_task(exchange.load_markets())
     asyncio.create_task(autonomous_hunter_loop())
@@ -302,7 +302,7 @@ async def get_state(x_token: str = Header(None)):
 
 @app.get("/health")
 async def health():
-    return {"status": "alive", "version": "371.1-ENTROPY-SHIELD"}
+    return {"status": "alive", "version": "370.0-SINGULARITY-INFINITY"}
 
 @app.get("/ping")
 async def ping():
@@ -573,7 +573,7 @@ async def run_strategy(symbol, mode):
                     "qty": float(qty),
                     "leverage": int(final_leverage),
                     "pnl": 0.0, # Será preenchido no fechamento
-                    "version": "371.1.3"
+                    "version": "370.0"
                 }
                 
                 engine_state.trade_log.append(trade_data)

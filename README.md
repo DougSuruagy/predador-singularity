@@ -1,10 +1,10 @@
-# 🦅 PREDADOR v371.1.3 "ENTROPY-SHIELD" 🛡️
+# 🦅 PREDADOR v370.0 "SINGULARITY-INFINITY" 🌌
 > **A Evolução Suprema: Matriz Infinita, Proteção Caótica & Consciência de Capital**
 
-![Status](https://img.shields.io/badge/status-LIVE_HUNTING-brightgreen.svg) ![Version](https://img.shields.io/badge/version-v371.1.3_REFUELED-blue.svg) ![PnL](https://img.shields.io/badge/backtest_pnl-+179.60%25-green.svg)
+![Status](https://img.shields.io/badge/status-LIVE_HUNTING-brightgreen.svg) ![Version](https://img.shields.io/badge/version-v370.0_SINGULARITY-blue.svg) ![PnL](https://img.shields.io/badge/backtest_pnl-+179.60%25-green.svg)
 
 ## 🌌 A Singularidade: Matriz de Risco Infinito + Entropy Shield
-O **PREDATOR v371.1.3** representa o ápice da segurança e do lucro. Combinamos a força bruta da **"Singularity Matrix"** com a inteligência estratégica do **"Entropy Shield"**. O sistema agora detecta o caos do mercado (Entropia) e ajusta automaticamente sua exposição para proteger o capital.
+O **PREDATOR v370.0** representa o ápice da segurança e do lucro. Combinamos a força bruta da **"Singularity Matrix"** com a inteligência estratégica do **"Entropy Shield"**. O sistema agora detecta o caos do mercado (Entropia) e ajusta automaticamente sua exposição para proteger o capital.
 
 ### 🛡️ Matriz de Alavancagem "Escudo do Infinito"
 | Ativo | Alavancagem Base | Lógica | Escudo (Caos) | Resultado (Backtest) |
@@ -23,7 +23,7 @@ O **PREDATOR v371.1.3** representa o ápice da segurança e do lucro. Combinamos
 
 ---
 
-## 🔋 Protocolo MINIMUM-FUEL (Nova v371.1.3)
+## 🔋 Protocolo MINIMUM-FUEL (v370.0)
 O sistema agora possui **Consciência de Capital**.
 - **Gatilho de Ativação:** O robô só inicia operações se detectar pelo menos **20 USDT** livres na conta de futuros.
 - **Proteção contra Rejeição:** Evita erros de "Qty Too Small" na exchange, preservando a saúde da API Key.
@@ -34,7 +34,7 @@ O sistema agora possui **Consciência de Capital**.
 O sistema opera de forma totalmente autônoma e 24/7 na nuvem (Render + Vercel).
 
 ### ✅ Checklist de Operação
-- [x] **/health** → Status 200 (Active - v371.1.3)
+- [x] **/health** → Status 200 (Active - v370.0)
 - [x] **/state** → Regime: **GHOST-HUNTING** (Operando c/ Escudo)
 - [x] **Keep-Alive** → Redundância Interna (Render) + Externa (Vercel Cron)
 - [x] **Homeostase** → Proteção Biométrica de capital e lucro diário.
@@ -53,7 +53,7 @@ python keep_alive.py
 ```bash
 python trigger_backtest.py
 ```
-*Roda a simulação v371.1.3 para confirmar a robustez do Entropy Shield e Neural Tuning v3.*
+*Roda a simulação v370.0 para confirmar a robustez do Entropy Shield e Neural Tuning v3.*
 
 ---
 
