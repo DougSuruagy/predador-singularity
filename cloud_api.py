@@ -1,11 +1,11 @@
 """
-PREDATOR v352.0 APEX-FILTER - Cloud API (Render)
+PREDATOR v353.0 SCALP-TREND - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-APEX-FILTER STRATEGY:
+SCALP-TREND STRATEGY:
 1. PULLBACK ENTRIES: Enter on retracements within strong trends.
 2. TREND STACK: EMA9 > MA20 (bull) or EMA9 < MA20 (bear).
-3. ATR TARGETS: TP = 3.5x ATR, SL = 1.5x ATR (RRR ~2.3:1).
-4. MOMENTUM FILTER: RSI 40-65 (healthy, not exhausted).
+3. SCALP TARGETS: TP = 1.8x ATR, SL = 0.8x ATR (RRR ~2.2:1).
+4. FAST EXECUTION: Hold max 60 candles.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "352.0-APEX-FILTER",
+            "version": "353.0-SCALP-TREND",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -372,8 +372,8 @@ async def run_strategy(symbol, mode):
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
     intel["leverage_mult"] = lev_mult
-    intel["sl_factor"] = 1.5  # SL balanceado
-    intel["tp_factor"] = 3.5  # TP maior para RRR ~2.3:1
+    intel["sl_factor"] = 0.8   # SL apertado para scalp
+    intel["tp_factor"] = 1.8   # TP realista (RRR ~2.2:1)
 
     engine_state.last_score = score
     
@@ -487,13 +487,13 @@ async def run_backtest(payload: WebhookPayload):
         if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
-            sl_dist = atr * 1.5  # SL balanceado
-            tp_dist = atr * 3.5  # TP maior para RRR ~2.3:1
+            sl_dist = atr * 0.8   # SL apertado para scalp
+            tp_dist = atr * 1.8   # TP realista (RRR ~2.2:1)
             lev = config["leverage"] * lev_mult
             
             pnl_base = 0
             
-            for j in range(i+1, min(i+120, len(ohlcv))):
+            for j in range(i+1, min(i+60, len(ohlcv))):  # Max 60 candles
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
                     if f[2] >= entry + tp_dist: pnl_base = tp_dist/entry; i = j; break
