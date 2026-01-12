@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="PREDATOR v65.0 SINGULARITY APEX - 100% Bybit V5 HFT Elite">
+    <title>PREDATOR v65.0 | SINGULARITY APEX</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #020408;
+            --bg-card: rgba(13, 17, 26, 0.85);
+            --neon-blue: #00f2ff;
+            --neon-green: #00ff9d;
+            --neon-pink: #ff0055;
+            --neon-purple: #bc00ff;
+            --neon-yellow: #ffcc00;
+            --text-dim: #8b949e;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-deep);
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            overflow: hidden;
+            display: flex;
+            height: 100vh;
+            background-image:
+                radial-gradient(ellipse at 20% 80%, rgba(0, 242, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(188, 0, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, #0a1122 0%, #020408 100%);
+        }
+
+        /* Sidebar Glassmorphism */
+        nav {
+            width: 260px;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            padding: 25px;
+            z-index: 10;
+        }
+
+        .logo {
+            font-weight: 900;
+            font-size: 1.4rem;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo svg {
+            filter: drop-shadow(0 0 10px var(--neon-blue));
+        }
+
+        .nav-item {
+            padding: 14px 0;
+            color: var(--text-dim);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            color: white;
+            text-shadow: 0 0 15px var(--neon-blue);
+            padding-left: 8px;
+        }
+
+        .nav-item.active::before {
+            content: '';
+            width: 3px;
+            height: 20px;
+            background: var(--neon-blue);
+            border-radius: 2px;
+            margin-left: -11px;
+            margin-right: 8px;
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            grid-template-rows: auto 1fr auto;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        header {
+            grid-column: 1 / span 2;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .price-hero {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #big-price {
+            font-size: 4.5rem;
+            font-weight: 900;
+            line-height: 1;
+            font-family: 'JetBrains Mono', monospace;
+            background: linear-gradient(180deg, #fff 0%, #aaa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
+        }
+
+        .symbol-badge {
+            background: rgba(0, 242, 255, 0.1);
+            color: var(--neon-blue);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            width: fit-content;
+            border: 1px solid var(--neon-blue);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .hunter-status {
+            font-size: 0.65rem;
+            color: var(--neon-purple);
+            border: 1px solid var(--neon-purple);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        /* Dash Cards */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 22px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0, 242, 255, 0.1);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at top right, rgba(0, 242, 255, 0.03), transparent);
+            pointer-events: none;
+        }
+
+        .card-label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        /* Chart Area */
+        .chart-container {
+            grid-row: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #main-chart {
+            flex: 1;
+            border-radius: 16px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+        }
+
+        /* AI Gauge */
+        .ai-panel {
+            grid-column: 2;
+            grid-row: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .gauge-wrap {
+            height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .prob-value {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--neon-green);
+            text-shadow: 0 0 30px rgba(0, 255, 157, 0.5);
+            font-family: 'JetBrains Mono', monospace;
+            transition: color 0.3s ease;
+        }
+
+        .regime-label {
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--neon-yellow);
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-box h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Flow Indicator */
+        .flow-strip {
+            height: 55px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            position: relative;
+        }
+
+        #flow-bar {
+            height: 6px;
+            background: var(--neon-green);
+            border-radius: 3px;
+            box-shadow: 0 0 20px var(--neon-green);
+            transition: all 0.2s ease;
+            min-width: 5%;
+        }
+
+        /* Status Pills */
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.7rem;
+            color: var(--neon-green);
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--neon-green);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--neon-green);
+            animation: pulse 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.6;
+                transform: scale(1.4);
+            }
+        }
+
+        /* Panic Button */
+        .btn-panic {
+            background: linear-gradient(135deg, var(--neon-pink), #cc0044);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: auto;
+            text-transform: uppercase;
+            box-shadow: 0 0 25px rgba(255, 0, 85, 0.3);
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+
+        .btn-panic:hover {
+            transform: scale(1.03);
+            box-shadow: 0 0 40px rgba(255, 0, 85, 0.5);
+        }
+
+        /* Feed Log */
+        #feed {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            line-height: 2;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        #feed::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #feed::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #feed::-webkit-scrollbar-thumb {
+            background: var(--glass-border);
+            border-radius: 2px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            nav {
+                width: 220px;
+                padding: 20px;
+            }
+
+            main {
+                padding: 20px;
+                gap: 15px;
+            }
+
+            #big-price {
+                font-size: 3.5rem;
+            }
+        }
+
+        @media (max-width: 900px) {
+            body {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+
+            nav {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            main {
+                grid-template-columns: 1fr;
+            }
+
+            .ai-panel {
+                grid-column: 1;
+                grid-row: auto;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+
+<body>
+    <nav>
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#gradient)" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#00f2ff" />
+                        <stop offset="100%" style="stop-color:#bc00ff" />
+                    </linearGradient>
+                </defs>
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+            </svg>
+            PREDATOR v65.0
+        </div>
+
+        <div class="nav-item active">NOMAD CORE</div>
+        <div class="nav-item">PHYSICS ENGINE</div>
+        <div class="nav-item">QUANTUM SCANNER</div>
+        <div class="nav-item">PORTFOLIO</div>
+
+        <button class="btn-panic" onclick="terminateAll()">⚠ TERMINATE ALL</button>
+    </nav>
+
+    <main>
+        <header>
+            <div class="price-hero">
+                <div class="symbol-badge" id="asset-symbol">
+                    BTCUSDT • BYBIT SOVEREIGN
+                    <span class="hunter-status" id="hunter-pill">SCANNING</span>
+                </div>
+                <div id="big-price">---</div>
+            </div>
+
+            <div class="status-pill">
+                <div class="dot"></div>
+                INITIALIZING...
+            </div>
+        </header>
+
+        <div class="chart-container">
+            <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+                <span class="card-label">Master Neural Velocity</span>
+                <div id="main-chart">
+                    📊 Chart Widget Loading...
+                </div>
+            </div>
+
+            <div class="card flow-strip">
+                <span class="card-label"
+                    style="position: absolute; top: -10px; left: 15px; background: var(--bg-deep); padding: 0 10px;">
+                    Institutional OFI (Order Flow)
+                </span>
+                <div id="ofi-bar" style="width: 50%;"></div>
+            </div>
+        </div>
+
+        <div class="ai-panel">
+            <div class="card">
+                <span class="card-label">AI Prediction Confidence</span>
+                <div class="gauge-wrap">
+                    <div class="prob-value">0.0%</div>
+                    <div class="regime-label" data-regime>INITIALIZING</div>
+                </div>
+                <div class="card-label" style="margin-top: 15px; font-size: 0.6rem;">Global Harmony (Consciousness)
+                </div>
+                <div id="consciousness-bar"
+                    style="height: 3px; background: rgba(0, 242, 255, 0.1); margin-top: 5px; border-radius: 2px;">
+                    <div id="consciousness-val"
+                        style="width: 50%; height: 100%; background: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue); transition: width 1s ease;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <span class="card-label">Live Yield Metrics</span>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="card-label" style="margin-bottom: 5px;">PNL</span>
+                        <h3 style="color: var(--neon-green);">R$ 0</h3>
+                    </div>
+                    <div class="stat-box">
+                        <span class="card-label" style="margin-bottom: 5px;">WIN %</span>
+                        <h3 style="color: var(--neon-blue);">0%</h3>
+                    </div>
+                    <div class="stat-box">
+                        <span class="card-label" style="margin-bottom: 5px;">TRADES</span>
+                        <h3 style="color: var(--neon-purple);">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <span class="card-label">Quantum Momentum</span>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="card-label" style="margin-bottom: 5px;">INERTIA</span>
+                        <h3 id="inertia-val" style="color: var(--neon-blue);">0.0</h3>
+                    </div>
+                    <div class="stat-box">
+                        <span class="card-label" style="margin-bottom: 5px;">ENTROPY</span>
+                        <h3 id="entropy-val" style="color: var(--neon-pink);">0.0</h3>
+                    </div>
+                    <div class="stat-box">
+                        <span class="card-label" style="margin-bottom: 5px;">ADAPT. LEV</span>
+                        <h3 id="lev-val" style="color: var(--neon-yellow);">10x</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <span class="card-label">Neuro-Biometrics</span>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="card-label" style="font-size: 0.55rem; margin-bottom: 5px;">Homeostasis</span>
+                        <div id="homeostasis-bar"
+                            style="height: 4px; background: rgba(0,255,157,0.2); border-radius: 2px; position: relative; margin-top: 10px;">
+                            <div id="homeostasis-val"
+                                style="width: 100%; height: 100%; background: var(--neon-green); border-radius: 2px; box-shadow: 0 0 10px var(--neon-green);">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <span class="card-label" style="font-size: 0.55rem; margin-bottom: 5px;">Adrenaline</span>
+                        <div id="adrenaline-bar"
+                            style="height: 4px; background: rgba(255,0,85,0.2); border-radius: 2px; position: relative; margin-top: 10px;">
+                            <div id="adrenaline-val"
+                                style="width: 0%; height: 100%; background: var(--neon-pink); border-radius: 2px; box-shadow: 0 0 10px var(--neon-pink);">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <span class="card-label" style="font-size: 0.55rem; margin-bottom: 5px;">Firing</span>
+                        <h3 id="firing-val" style="color: var(--neon-purple); font-size: 1rem;">0Hz</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="flex: 1;">
+                <span class="card-label">Neural Event Log</span>
+                <div id="feed">
+                    Aguardando conexão com a API...
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+</body>
+
+</html>
