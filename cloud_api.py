@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "330.0-SUPREME-SHIELD-ADAPTIVE",
+            "version": "335.0-SUPREME-FLEX",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -325,42 +325,41 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🕒 ENTROPY SHIELD v330.0
+    # 🕒 SHIELD FLEX v335.0 (v220 Elite)
     is_sol = "SOL" in symbol.upper()
     is_eth = "ETH" in symbol.upper()
     
-    # Entropy Multiplier
+    # Entropy & Risk Scaling
     entropy = intel["entropy"]
     lev_mult = 1.0
-    sl_fact = 2.2
+    sl_fact = 2.8 if not is_sol else 2.2
     
-    if entropy > 0.75: lev_mult = 0.20; sl_fact = 1.8
-    elif entropy > 0.60: lev_mult = 0.50; sl_fact = 2.0
+    if entropy > 0.75: lev_mult = 0.25; sl_fact -= 0.5
+    elif entropy > 0.60: lev_mult = 0.60; sl_fact -= 0.2
 
     # Body Ratio 
     o, h, l, c = ohlcv[-1][1], ohlcv[-1][2], ohlcv[-1][3], ohlcv[-1][4]
     body_ratio = abs(o - c) / max(0.0001, h - l)
 
     if intel["is_compressed"]:
-        min_w = 1.05 if is_sol else (0.45 if is_eth else 0.35)
+        min_w = 1.00 if is_sol else (0.40 if is_eth else 0.30)
         if intel["bb_width"] < min_w: return
         
-        # Triggers with Trend Shield & Wick
-        oversold = intel["rsi"] < 32 and body_ratio < 0.55 and intel["trend_up"]
-        overbought = intel["rsi"] > 68 and body_ratio < 0.55 and not intel["trend_up"]
-        min_z = 3.2 if is_sol else 2.5
+        # Trend Flex (Exhaustion > Trend)
+        is_exhausted = intel["rsi"] < 20 or intel["rsi"] > 80
+        
+        oversold = intel["rsi"] < 32 and body_ratio < 0.65 and (intel["trend_up"] or is_exhausted)
+        overbought = intel["rsi"] > 68 and body_ratio < 0.65 and (not intel["trend_up"] or is_exhausted)
+        min_z = 3.0 if is_sol else 2.2
         strong_push = intel["z_vol"] > min_z
 
         if strong_push:
-            if oversold: bias = "GOD_LONG"; score = 96
-            elif overbought: bias = "GOD_SHORT"; score = 96
+            if oversold: bias = "GOD_LONG"; score = 98
+            elif overbought: bias = "GOD_SHORT"; score = 98
     else:
-        if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 3.5:
-            bias = "GOD_LONG" if intel["psi"] > 0 and intel["trend_up"] else "GOD_SHORT"
-            if (bias == "GOD_SHORT" and intel["trend_up"]) or (bias == "GOD_LONG" and not intel["trend_up"]):
-                score = 0
-            else:
-                score = 92
+        if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 3.2:
+            bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+            score = 92
     
     if intel["divergence"]: score = 0 
 
@@ -445,36 +444,34 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v330.0 "ENTROPY-SHIELD"
+        # 🧬 NEURAL SIMULATION v335.0 "SHIELD-FLEX"
         is_sol = "SOL" in symbol.upper()
         entropy = intel["entropy"]
         lev_mult = 1.0
-        sl_fact = 2.2
-        if entropy > 0.75: lev_mult = 0.20; sl_fact = 1.8
-        elif entropy > 0.60: lev_mult = 0.50; sl_fact = 2.0
+        sl_fact = 2.8 if not is_sol else 2.2
+        if entropy > 0.75: lev_mult = 0.25; sl_fact -= 0.5
+        elif entropy > 0.60: lev_mult = 0.60; sl_fact -= 0.2
 
         o, h, l, c = ohlcv[i][1], ohlcv[i][2], ohlcv[i][3], ohlcv[i][4]
         body_ratio = abs(o - c) / max(0.0001, h - l)
 
         if intel["is_compressed"]:
-            min_w = 1.05 if is_sol else (0.45 if "ETH" in symbol else 0.35)
+            min_w = 1.00 if is_sol else (0.40 if "ETH" in symbol else 0.30)
             if intel["bb_width"] < min_w: i += 1; continue
             
-            oversold = intel["rsi"] < 32 and body_ratio < 0.55 and intel["trend_up"]
-            overbought = intel["rsi"] > 68 and body_ratio < 0.55 and not intel["trend_up"]
-            min_z = 3.2 if is_sol else 2.5
+            is_exhausted = intel["rsi"] < 20 or intel["rsi"] > 80
+            oversold = intel["rsi"] < 32 and body_ratio < 0.65 and (intel["trend_up"] or is_exhausted)
+            overbought = intel["rsi"] > 68 and body_ratio < 0.65 and (not intel["trend_up"] or is_exhausted)
+            min_z = 3.0 if is_sol else 2.2
             strong_push = intel["z_vol"] > min_z
 
             if strong_push:
-                if oversold: bias = "GOD_LONG"; score = 96
-                elif overbought: bias = "GOD_SHORT"; score = 96
+                if oversold: bias = "GOD_LONG"; score = 98
+                elif overbought: bias = "GOD_SHORT"; score = 98
         else:
-            if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 3.5:
-                bias = "GOD_LONG" if intel["psi"] > 0 and intel["trend_up"] else "GOD_SHORT"
-                if (bias == "GOD_SHORT" and intel["trend_up"]) or (bias == "GOD_LONG" and not intel["trend_up"]):
-                    score = 0
-                else:
-                    score = 92
+            if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 3.2:
+                bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
+                score = 92
         
         if intel["divergence"]: score = 0
             
