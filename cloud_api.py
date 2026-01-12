@@ -524,7 +524,6 @@ async def run_backtest(payload: WebhookPayload):
             
             # Parametros TP/SL Reversion
             sl_dist = atr * 3.0 * 0.9 # SL levemente mais curto em média
-            sl_dist = atr * 3.0
             target_price = ma20
             
             pnl_base = 0.0
