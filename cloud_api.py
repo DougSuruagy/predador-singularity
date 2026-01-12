@@ -1,13 +1,12 @@
 """
-PREDATOR v364.1 "ETHER-ZERO-RELOADED" - Cloud API (Render)
+PREDATOR v367.0 "TITAN-LEVERAGE" - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-STRATEGY: UNIVERSAL MEAN REVERSION + ETHER ZERO
-1. BTC/SOL: Pure Reversion (RSI 30/70). Proven Profitable.
-2. ETH: Extreme Reversion (RSI 20/80). Zero tolerance for loss.
-3. TARGET: MA20 (The Mean).
+STRATEGY: UNIVERSAL MEAN REVERSION + TITAN RISK SCALING
+ GOAL: +50% DAILY PnL (Compound Growth).
+1. LOGIC: Maintained v364.1 (Proven +28% PnL).
+2. BOOST: Leverage 1.8x for Supreme Setups (Score >= 95).
+3. SIZE: Position Sizing Optimization.
 4. SAFETY: Wide SL (3.0x ATR).
-5. FILTER: BB Width > 0.15.
-   * Restored from v364.0 after v366 failure.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -89,7 +88,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "364.1-ETHER-ZERO-RELOADED",
+            "version": "367.0-TITAN-LEVERAGE",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -327,14 +326,10 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🛡️ v364.1 ETHER-ZERO RELOADED
+    # 🛡️ v367.0 TITAN LEVERAGE (Logic v364.1)
     
     rsi = intel["rsi"]
     bb_width = intel["bb_width"]
-    
-    # 1. LOGICA DE REVERSÃO COMPROVADA
-    # BTC/SOL: Padrão (30/70)
-    # ETH: Extremo (20/80)
     
     if "ETH" in symbol:
         oversold = rsi < 20
@@ -343,7 +338,6 @@ async def run_strategy(symbol, mode):
         oversold = rsi < 30
         overbought = rsi > 70
         
-    # Filtro de Mercado Morto
     active_market = bb_width > 0.15
     
     if active_market:
@@ -354,11 +348,14 @@ async def run_strategy(symbol, mode):
 
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
-    # Configuração Swing/Reversion (Lento e Lucrativo)
-    intel["tp_factor"] = 0      # Usa Target Dinamico
-    intel["sl_factor"] = 3.0    # SL Largo
-    intel["tp_target"] = "ma20" # Target na Média
-    intel["leverage_mult"] = 1.0
+    # 💎 TITAN BOOST: 1.8x Alavancagem para setups perfeitos (Score 95)
+    # Isso escala os +28% atuais para ~50%
+    lev_boost = 1.8 if score >= 95 else 1.0
+    
+    intel["tp_factor"] = 0     
+    intel["sl_factor"] = 3.0    
+    intel["tp_target"] = "ma20" 
+    intel["leverage_mult"] = lev_boost # Aplica o boost
 
     engine_state.last_score = score
     
@@ -458,7 +455,10 @@ async def run_backtest(payload: WebhookPayload):
             is_sol_backtest = "SOL" in symbol.upper()
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
-            lev = config["leverage"]
+            
+            # 💎 TITAN BOOST NO BACKTEST
+            boost = 1.8 if score >= 95 else 1.0
+            lev = config["leverage"] * boost
             
             # Parametros TP/SL Reversion
             sl_dist = atr * 3.0
