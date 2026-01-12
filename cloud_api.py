@@ -102,7 +102,7 @@ class EngineState:
             "price": self.last_price,
             "prob": self.last_score,
             "entropy": self.last_entropy,
-            "shield": self.shield_status
+            "shield": self.shield_status,
             "confidence": self.last_score,
             "is_locked": is_locked,
             "is_hunting": not is_locked,
