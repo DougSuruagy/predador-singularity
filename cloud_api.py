@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "320.0-SUPREME-SHIELD",
+            "version": "330.0-SUPREME-SHIELD-ADAPTIVE",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -325,10 +325,18 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🕒 TREND SHIELD v320.0
+    # 🕒 ENTROPY SHIELD v330.0
     is_sol = "SOL" in symbol.upper()
     is_eth = "ETH" in symbol.upper()
     
+    # Entropy Multiplier
+    entropy = intel["entropy"]
+    lev_mult = 1.0
+    sl_fact = 2.2
+    
+    if entropy > 0.75: lev_mult = 0.20; sl_fact = 1.8
+    elif entropy > 0.60: lev_mult = 0.50; sl_fact = 2.0
+
     # Body Ratio 
     o, h, l, c = ohlcv[-1][1], ohlcv[-1][2], ohlcv[-1][3], ohlcv[-1][4]
     body_ratio = abs(o - c) / max(0.0001, h - l)
@@ -337,7 +345,7 @@ async def run_strategy(symbol, mode):
         min_w = 1.05 if is_sol else (0.45 if is_eth else 0.35)
         if intel["bb_width"] < min_w: return
         
-        # Triggers with Trend Shield
+        # Triggers with Trend Shield & Wick
         oversold = intel["rsi"] < 32 and body_ratio < 0.55 and intel["trend_up"]
         overbought = intel["rsi"] > 68 and body_ratio < 0.55 and not intel["trend_up"]
         min_z = 3.2 if is_sol else 2.5
@@ -357,6 +365,10 @@ async def run_strategy(symbol, mode):
     if intel["divergence"]: score = 0 
 
     decision = "EXECUTE" if score >= 92 else "REJECT"
+    
+    # Store for execution
+    intel["leverage_mult"] = lev_mult
+    intel["sl_factor"] = sl_fact
 
     engine_state.last_score = score
     
@@ -433,8 +445,14 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v320.0 "TREND-SHIELD"
+        # 🧬 NEURAL SIMULATION v330.0 "ENTROPY-SHIELD"
         is_sol = "SOL" in symbol.upper()
+        entropy = intel["entropy"]
+        lev_mult = 1.0
+        sl_fact = 2.2
+        if entropy > 0.75: lev_mult = 0.20; sl_fact = 1.8
+        elif entropy > 0.60: lev_mult = 0.50; sl_fact = 2.0
+
         o, h, l, c = ohlcv[i][1], ohlcv[i][2], ohlcv[i][3], ohlcv[i][4]
         body_ratio = abs(o - c) / max(0.0001, h - l)
 
@@ -464,8 +482,8 @@ async def run_backtest(payload: WebhookPayload):
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
             atr = intel["atr"]
-            sl_dist = atr * config["sl_mult"]
-            lev = config["leverage"]
+            sl_dist = atr * sl_fact
+            lev = config["leverage"] * lev_mult
             
             pnl_base = 0
             # Target EMA 9 (Fast Scalp)

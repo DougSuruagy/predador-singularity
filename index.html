@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PREDATOR // COMMAND CENTER v320.0</title>
+    <title>PREDATOR // COMMAND CENTER v330.0 ENTROPY-SHIELD</title>
     <link rel="stylesheet" href="legend.css">
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
     <div class="command-center">
         <!-- HEADER -->
@@ -15,7 +17,8 @@
             <div class="logo-section">
                 <div class="cursor"></div>
                 <h1>PREDATOR // AI-HFT</h1>
-                <span style="color:var(--text-dim); font-size: 0.7rem; font-family: 'JetBrains Mono';">v320.0-SUPREME</span>
+                <span
+                    style="color:var(--text-dim); font-size: 0.7rem; font-family: 'JetBrains Mono';">v320.0-SUPREME</span>
             </div>
             <div class="system-status">
                 <div class="status-item">
@@ -39,18 +42,24 @@
                 <div class="gauge-container">
                     <svg class="gauge" viewBox="0 0 100 60">
                         <path class="gauge-bg" d="M10,50 A40,40 0 1,1 90,50" />
-                        <path id="dopamine-fill" class="gauge-fill" stroke="#0db9d7" d="M10,50 A40,40 0 1,1 90,50" stroke-dasharray="126" stroke-dashoffset="126" />
+                        <path id="dopamine-fill" class="gauge-fill" stroke="#0db9d7" d="M10,50 A40,40 0 1,1 90,50"
+                            stroke-dasharray="126" stroke-dashoffset="126" />
                     </svg>
                     <div class="gauge-label">Dopamine Levels</div>
                 </div>
                 <div class="gauge-container">
                     <svg class="gauge" viewBox="0 0 100 60">
                         <path class="gauge-bg" d="M10,50 A40,40 0 1,1 90,50" />
-                        <path id="adrenaline-fill" class="gauge-fill" stroke="#f7768e" d="M10,50 A40,40 0 1,1 90,50" stroke-dasharray="126" stroke-dashoffset="126" />
+                        <path id="adrenaline-fill" class="gauge-fill" stroke="#f7768e" d="M10,50 A40,40 0 1,1 90,50"
+                            stroke-dasharray="126" stroke-dashoffset="126" />
                     </svg>
                     <div class="gauge-label">Adrenaline Flux</div>
                 </div>
-                
+
+                <div class="metric-card">
+                    <span>Entropy Level</span>
+                    <span id="entropy" class="metric-val">0.00</span>
+                </div>
                 <div class="metric-card">
                     <span>Executive Efficiency</span>
                     <span id="efficiency" class="metric-val">100%</span>
@@ -149,4 +158,5 @@
     </div>
     <script src="legend.js"></script>
 </body>
+
 </html>

@@ -99,6 +99,13 @@ function updateUI(data) {
     updateGauge('dopamine-fill', data.bio?.dopamine || 50);
     updateGauge('adrenaline-fill', (data.bio?.adrenaline || 0.5) * 100);
 
+    const entropy = data.intel?.entropy || 0;
+    const entropyEl = document.getElementById('entropy');
+    if (entropyEl) {
+        entropyEl.innerText = entropy.toFixed(2);
+        entropyEl.style.color = entropy > 0.75 ? 'var(--danger)' : (entropy > 0.60 ? 'var(--warning)' : 'var(--success)');
+    }
+
     document.getElementById('uptime').innerText = `UP ${formatUptime(data.uptime)}`;
     document.getElementById('efficiency').innerText = `${data.executive_efficiency || 100}%`;
     document.getElementById('firing').innerText = `${data.synaptic_firing || 12.0}Hz`;

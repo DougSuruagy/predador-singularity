@@ -117,28 +117,40 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v320.0 "TREND-SHIELD-ELITE"
-    # Objetivo: Blindagem contra Contra-Tendência (v220 Legacy)
+    # 🧬 MASTER LOGIC v330.0 "ENTROPY-SHIELD"
+    # Objetivo: Blindagem Dinâmica de Alavancagem (v220 Hybrid)
     is_sol = "SOL" in payload.symbol.upper()
     is_eth = "ETH" in payload.symbol.upper()
     
-    # Body Ratio Refinado (Pavio Institucional)
+    # Entropy Multiplier (Redução de Risco em Mercados Caóticos)
+    entropy = intel["entropy"]
+    lev_mult = 1.0
+    sl_adj = 0
+    
+    if entropy > 0.75:
+        lev_mult = 0.20 # Modo Sobrevivência (80% Reduction)
+        sl_adj = -0.4 
+    elif entropy > 0.60:
+        lev_mult = 0.50 # Alerta de Risco (50% Reduction)
+        sl_adj = -0.2
+
+    # Body Ratio Refinado
     if len(payload.ohlcv) > 0:
         o, h, l, c = payload.ohlcv[-1][1], payload.ohlcv[-1][2], payload.ohlcv[-1][3], payload.ohlcv[-1][4]
         body_ratio = abs(o - c) / max(0.0001, h - l)
     else: body_ratio = 1.0
 
     if intel["is_compressed"]:
-        # Filtros de Seletividade v320
+        # Filtros v330
         min_width = 1.05 if is_sol else (0.45 if is_eth else 0.35)
         if intel["bb_width"] < min_width:
-             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "No Delta"}
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Delta"}
 
-        # RSI Precision + Trend Shield (Apenas a favor da EMA200)
+        # RSI + Trend Shield + Wick
         oversold = intel["rsi"] < 32 and body_ratio < 0.55 and intel["trend_up"]
         overbought = intel["rsi"] > 68 and body_ratio < 0.55 and not intel["trend_up"]
         
-        # Z-Volume (Fluxo Dominante)
+        # Z-Volume 
         min_z = 3.2 if is_sol else 2.5
         strong_push = intel["z_vol"] > min_z
 
@@ -147,11 +159,11 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
             elif overbought: bias = "GOD_SHORT"; score = 96
             
     else:
-        # TREND REVERSION LOGIC (v220)
+        # TREND REVERSION
         if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 3.5: 
             bias = "GOD_LONG" if intel["psi"] > 0 and intel["trend_up"] else "GOD_SHORT"
             if (bias == "GOD_SHORT" and intel["trend_up"]) or (bias == "GOD_LONG" and not intel["trend_up"]):
-                score = 0 # Reject counter-trend trend-logic
+                score = 0
             else:
                 score = 92
             
@@ -162,6 +174,7 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "targets": {"tp": intel["ema9"], "sl_factor": 2.2},
-        "version": "320.0-SHIELD"
+        "targets": {"tp": intel["ema9"], "sl_factor": 2.2 + sl_adj},
+        "leverage_mult": lev_mult,
+        "version": "330.0-ENTROPY"
     }
