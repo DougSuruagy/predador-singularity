@@ -8,7 +8,7 @@ import asyncio
 import time
 
 # ============================================================
-# ⚙️ VERCEL MASTER BRAIN - v75.0 "Sovereign Apex"
+# ⚙️ VERCEL MASTER BRAIN - v271.0 "Quantum Sovereign Gold"
 # ============================================================
 load_dotenv()
 app = FastAPI(title="PREDATOR Master Brain (Vercel)")
@@ -25,7 +25,6 @@ class NomadBrain:
         
         # PSI Intensity (5-min window velocity)
         psi = (closes[-1] - closes[-5]) / closes[-5] * 100
-        velocity = abs(psi) / 5 # Variação por minuto
         
         # Volatility & Compression
         ma20 = sum(closes[-20:]) / 20
@@ -42,9 +41,23 @@ class NomadBrain:
         direction_changes = sum(1 for i in range(len(deltas)-10, len(deltas)) if (deltas[i] > 0) != (deltas[i-1] > 0))
         entropy = direction_changes / 10.0
         
+        # Z-Score Volume (Outlier Detection)
+        z_vol = 0.0
+        if volumes and len(volumes) > 30:
+            avg_v = sum(volumes[-30:-1]) / 29
+            std_v = (sum((v - avg_v)**2 for v in volumes[-30:-1]) / 29)**0.5
+            z_vol = (volumes[-1] - avg_v) / (std_v + 0.0001)
+
+        # RSI Slope (Momentum Exhaustion)
+        past_rsi = []
+        for i in range(len(closes)-5, len(closes)):
+             window_deltas = [closes[j] - closes[j-1] for j in range(max(1, i-14), i+1)]
+             past_rsi.append(self._calc_rsi(window_deltas))
+        rsi_slope = past_rsi[-1] - past_rsi[-3] if len(past_rsi) > 3 else 0
+
         # Stochastic RSI (Exhaustion Precision)
-        rsi_min = min(past_rsi[-14:]) if len(past_rsi) >= 14 else 0
-        rsi_max = max(past_rsi[-14:]) if len(past_rsi) >= 14 else 100
+        rsi_min = min(past_rsi) if past_rsi else 0
+        rsi_max = max(past_rsi) if past_rsi else 100
         stoch_rsi = (rsi - rsi_min) / (rsi_max - rsi_min + 0.0001) * 100
 
         # EMA 200 (Trend Shield)
@@ -84,7 +97,7 @@ class HuntRequest(BaseModel):
 
 @app.get("/")
 async def health():
-    return {"status": "BRAIN_ACTIVE", "location": "VERCEL", "version": "75.0"}
+    return {"status": "BRAIN_ACTIVE", "location": "VERCEL", "version": "271.0"}
 
 @app.post("/api/hunt")
 async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
@@ -104,48 +117,47 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v270.0 "ELASTIC-GOLD"
-    # Objetivo: IGUALAR OU SUPERAR A v220 (+92.61% PnL)
+    # 🧬 MASTER LOGIC v280.0 "QUANTUM-ELITE-REVERSION"
+    # Objetivo: Superar v220 com Precisão de 100% Win Rate
     is_sol = "SOL" in payload.symbol.upper()
     is_eth = "ETH" in payload.symbol.upper()
     
-    # 🕒 CRITICAL INACTIVITY PULSE: Evita que o robô fique parado
+    # 🕒 INACTIVITY BOOST
     idle_minutes = (time.time() - engine_state.last_trade_time) / 60
-    inactivity_boost = 0
-    if idle_minutes > 30: inactivity_boost = 5 # Facilita a entrada após 30min parado
+    boost = 2 if idle_minutes > 30 else 0
     
     if intel["is_compressed"]:
-        # Filtros ORIGINAIS v220 + Ajuste Cirúrgico SOL
-        min_width = 0.95 if is_sol else 0.35
+        # Filtros de Rentabilidade de Elite
+        min_width = 1.15 if is_sol else (0.45 if is_eth else 0.35)
         if intel["bb_width"] < min_width:
-             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Vol"}
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "No Profit Room"}
 
-        # Triggers de Estilingue de Alta Probabilidade
-        oversold = (intel["rsi"] < 35 or (intel["rsi"] < 40 and intel["rsi_slope"] < -5))
-        overbought = (intel["rsi"] > 65 or (intel["rsi"] > 60 and intel["rsi_slope"] > 5))
+        # Triggers de Exaustão Extrema (v220 Souls)
+        # RSI 28/72 + StochRSI Extreme
+        oversold = intel["rsi"] < (28 + boost) and intel["stoch_rsi"] < 15
+        overbought = intel["rsi"] > (72 - boost) and intel["stoch_rsi"] > 85
         
-        # Z-Volume (Confirmador de Fluxo Institucional)
-        min_z = 3.8 if is_sol else 2.2 # Surgical Shield for SOL
+        # Z-Volume (Barreira Institucional)
+        min_z = 4.2 if is_sol else 3.5
         strong_push = intel["z_vol"] > min_z
 
-        if strong_push and oversold:
-            bias = "GOD_LONG"; score = 95 + inactivity_boost
-        elif strong_push and overbought:
-            bias = "GOD_SHORT"; score = 95 + inactivity_boost
+        if strong_push:
+            if oversold: bias = "GOD_LONG"; score = 98
+            elif overbought: bias = "GOD_SHORT"; score = 98
             
     else:
-        # TREND LOGIC (v220 levels)
-        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > 2.8: 
+        # TREND REVERSION
+        if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 4.5: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
-            score = 90 + (inactivity_boost / 2)
+            score = 92
             
     # Hard Divergence Reject
     if intel["divergence"]: score = 0 
             
-    decision = "EXECUTE" if score >= (92 - (inactivity_boost)) else "REJECT"
+    decision = "EXECUTE" if score >= 90 else "REJECT"
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "targets": {"tp": intel["ema9"], "sl_factor": 2.5 if is_sol else 1.8},
-        "version": "270.0-GOLD"
+        "targets": {"tp": intel["ma20"], "sl_factor": 2.2},
+        "version": "280.0-QUANTUM"
     }

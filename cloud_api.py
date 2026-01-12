@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "270.5-SUPREME-GOLD-ELITE",
+            "version": "280.0-QUANTUM-ELITE",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -227,7 +227,7 @@ async def root():
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v270.0 GOLD """
+    """ [BTC/ETH] SINGULARITY APEX - v280.0 QUANTUM """
     if is_compressed:
         return {
             "threshold": 0.10, 
@@ -248,14 +248,14 @@ def get_supreme_config(symbol, is_trending, is_compressed):
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v270.0 GOLD """
+    """ [SOL] SNIPER v280.0 QUANTUM """
     if is_compressed:
         return {
             "threshold": 0.15,
-            "min_score": 92,
-            "sl_mult": 2.5,   
-            "tp_mult": 1.2, 
-            "leverage": 12,   
+            "min_score": 94,
+            "sl_mult": 2.2,   
+            "tp_mult": 1.5, 
+            "leverage": 15,   
             "shadow_trail": False
         }
     return {
@@ -263,7 +263,7 @@ def get_sniper_config(symbol, is_trending, is_compressed):
         "min_score": 75,
         "sl_mult": 2.5,
         "tp_mult": 6.0,
-        "leverage": 15,
+        "leverage": 20,
         "shadow_trail": True
     }
 
@@ -325,26 +325,31 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🕒 ELASTIC GOLD ELITE v270.5 (Surgical SOL)
+    # 🕒 QUANTUM ELITE v280.0
     is_sol = "SOL" in symbol.upper()
     is_eth = "ETH" in symbol.upper()
     
     if intel["is_compressed"]:
-        min_w = 0.95 if is_sol else 0.35
+        min_w = 1.15 if is_sol else (0.45 if is_eth else 0.35)
         if intel["bb_width"] < min_w: return
         
-        oversold = (intel["rsi"] < 35 or (intel["rsi"] < 40 and intel["rsi_slope"] < -5))
-        overbought = (intel["rsi"] > 65 or (intel["rsi"] > 60 and intel["rsi_slope"] > 5))
-        min_z = 3.8 if is_sol else 2.2
+        # Double Capture (RSI + Stoch)
+        oversold = intel["rsi"] < 28 and intel["stoch_rsi"] < 15
+        overbought = intel["rsi"] > 72 and intel["stoch_rsi"] > 85
+        min_z = 4.2 if is_sol else 3.5
         strong_push = intel["z_vol"] > min_z
 
-        if strong_push and oversold: bias = "GOD_LONG"; score = 96
-        elif strong_push and overbought: bias = "GOD_SHORT"; score = 96
+        if strong_push:
+            if oversold: bias = "GOD_LONG"; score = 98
+            elif overbought: bias = "GOD_SHORT"; score = 98
     else:
-        min_trend_z = 4.2 if is_sol else 2.8
-        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > min_trend_z:
+        if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 4.5:
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 92
+    
+    if intel["divergence"]: score = 0 
+
+    decision = "EXECUTE" if score >= 90 else "REJECT"
     
     if intel["divergence"]: score = 0 
 
@@ -425,22 +430,22 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v270.5 "ELASTIC-GOLD-ELITE"
+        # 🧬 NEURAL SIMULATION v280.0 "QUANTUM-ELITE"
         is_sol = "SOL" in symbol.upper()
         if intel["is_compressed"]:
-            min_w = 0.95 if is_sol else 0.35
-            if intel["bb_width"] < min_w: i += 1; continue
+            min_width = 1.15 if is_sol else (0.45 if "ETH" in symbol else 0.35)
+            if intel["bb_width"] < min_width: i += 1; continue
             
-            oversold = (intel["rsi"] < 35 or (intel["rsi"] < 40 and intel["rsi_slope"] < -5))
-            overbought = (intel["rsi"] > 65 or (intel["rsi"] > 60 and intel["rsi_slope"] > 5))
-            min_z = 3.8 if is_sol else 2.2
+            oversold = intel["rsi"] < 28 and intel["stoch_rsi"] < 15
+            overbought = intel["rsi"] > 72 and intel["stoch_rsi"] > 85
+            min_z = 4.2 if is_sol else 3.5
             strong_push = intel["z_vol"] > min_z
 
-            if strong_push and oversold: bias = "GOD_LONG"; score = 98
-            elif strong_push and overbought: bias = "GOD_SHORT"; score = 98
+            if strong_push:
+                if oversold: bias = "GOD_LONG"; score = 98
+                elif overbought: bias = "GOD_SHORT"; score = 98
         else:
-            min_trend_z = 4.0 if is_sol else 2.8
-            if abs(intel["psi"]) > 0.35 and intel["z_vol"] > min_trend_z:
+            if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 4.5:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
                 score = 92
         
@@ -454,9 +459,10 @@ async def run_backtest(payload: WebhookPayload):
             lev = config["leverage"]
             
             pnl_base = 0
-            target_price = intel["ema9"]
+            # Mean Reversion Target: MA 20
+            target_price = intel["ma20"]
             
-            for j in range(i+1, min(i+150, len(ohlcv))):
+            for j in range(i+1, min(i+200, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
                     if f[2] >= target_price: pnl_base = (target_price/entry - 1); i = j; break
