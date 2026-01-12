@@ -1,12 +1,12 @@
 """
-PREDATOR v356.0 MEAN-REVERSION-ASYMMETRIC - Cloud API (Render)
+PREDATOR v357.0 HYBRID-APEX - Cloud API (Render)
 ═══════════════════════════════════════════════════════════════
-ASYMMETRIC STRATEGY:
-1. TRIGGER: RSI 30/70 (Panic/Euphoria).
-2. PROFIT FILTER: Distance to MA20 MUST be > 1.5x ATR.
-   - Ensures we only trade when there is room to profit.
-3. TARGET = MA20.
-4. SL = 1.5x ATR (Tighter risk).
+HYBRID-APEX STRATEGY:
+1. BUY THE DIP: RSI < 35 AND Price > EMA200 (Uptrend).
+2. SELL THE RALLY: RSI > 65 AND Price < EMA200 (Downtrend).
+3. FILTER: Don't fight the Trend. Don't pegue a faca caindo.
+4. TARGET: 3.0x ATR (Swing).
+5. SL: 2.0x ATR.
 ═══════════════════════════════════════════════════════════════
 """
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -88,7 +88,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "356.0-MEAN-REVERSION-ASYM",
+            "version": "357.0-HYBRID-APEX",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -326,7 +326,7 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🎯 MEAN-REVERSION PRO v355.0
+    # 🦁 HYBRID-APEX v357.0
     is_sol = "SOL" in symbol.upper()
     
     # Entropy Scaling
@@ -336,40 +336,35 @@ async def run_strategy(symbol, mode):
     elif entropy > 0.55: lev_mult = 0.75
 
     price = intel["price"]
-    ma20 = intel["ma20"]
+    ema200 = intel["ema200"]
     atr = intel["atr"]
     rsi = intel["rsi"]
+    trend_up = intel["trend_up"] # Price > EMA200
     
-    # RELAXED TRIGGERS (v355)
-    extreme_oversold = rsi < 30
-    extreme_overbought = rsi > 70
+    # TRIGGERS: RSI Extremos A FAVOR DA TENDÊNCIA
+    buy_dip = rsi < 35 and trend_up
+    sell_rally = rsi > 65 and not trend_up
     
-    # Volume Spike (Threshold reduzido para 1.2)
-    vol_spike = intel["z_vol"] > 1.2
-    
-    # MEAN-REVERSION LOGIC
-    if vol_spike:
-        # ASYMMETRIC FILTER: Distância mínima até a MA20 deve compensar o risco
-        dist_to_mean = abs(price - ma20)
-        min_dist = atr * 1.5
-        
-        if dist_to_mean > min_dist:
-            if is_sol:
-                # SOL: Long-only
-                if extreme_oversold:
-                    bias = "GOD_LONG"; score = 94
-            else:
-                # BTC/ETH: Bidirecional
-                if extreme_oversold:
-                    bias = "GOD_LONG"; score = 94
-                elif extreme_overbought:
-                    bias = "GOD_SHORT"; score = 94
+    # Volume Confirm
+    vol_ok = intel["z_vol"] > 1.0
+
+    if vol_ok:
+        if is_sol:
+            # SOL: Long-only (apenas Dips em tendência de alta)
+            if buy_dip:
+                bias = "GOD_LONG"; score = 95
+        else:
+            # BTC/ETH: Bidirecional
+            if buy_dip:
+                bias = "GOD_LONG"; score = 95
+            elif sell_rally:
+                bias = "GOD_SHORT"; score = 95
     
     decision = "EXECUTE" if score >= 90 else "REJECT"
     
     intel["leverage_mult"] = lev_mult
-    intel["sl_factor"] = 1.5  # SL Reduzido para assimetria
-    intel["tp_target"] = "ma20"
+    intel["sl_factor"] = 2.0  
+    intel["tp_factor"] = 3.0  # Swing Target
 
     engine_state.last_score = score
     
@@ -446,7 +441,7 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🎯 MEAN-REVERSION BACKTEST v355.0
+        # 🦁 HYBRID-APEX BACKTEST v357.0
         is_sol = "SOL" in symbol.upper()
         entropy = intel["entropy"]
         lev_mult = 1.0
@@ -454,36 +449,42 @@ async def run_backtest(payload: WebhookPayload):
         elif entropy > 0.55: lev_mult = 0.75
 
         price = intel["price"]
-        ma20 = intel["ma20"]
+        ema200 = intel["ema200"]
         atr = intel["atr"]
         rsi = intel["rsi"]
+        trend_up = intel["trend_up"]
         
-        # RELAXED TRIGGERS
-        extreme_oversold = rsi < 30
-        extreme_overbought = rsi > 70
-        vol_spike = intel["z_vol"] > 1.2
+        buy_dip = rsi < 35 and trend_up
+        sell_rally = rsi > 65 and not trend_up
+        vol_ok = intel["z_vol"] > 1.0
         
-        if vol_spike:
-            # ASYMMETRIC FILTER
-            dist_to_mean = abs(price - ma20)
-            min_dist = atr * 1.5
-            
-            if dist_to_mean > min_dist:
-                if is_sol:
-                    if extreme_oversold:
-                        bias = "GOD_LONG"; score = 94
-                else:
-                    if extreme_oversold:
-                        bias = "GOD_LONG"; score = 94
-                    elif extreme_overbought:
-                        bias = "GOD_SHORT"; score = 94
+        if vol_ok:
+            if is_sol:
+                if buy_dip:
+                    bias = "GOD_LONG"; score = 95
+            else:
+                if buy_dip:
+                    bias = "GOD_LONG"; score = 95
+                elif sell_rally:
+                    bias = "GOD_SHORT"; score = 95
             
         if score >= 90:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
-            sl_dist = atr * 1.5  # SL Reduzido
-            target_price = ma20  # Target = MA20
+            sl_dist = atr * 2.0
+            tp_dist = atr * 3.0
             lev = config["leverage"] * lev_mult
+            
+            pnl_base = 0
+            
+            for j in range(i+1, min(i+250, len(ohlcv))):
+                f = ohlcv[j]
+                if bias == "GOD_LONG":
+                    if f[2] >= entry + tp_dist: pnl_base = tp_dist/entry; i = j; break
+                    if f[3] <= entry - sl_dist: pnl_base = -sl_dist/entry; i = j; break
+                else:
+                    if f[3] <= entry - tp_dist: pnl_base = tp_dist/entry; i = j; break
+                    if f[2] >= entry + sl_dist: pnl_base = -sl_dist/entry; i = j; break
             
             pnl_base = 0
             
