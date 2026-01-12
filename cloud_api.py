@@ -371,11 +371,11 @@ def get_supreme_config(symbol, is_trending, is_compressed):
         }
     
     return {
-        "threshold": 0.20, 
-        "min_score": 65, 
-        "sl_mult": 1.2,
-        "tp_mult": 2.5,   
-        "leverage": 20,   
+        "threshold": 0.15, 
+        "min_score": 60, 
+        "sl_mult": 1.5,
+        "tp_mult": 3.5,   
+        "leverage": 50,   
         "shadow_trail": True
     }
 
@@ -391,11 +391,11 @@ def get_sniper_config(symbol, is_trending, is_compressed):
             "shadow_trail": False
         }
     return {
-        "threshold": 0.25,
-        "min_score": 75,
-        "sl_mult": 1.5,
-        "tp_mult": 3.0,
-        "leverage": 50,
+        "threshold": 0.20,
+        "min_score": 60,
+        "sl_mult": 1.8,
+        "tp_mult": 4.5,
+        "leverage": 100,
         "shadow_trail": True
     }
 
@@ -502,13 +502,12 @@ async def run_strategy(symbol, mode):
     
     score = points
     
-    # Surgical Thresholds: BTC/ETH (70) vs SOL (80)
+    # Surgical Thresholds: High-Gain Mode
     is_sol = "SOL" in symbol.upper()
-    active_threshold = 80 if is_sol else 70
+    active_threshold = 60 # Ultra-Aggressive for all
     
-    # 🔗 INSTITUTIONAL HARD-FILTER (Z-VOL > 1.0 needed for new entries)
-    # Evita "moedores de carne" e lateralização sem força.
-    vol_confirmation = intel.get("z_vol", 0) > 1.0 or intel.get("bb_width", 0) > 0.3
+    # 🔗 INSTITUTIONAL HARD-FILTER (Relaxed for +150% Target)
+    vol_confirmation = intel.get("z_vol", 0) > 0.5 or intel.get("bb_width", 0) > 0.15
     
     decision = "EXECUTE" if (points >= active_threshold and vol_confirmation) else "REJECT"
     
@@ -536,18 +535,16 @@ async def run_strategy(symbol, mode):
         
     is_sol = "SOL" in symbol.upper()
     
-    # 💎 INFINITY MATRIX: PNL TARGET TUNING (v370.0 - TARGET +150%)
-    # Aggressive Scalping Boosters
-    if score >= 90:
+    # 💎 INFINITY MATRIX: ULTRA PNL TUNING (+150% GOAL)
+    if score >= 85:
         if is_sol: 
-            target_base_lev = 60.0 
+            target_base_lev = 100.0 
         elif "ETH" in symbol:
-            target_base_lev = 20.0  
+            target_base_lev = 50.0  
         else:
-            target_base_lev = 25.0  
+            target_base_lev = 50.0  
     else:
-        # High Frequency Approximation
-        target_base_lev = 15.0 if is_sol else 5.0
+        target_base_lev = 20.0 if is_sol else 10.0
         
     # ALAVANCAGEM FINAL = INFINITY * SHIELD
     effective_leverage = target_base_lev * shield_mult
@@ -676,25 +673,25 @@ async def run_backtest(payload: WebhookPayload):
         score = points
         entropy = intel.get("entropy", 0.5)
 
-        # Surgical Backtest Thresholds
+        # Surgical Backtest Thresholds: TARGET +150%
         is_sol_backtest = "SOL" in symbol.upper()
-        active_threshold = 80 if is_sol_backtest else 70
+        active_threshold = 60
 
         # Sync Hard-Filter with Live
-        vol_confirm_bt = intel.get("z_vol", 0) > 1.0 or intel.get("bb_width", 0) > 0.3
+        vol_confirm_bt = intel.get("z_vol", 0) > 0.5 or intel.get("bb_width", 0) > 0.15
 
         if points >= active_threshold and entropy <= 0.85 and vol_confirm_bt:
             is_sol_backtest = "SOL" in symbol.upper()
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4] 
             
-            # 💎 INFINITY MATRIX BACKTEST SYNC
-            if score >= 90:
-                if is_sol_backtest: target_lev = 60.0
-                elif "ETH" in symbol: target_lev = 20.0
-                else: target_lev = 25.0
+            # 💎 INFINITY MATRIX BACKTEST SYNC (+150% GOAL)
+            if score >= 85:
+                if is_sol_backtest: target_lev = 100.0
+                elif "ETH" in symbol: target_lev = 50.0
+                else: target_lev = 50.0
             else:
-                target_lev = 15.0 if is_sol_backtest else 5.0
+                target_lev = 20.0 if is_sol_backtest else 10.0
             
             # Shield effect médio no backtest (conservador)
             lev = target_lev * 1.0 # 100% efficiency in clear backtest
