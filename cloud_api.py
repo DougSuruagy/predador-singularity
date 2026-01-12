@@ -87,7 +87,7 @@ class EngineState:
         is_locked = self.daily_pnl <= self.MAX_DAILY_LOSS or self.daily_pnl >= self.MAX_DAILY_PROFIT
         
         return {
-            "version": "220.0-ELASTIC-SOL-ARMOR",
+            "version": "240.0-QUANTUM-SOVEREIGN",
             "uptime": int(time.time() - self.uptime_start),
             "pnl": round(self.daily_pnl, 2),
             "trades": self.trades,
@@ -148,29 +148,37 @@ class NomadBrain:
             std_v = (sum((v - avg_v)**2 for v in volumes[-30:-1]) / 29)**0.5
             z_vol = (volumes[-1] - avg_v) / (std_v + 0.0001)
 
-        # RSI Slope
+        # RSI Slope & StochRSI
         past_rsi = []
-        for j in range(len(closes)-5, len(closes)):
+        for j in range(len(closes)-20, len(closes)):
             window = closes[max(0, j-14):j+1]
             if len(window) < 2: continue
             d = [window[k] - window[k-1] for k in range(1, len(window))]
             past_rsi.append(self._calc_rsi(d))
+        
         rsi_slope = past_rsi[-1] - past_rsi[-3] if len(past_rsi) > 3 else 0
+        rsi_min = min(past_rsi[-14:]) if len(past_rsi) >= 14 else 0
+        rsi_max = max(past_rsi[-14:]) if len(past_rsi) >= 14 else 100
+        stoch_rsi = (rsi - rsi_min) / (rsi_max - rsi_min + 0.0001) * 100
+
+        # EMA 200 (Trend Shield)
+        ema200 = sum(closes[-200:]) / 200 if len(closes) >= 200 else ma20
+        trend_up = closes[-1] > ema200
 
         is_compressed = bb_width < 0.65 or entropy > 0.55
         ema9 = sum(closes[-9:]) / 9
         
-        # 🔗 Elastic Divergence
+        # 🔗 Elastic Divergence (Refined)
         divergence = False
-        if closes[-1] > ma20 and rsi < 38: divergence = True
-        elif closes[-1] < ma20 and rsi > 62: divergence = True
+        if closes[-1] > ma20 and rsi < 35: divergence = True
+        elif closes[-1] < ma20 and rsi > 65: divergence = True
 
         return {
-            "rsi": rsi, "rsi_slope": rsi_slope, "psi": psi,
+            "rsi": rsi, "stoch_rsi": stoch_rsi, "rsi_slope": rsi_slope, "psi": psi,
             "bb_width": bb_width, "z_vol": z_vol, "is_compressed": is_compressed,
             "touch_low": touch_low, "touch_high": touch_high,
-            "divergence": divergence, "ema9": ema9, "ma20": ma20,
-            "price": closes[-1], "atr": (max(highs[-1]-lows[-1], abs(highs[-1]-closes[-2])) if len(highs)>1 else 0.001)
+            "divergence": divergence, "ema9": ema9, "ma20": ma20, "ema200": ema200,
+            "trend_up": trend_up, "price": closes[-1], "atr": (max(highs[-1]-lows[-1], abs(highs[-1]-closes[-2])) if len(highs)>1 else 0.001)
         }
 
     def _calc_rsi(self, deltas):
@@ -219,41 +227,42 @@ async def root():
 # 🦅 AUTONOMOUS HUNTER (SUPREME LOOP)
 # ============================================================
 def get_supreme_config(symbol, is_trending, is_compressed):
-    """ [BTC/ETH] SINGULARITY APEX - v220.0 ARMOR """
+    """ [BTC/ETH] SINGULARITY APEX - v240.0 SOVEREIGN """
+    is_eth = "ETH" in symbol.upper()
     if is_compressed:
         return {
-            "threshold": 0.10, 
-            "min_score": 90,  
-            "sl_mult": 1.5,   
-            "tp_mult": 1.2,   
-            "leverage": 20,    
+            "threshold": 0.12, 
+            "min_score": 94,  
+            "sl_mult": 1.8,   
+            "tp_mult": 1.0,   
+            "leverage": 12 if is_eth else 15,    
             "shadow_trail": False
         }
     
     return {
-        "threshold": 0.25, 
+        "threshold": 0.30, 
         "min_score": 75, 
-        "sl_mult": 1.5,
-        "tp_mult": 6.8,   
-        "leverage": 25,   
+        "sl_mult": 2.0,
+        "tp_mult": 6.0,   
+        "leverage": 20,   
         "shadow_trail": True
     }
 
 def get_sniper_config(symbol, is_trending, is_compressed):
-    """ [SOL] SNIPER v220.0 ARMOR """
+    """ [SOL] SNIPER v240.0 SOVEREIGN """
     if is_compressed:
         return {
-            "threshold": 0.15,
-            "min_score": 95,
-            "sl_mult": 2.5,   # Resiliência SOL
-            "tp_mult": 1.5, 
-            "leverage": 8,    # Redução para controle de risco
+            "threshold": 0.20,
+            "min_score": 96,
+            "sl_mult": 2.5,   
+            "tp_mult": 1.2, 
+            "leverage": 8,   
             "shadow_trail": False
         }
     return {
-        "threshold": 0.30,
+        "threshold": 0.35,
         "min_score": 75,
-        "sl_mult": 2.0,
+        "sl_mult": 3.0,
         "tp_mult": 6.0,
         "leverage": 12,
         "shadow_trail": True
@@ -317,28 +326,31 @@ async def run_strategy(symbol, mode):
     intel = brain.calculate_indicators(closes, [x[2] for x in ohlcv], [x[3] for x in ohlcv], [x[5] for x in ohlcv])
     if not intel: return
     
-    # 🕒 ELASTIC SOL ARMOR v220.0
+    # 🕒 QUANTUM SOVEREIGN v240.0
     is_sol = "SOL" in symbol.upper()
+    is_eth = "ETH" in symbol.upper()
+    
     if intel["is_compressed"]:
-        min_w = 0.80 if is_sol else 0.35
+        min_w = 1.10 if is_sol else (0.55 if is_eth else 0.40)
         if intel["bb_width"] < min_w: return
         
-        oversold = (intel["rsi"] < 30 or (intel["rsi"] < 35 and intel["rsi_slope"] < -6))
-        overbought = (intel["rsi"] > 70 or (intel["rsi"] > 65 and intel["rsi_slope"] > 6))
-        min_z = 3.2 if is_sol else 2.2
+        oversold = (intel["rsi"] < 30 and intel["stoch_rsi"] < 20)
+        overbought = (intel["rsi"] > 70 and intel["stoch_rsi"] > 80)
+        min_z = 4.0 if is_sol else (3.2 if is_eth else 2.5)
         strong_push = intel["z_vol"] > min_z
 
-        if strong_push and oversold: bias = "GOD_LONG"; score = 98 if is_sol else 96
-        elif strong_push and overbought: bias = "GOD_SHORT"; score = 98 if is_sol else 96
+        if strong_push:
+            if oversold and (intel["trend_up"] or intel["rsi"] < 25): bias = "GOD_LONG"; score = 98 if is_sol else 96
+            elif overbought and (not intel["trend_up"] or intel["rsi"] > 75): bias = "GOD_SHORT"; score = 98 if is_sol else 96
     else:
-        min_trend_z = 4.0 if is_sol else 2.8
-        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > min_trend_z:
+        min_trend_z = 4.5 if is_sol else 3.2
+        if abs(intel["psi"]) > 0.45 and intel["z_vol"] > min_trend_z:
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 92
     
     if intel["divergence"]: score = 0 
 
-    decision = "EXECUTE" if score >= 90 else "REJECT"
+    decision = "EXECUTE" if score >= 94 else "REJECT"
 
     engine_state.last_score = score
     
@@ -415,54 +427,57 @@ async def run_backtest(payload: WebhookPayload):
         bias = "NEUTRAL"
         score = 0
         
-        # 🧬 NEURAL SIMULATION v220.0 "ELASTIC-SOL-ARMOR"
+        # 🧬 NEURAL SIMULATION v240.0 "QUANTUM-SOVEREIGN"
         is_sol = "SOL" in symbol.upper()
+        is_eth = "ETH" in symbol.upper()
+        
         if intel["is_compressed"]:
-            min_w = 0.80 if is_sol else 0.35
+            min_w = 1.10 if is_sol else (0.55 if is_eth else 0.40)
             if intel["bb_width"] < min_w: i += 1; continue
             
-            oversold = (intel["rsi"] < 30 or (intel["rsi"] < 35 and intel["rsi_slope"] < -6))
-            overbought = (intel["rsi"] > 70 or (intel["rsi"] > 65 and intel["rsi_slope"] > 6))
-            min_z = 3.2 if is_sol else 2.2
+            oversold = (intel["rsi"] < 30 and intel["stoch_rsi"] < 20)
+            overbought = (intel["rsi"] > 70 and intel["stoch_rsi"] > 80)
+            min_z = 4.0 if is_sol else (3.2 if is_eth else 2.5)
             strong_push = intel["z_vol"] > min_z
 
-            if strong_push and oversold: bias = "GOD_LONG"; score = 98 if is_sol else 96
-            elif strong_push and overbought: bias = "GOD_SHORT"; score = 98 if is_sol else 96
+            if strong_push:
+                if oversold and (intel["trend_up"] or intel["rsi"] < 25): bias = "GOD_LONG"; score = 98 if is_sol else 96
+                elif overbought and (not intel["trend_up"] or intel["rsi"] > 75): bias = "GOD_SHORT"; score = 98 if is_sol else 96
         else:
-            min_trend_z = 4.0 if is_sol else 2.8
-            if abs(intel["psi"]) > 0.35 and intel["z_vol"] > min_trend_z:
+            min_trend_z = 4.5 if is_sol else 3.2
+            if abs(intel["psi"]) > 0.45 and intel["z_vol"] > min_trend_z:
                 bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
                 score = 92
         
         if intel["divergence"]: score = 0
             
-        if score >= 90:
+        if score >= 94:
             config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol else get_sniper_config(symbol, True, intel["is_compressed"])
             entry = ohlcv[i][4]
             atr = intel["atr"]
             sl_dist = atr * config["sl_mult"]
+            lev = config["leverage"]
             
-            pnl = 0
-            # Simulação ultra-rápida (EMA 9 Target)
-            target_price = intel["ema9"]
+            pnl_raw = 0
+            target_price = intel["ema9"] if is_sol else intel["ma20"]
             
             for j in range(i+1, min(i+100, len(ohlcv))):
                 f = ohlcv[j]
                 if bias == "GOD_LONG":
-                    if f[2] >= target_price: pnl = (target_price/entry - 1) * 100 * config["leverage"]; i = j; break
-                    if f[3] <= entry - sl_dist: pnl = -config["sl_mult"] * (atr/entry) * 100 * config["leverage"]; i = j; break
+                    if f[2] >= target_price: pnl_raw = (target_price/entry - 1); i = j; break
+                    if f[3] <= entry - sl_dist: pnl_raw = -sl_dist/entry; i = j; break
                 else:
-                    if f[3] <= target_price: pnl = (1 - target_price/entry) * 100 * config["leverage"]; i = j; break
-                    if f[2] >= entry + sl_dist: pnl = -config["sl_mult"] * (atr/entry) * 100 * config["leverage"]; i = j; break
+                    if f[3] <= target_price: pnl_raw = (1 - target_price/entry); i = j; break
+                    if f[2] >= entry + sl_dist: pnl_raw = -sl_dist/entry; i = j; break
             
-            fee = 0.05 # Fee de Market Maker
-            if pnl != 0:
-                pnl_leveraged = (pnl - fee) * config["leverage"]
-                if score > 95: pnl_leveraged *= 1.3
+            if pnl_raw != 0:
+                fee_total = 0.0012 
+                pnl_net_capital = (pnl_raw - fee_total) * lev * 100
+                if score > 97: pnl_net_capital *= 1.2
                 
-                sim["pnl"] += pnl_leveraged
+                sim["pnl"] += pnl_net_capital
                 sim["trades"] += 1
-                if pnl > 0: sim["wins"] += 1
+                if pnl_raw > 0: sim["wins"] += 1
         
         i += 1
 

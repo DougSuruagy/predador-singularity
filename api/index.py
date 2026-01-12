@@ -42,31 +42,29 @@ class NomadBrain:
         direction_changes = sum(1 for i in range(len(deltas)-10, len(deltas)) if (deltas[i] > 0) != (deltas[i-1] > 0))
         entropy = direction_changes / 10.0
         
-        # Z-Score Volume (Outlier Detection)
-        z_vol = 0.0
-        if volumes and len(volumes) > 30:
-            avg_v = sum(volumes[-30:-1]) / 29
-            std_v = (sum((v - avg_v)**2 for v in volumes[-30:-1]) / 29)**0.5
-            z_vol = (volumes[-1] - avg_v) / (std_v + 0.0001)
+        # Stochastic RSI (Exhaustion Precision)
+        rsi_min = min(past_rsi[-14:]) if len(past_rsi) >= 14 else 0
+        rsi_max = max(past_rsi[-14:]) if len(past_rsi) >= 14 else 100
+        stoch_rsi = (rsi - rsi_min) / (rsi_max - rsi_min + 0.0001) * 100
 
-        # RSI Slope (Momentum Exhaustion)
-        past_rsi = [self._calc_rsi([closes[j] - closes[j-1] for j in range(max(1, i-14), i+1)]) for i in range(len(closes)-5, len(closes))]
-        rsi_slope = past_rsi[-1] - past_rsi[-3] if len(past_rsi) > 3 else 0
+        # EMA 200 (Trend Shield)
+        ema200 = sum(closes[-200:]) / 200 if len(closes) >= 200 else ma20
+        trend_up = closes[-1] > ema200
 
         is_compressed = bb_width < 0.65 or entropy > 0.55
         ema9 = sum(closes[-9:]) / 9
         
-        # 🔗 Elastic Divergence
+        # 🔗 Elastic Divergence (Refined)
         divergence = False
-        if closes[-1] > ma20 and rsi < 38: divergence = True
-        elif closes[-1] < ma20 and rsi > 62: divergence = True
+        if closes[-1] > ma20 and rsi < 35: divergence = True
+        elif closes[-1] < ma20 and rsi > 65: divergence = True
 
         return {
-            "rsi": rsi, "rsi_slope": rsi_slope, "psi": psi,
+            "rsi": rsi, "stoch_rsi": stoch_rsi, "rsi_slope": rsi_slope, "psi": psi,
             "bb_width": bb_width, "z_vol": z_vol, "is_compressed": is_compressed,
             "touch_low": touch_low, "touch_high": touch_high,
-            "divergence": divergence, "ema9": ema9, "ma20": ma20,
-            "price": closes[-1]
+            "divergence": divergence, "ema9": ema9, "ma20": ma20, "ema200": ema200,
+            "trend_up": trend_up, "price": closes[-1]
         }
 
     def _calc_rsi(self, deltas):
@@ -106,42 +104,44 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
     score = 0
     decision = "REJECT"
     
-    # 🧬 MASTER LOGIC v220.0 "ELASTIC-SOL-ARMOR"
+    # 🧬 MASTER LOGIC v240.0 "QUANTUM-SOVEREIGN"
     is_sol = "SOL" in payload.symbol.upper()
+    is_eth = "ETH" in payload.symbol.upper()
     
     if intel["is_compressed"]:
-        # Filtro de Rentabilidade (SOL exige mais espaço por causa dos spreads e volatilidade)
-        min_width = 0.80 if is_sol else 0.35
+        # Filtro de Rentabilidade Ultra-Estrito (SOL/ETH)
+        min_width = 1.10 if is_sol else (0.55 if is_eth else 0.40)
         if intel["bb_width"] < min_width:
-             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Low Vol Zone"}
+             return {"bias": "NEUTRAL", "score": 0, "intel": intel, "decision": "REJECT", "reason": "Trap Zone"}
 
-        # Triggers de Estilingue
-        oversold = (intel["rsi"] < 30 or (intel["rsi"] < 35 and intel["rsi_slope"] < -6))
-        overbought = (intel["rsi"] > 70 or (intel["rsi"] > 65 and intel["rsi_slope"] > 6))
+        # Triggers de Estilingue com StochRSI (Tripla Confirmação)
+        oversold = (intel["rsi"] < 30 and intel["stoch_rsi"] < 20)
+        overbought = (intel["rsi"] > 70 and intel["stoch_rsi"] > 80)
         
-        # Z-Volume Crítico (SOL precisa de volume gigante para não ser "fakeout")
-        min_z = 3.2 if is_sol else 2.2
+        # Z-Volume Crítico (Filtro anti-choppy)
+        min_z = 4.0 if is_sol else (3.2 if is_eth else 2.5)
         strong_push = intel["z_vol"] > min_z
 
-        if strong_push and oversold:
-            bias = "GOD_LONG"; score = 98 if is_sol else 96
-        elif strong_push and overbought:
-            bias = "GOD_SHORT"; score = 98 if is_sol else 96
+        # TREND SHIELD: Não aposta contra a macro-tendência a menos que o desvio seja extremo
+        if strong_push:
+            if oversold and (intel["trend_up"] or intel["rsi"] < 25):
+                bias = "GOD_LONG"; score = 98 if is_sol else 96
+            elif overbought and (not intel["trend_up"] or intel["rsi"] > 75):
+                bias = "GOD_SHORT"; score = 98 if is_sol else 96
             
     else:
-        # TREND LOGIC: Apenas com Z-Vol explosivo
-        min_trend_z = 4.0 if is_sol else 2.8
-        if abs(intel["psi"]) > 0.35 and intel["z_vol"] > min_trend_z: 
+        # TREND LOGIC: Apenas se o volume for dominante
+        if abs(intel["psi"]) > 0.45 and intel["z_vol"] > 4.5: 
             bias = "GOD_LONG" if intel["psi"] > 0 else "GOD_SHORT"
             score = 92
             
     # Divergence Hard-Reject
     if intel["divergence"]: score = 0 
             
-    decision = "EXECUTE" if score >= 90 else "REJECT"
+    decision = "EXECUTE" if score >= 94 else "REJECT"
 
     return {
         "bias": bias, "score": score, "intel": intel, "decision": decision,
-        "targets": {"tp": intel["ema9"], "sl_factor": 2.2 if is_sol else 1.8},
-        "version": "220.0-ARMOR"
+        "targets": {"tp": intel["ema9"] if is_sol else intel["ma20"], "sl_factor": 2.2 if is_sol else 1.8},
+        "version": "240.0-SOVEREIGN"
     }
