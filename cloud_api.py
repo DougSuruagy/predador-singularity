@@ -891,13 +891,7 @@ async def run_backtest(payload: WebhookPayload):
             "sharpe_ratio": 0
         },
         "debug_last_candles": debug_samples
-    
-    # ============================================================
-    # 📊 MÉTRICAS PROFISSIONAIS DE BACKTEST
-    # ============================================================
-    sharpe = 0.0
-    max_drawdown_pct = 0.0
-    history = sim.get("history", [])
+    }
     
     if history and len(history) > 1:
         # 📈 Retorno Médio por Trade
