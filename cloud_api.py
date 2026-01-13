@@ -639,6 +639,8 @@ async def run_strategy(symbol, mode):
     is_sol = "SOL" in symbol.upper()
     
     # 💎 INFINITY MATRIX: SOVEREIGN REFINEMENT (v370.0)
+    trading_mode = os.environ.get("TRADING_MODE", "AGGRESSIVE")
+    
     if is_sol: 
         target_base_lev = 55.0 
     elif "ETH" in symbol:
@@ -646,6 +648,12 @@ async def run_strategy(symbol, mode):
     else:
         target_base_lev = 4.0  
         
+    # Ajuste pelo Modo de Trading (Pedido do Usuario: Uso Moderado)
+    if trading_mode == "MODERATE":
+        target_base_lev = target_base_lev * 0.5
+    elif trading_mode == "SAFE":
+        target_base_lev = 1.0
+
     # ALAVANCAGEM FINAL = INFINITY * SHIELD
     effective_leverage = target_base_lev * shield_mult
     final_leverage_int = max(1, int(effective_leverage))

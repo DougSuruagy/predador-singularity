@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-API_URL = "https://fun-calley-modelo-inteligente-85d8461c.koyeb.app" 
+API_URL = "http://127.0.0.1:8000" 
 SECRET_TOKEN = os.environ.get("INTERNAL_SECRET_TOKEN", "predador_secret_2026")
 
 def run_remote_backtest(symbol="SOLUSDT", period="1m", mode="STD"):
