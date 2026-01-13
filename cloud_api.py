@@ -33,6 +33,11 @@ import httpx
 load_dotenv()
 INTERNAL_SECRET_TOKEN = os.environ.get("INTERNAL_SECRET_TOKEN", "predador_secret_2026")
 
+# 🌐 DUAL-CORE NODE DETECTION
+NODE_ROLE = os.environ.get("NODE_ROLE", "PRIMARY")  # PRIMARY = Frankfurt, BRAIN = Virginia
+PRIMARY_URL = os.environ.get("PRIMARY_URL", "https://predador-api.onrender.com")
+BRAIN_URL = os.environ.get("BRAIN_URL", "https://predador-singularity-m32c.onrender.com")
+
 # 📡 SUPABASE BLACK-BOX (Telemetry)
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://xayaogxbjudpmwylaiuf.supabase.co")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "sb_publishable_wNuQ-HzDYPoD3YEPB-v5VA_zi21tBxs")
@@ -296,19 +301,25 @@ exchange = ccxt.bybit({'apiKey': os.environ.get('BYBIT_API_KEY'), 'secret': os.e
 
 @app.on_event("startup")
 async def startup_event():
-    print("🔋 [v370.0 SINGULARITY-INFINITY] NEURAL CORE INICIADO.")
+    print(f"� [v370.2 SINGULARITY] Neural Core Ativado.")
+    print(f"🌐 [DUAL-CORE] Modo: {NODE_ROLE} | Primary: {PRIMARY_URL} | Brain: {BRAIN_URL}")
     print(f"📡 Telemetria: Black Box conectada em {SUPABASE_URL}")
     print(f"🛡️ Homeostase: Loss Limit {engine_state.MAX_DAILY_LOSS}% | Profit Limit {engine_state.MAX_DAILY_PROFIT}%")
     
     # Log de Startup
-    asyncio.create_task(engine_state.log_event_to_supabase("STARTUP", "Sistema Predator v370.0 Iniciado com Sucesso."))
+    asyncio.create_task(engine_state.log_event_to_supabase("STARTUP", f"Sistema Predator v370.2 Iniciado | Node: {NODE_ROLE}"))
     
     asyncio.create_task(exchange.load_markets())
     
     # 💵 Initial Balance Sync
     await engine_state.sync_balance(exchange)
     
-    asyncio.create_task(autonomous_hunter_loop())
+    # 🧠 DUAL-CORE: Only PRIMARY runs the autonomous loop
+    if NODE_ROLE == "PRIMARY":
+        asyncio.create_task(autonomous_hunter_loop())
+    else:
+        print("🧠 [BRAIN NODE] Modo auxiliar ativo. Aguardando requisições do Primary.")
+        asyncio.create_task(brain_watchdog_loop())
     
     # 💓 INTERNAL KEEP-ALIVE & DB SYNC
     def internal_pulse():
@@ -414,6 +425,48 @@ def get_ralf_config(symbol, is_trending, is_compressed):
         "leverage": 25,  
         "shadow_trail": True
     }
+
+async def brain_watchdog_loop():
+    """ 🧠 BRAIN NODE: Monitors PRIMARY health and provides backup intelligence """
+    print("🧠 [BRAIN WATCHDOG] Loop de monitoramento iniciado.")
+    consec_failures = 0
+    
+    while True:
+        try:
+            await asyncio.sleep(30) # Check every 30s
+            
+            # 💓 Health Check on PRIMARY
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(f"{PRIMARY_URL}/health")
+                if resp.status_code == 200:
+                    data = resp.json()
+                    print(f"💓 [WATCHDOG] Primary ALIVE | Version: {data.get('version')} ")
+                    consec_failures = 0
+                    
+                    # Sync state from Primary (optional)
+                    try:
+                        state_resp = await client.get(f"{PRIMARY_URL}/state", headers={"X-Token": INTERNAL_SECRET_TOKEN})
+                        if state_resp.status_code == 200:
+                            primary_state = state_resp.json()
+                            engine_state.daily_pnl = primary_state.get('pnl', 0)
+                            engine_state.trades = primary_state.get('trades', 0)
+                    except: pass
+                else:
+                    consec_failures += 1
+                    print(f"⚠️ [WATCHDOG] Primary returned {resp.status_code}. Failures: {consec_failures}")
+                    
+        except Exception as e:
+            consec_failures += 1
+            print(f"🚨 [WATCHDOG] Primary OFFLINE! Error: {e} | Failures: {consec_failures}")
+            
+            # 🚨 FAILOVER: If PRIMARY is down for 3+ checks, BRAIN becomes active
+            if consec_failures >= 3:
+                print("🚨🚨🚨 [FAILOVER] PRIMARY ESTÁ OFFLINE! BRAIN assumindo operações! 🚨🚨🚨")
+                asyncio.create_task(engine_state.log_event_to_supabase("FAILOVER", "BRAIN assumiu operações devido a falha do PRIMARY."))
+                # Start trading loop on BRAIN as backup
+                asyncio.create_task(autonomous_hunter_loop())
+                break # Exit watchdog, now running as active trader
+
 
 async def autonomous_hunter_loop():
     print("🦅 PREDADOR SUPREMO, 🦖 SNIPER & 🌀 RALF SCALPER ATIVOS.")
