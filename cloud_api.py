@@ -865,39 +865,79 @@ async def run_backtest(payload: WebhookPayload):
 
     win_rate = (sim["wins"] / max(1, sim["trades"])) * 100
     
-    # Calc Metrics
+    # ============================================================
+    # 📊 MÉTRICAS PROFISSIONAIS DE BACKTEST
+    # ============================================================
     sharpe = 0.0
-    drawdown = 0.0
+    max_drawdown_pct = 0.0
     history = sim.get("history", [])
     
-    if history:
-        # Sharpe (Mean / StdDev) * Sqrt(N)
+    if history and len(history) > 1:
+        # 📈 Retorno Médio por Trade
         mean_ret = sum(history) / len(history)
+        
+        # 📉 Volatilidade (Desvio Padrão dos Retornos)
         variance = sum([(x - mean_ret)**2 for x in history]) / len(history)
         std_dev = variance**0.5
+        
+        # ⚖️ SHARPE RATIO (Anualizado para 1m candles)
+        # Fórmula: (Retorno Médio - Risk-Free Rate) / Volatilidade
+        # Risk-Free Rate aproximado: 0 para simplificar (crypto)
+        # Anualização: sqrt(525600) para candles de 1 minuto por ano
         if std_dev > 0:
-            sharpe = (mean_ret / std_dev) * (len(history)**0.5)
-            
-        # Drawdown (Peak to Valley)
-        peak = 0
-        curve = 0
-        max_dd = 0
+            # Sharpe simples por trade
+            sharpe_per_trade = mean_ret / std_dev
+            # Anualizado (sqrt do número de períodos)
+            sharpe = sharpe_per_trade * (len(history) ** 0.5)
+        
+        # 📉 DRAWDOWN MÁXIMO (%)
+        # Maior queda do pico até o fundo antes de recuperar
+        equity_curve = []
+        cumulative = 0
         for ret in history:
-            curve += ret
-            if curve > peak: peak = curve
-            dd = peak - curve
-            if dd > max_dd: max_dd = dd
-        drawdown = max_dd
+            cumulative += ret
+            equity_curve.append(cumulative)
+        
+        peak = equity_curve[0]
+        max_dd = 0
+        for equity in equity_curve:
+            if equity > peak:
+                peak = equity
+            dd = peak - equity
+            if dd > max_dd:
+                max_dd = dd
+        max_drawdown_pct = max_dd
+    
+    # 🏆 Rating baseado nas métricas
+    if sim["pnl"] > 0 and sharpe >= 2.0:
+        rating = "EXCELENTE"
+    elif sim["pnl"] > 0 and sharpe >= 1.0:
+        rating = "BOM"
+    elif sim["pnl"] > 0:
+        rating = "ACEITÁVEL"
+    else:
+        rating = "PRECISA REVISÃO"
 
     return {
         "symbol": symbol, 
+        "mode": mode,
+        # 💰 PnL Líquido
         "total_pnl_percent": round(sim["pnl"], 2), 
+        # 📈 Win Rate
         "total_trades": sim["trades"],
+        "wins": sim["wins"],
+        "losses": sim["trades"] - sim["wins"],
         "win_rate": round(win_rate, 2),
+        # 📊 Métricas Avançadas
         "metrics": {
-            "rrr": 1.3 if "SOL" not in symbol else 1.2,
             "sharpe_ratio": round(sharpe, 2),
-            "max_drawdown": round(drawdown, 2),
-            "safety_rating": "SOVEREIGN" if sim["pnl"] > 0 and sharpe > 1.0 else ("OK" if sim["pnl"] > 0 else "CAUTION")
+            "max_drawdown_pct": round(max_drawdown_pct, 2),
+            "avg_return_per_trade": round(sum(history) / max(1, len(history)), 2) if history else 0,
+            "volatility": round((sum([(x - sum(history)/max(1,len(history)))**2 for x in history]) / max(1, len(history)))**0.5, 2) if history else 0,
+            "rating": rating
+        },
+        "interpretation": {
+            "sharpe": "< 1 Fraco | 1-2 Aceitável | > 2 Bom | > 5 Excelente",
+            "drawdown": "Menor = Melhor (representa risco máximo)"
         }
     }

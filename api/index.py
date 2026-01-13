@@ -8,12 +8,15 @@ import asyncio
 import time
 
 # ============================================================
-# ⚙️ VERCEL MASTER BRAIN - v271.0 "Quantum Sovereign Gold"
+# ⚙️ VERCEL JUNIOR BRAIN - v370.3 "SINGULARITY-RALF"
+# 🧠 Distribuído: Cálculos de Indicadores + Keep-Alive DUAL-CORE
 # ============================================================
 load_dotenv()
-app = FastAPI(title="PREDATOR Master Brain (Vercel)")
+app = FastAPI(title="PREDATOR JUNIOR Brain (Vercel)")
 
 INTERNAL_SECRET_TOKEN = os.environ.get("INTERNAL_SECRET_TOKEN", "predador_secret_2026")
+PRIMARY_URL = "https://predador-api.onrender.com"
+BRAIN_URL = "https://predador-singularity-m32c.onrender.com"
 
 class NomadBrain:
     def calculate_indicators(self, closes, highs, lows, volumes=None):
@@ -65,7 +68,11 @@ class NomadBrain:
         trend_up = closes[-1] > ema200
 
         is_compressed = bb_width < 0.65 or entropy > 0.55
+        
+        # 🌀 RALF INDICATORS (EMA 9 & EMA 21)
         ema9 = sum(closes[-9:]) / 9
+        ema21 = sum(closes[-21:]) / 21
+        ema_cross_up = ema9 > ema21
         
         # 🔗 Elastic Divergence (Refined)
         divergence = False
@@ -76,7 +83,8 @@ class NomadBrain:
             "rsi": rsi, "stoch_rsi": stoch_rsi, "rsi_slope": rsi_slope, "psi": psi,
             "bb_width": bb_width, "z_vol": z_vol, "is_compressed": is_compressed,
             "touch_low": touch_low, "touch_high": touch_high,
-            "divergence": divergence, "ema9": ema9, "ma20": ma20, "ema200": ema200,
+            "divergence": divergence, "ema9": ema9, "ema21": ema21, "ema_cross_up": ema_cross_up,
+            "ma20": ma20, "ema200": ema200,
             "trend_up": trend_up, "price": closes[-1], "entropy": entropy, "atr": std_dev
         }
 
@@ -97,7 +105,7 @@ class HuntRequest(BaseModel):
 
 @app.get("/")
 async def health():
-    return {"status": "BRAIN_ACTIVE", "location": "VERCEL", "version": "340.0-VALHALLA"}
+    return {"status": "JUNIOR_ACTIVE", "location": "VERCEL", "version": "370.3-SINGULARITY-RALF"}
 
 @app.post("/api/hunt")
 async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
@@ -180,24 +188,44 @@ async def analyze_hunt(payload: HuntRequest, x_token: str = Header(None)):
         "targets": {"tp": intel["ma20"], "sl_factor": 3.0},
         "leverage_mult": lev_mult,
         "shield": shield_status,
-        "version": "371.0-ENTROPY-SHIELD"
+        "ema_cross_up": intel.get("ema_cross_up", False),
+        "version": "370.3-SINGULARITY-RALF"
     }
 
 @app.get("/api/wake_up_render")
 async def wake_up_render():
     """ 
     Endpoint chamado pelo Vercel Cron a cada 10 min 
-    para manter o Render (Python Backend) acordado.
+    para manter AMBOS os nós Render (DUAL-CORE) acordados.
     """
     import urllib.request
-    try:
-        url = "https://predador-api.onrender.com/health"
-        req = urllib.request.Request(
-            url, 
-            headers={'User-Agent': 'Mozilla/5.0'}
-        )
-        with urllib.request.urlopen(req) as response:
-            status = response.getcode()
-        return {"status": "WAKE_UP_SENT", "render_status": status, "timestamp": time.time()}
-    except Exception as e:
-        return {"status": "WAKE_UP_FAILED", "detail": str(e)}
+    results = {}
+    
+    for name, url in [("PRIMARY", PRIMARY_URL), ("BRAIN", BRAIN_URL)]:
+        try:
+            req = urllib.request.Request(
+                f"{url}/health", 
+                headers={'User-Agent': 'Mozilla/5.0'}
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                results[name] = {"status": "AWAKE", "code": response.getcode()}
+        except Exception as e:
+            results[name] = {"status": "FAILED", "error": str(e)}
+    
+    return {"wake_up": results, "timestamp": time.time(), "version": "370.3"}
+
+@app.get("/api/ralf_signal")
+async def ralf_signal(symbol: str = "BTCUSDT"):
+    """
+    🌀 RALF Quick Signal: Retorna sinal rápido baseado em EMA 9/21
+    Usado para decisões de alta frequência.
+    """
+    # Aqui seria ideal buscar OHLCV, mas por simplicidade retornamos placeholder
+    # Em produção, o PRIMARY enviaria dados ou JUNIOR buscaria de uma API
+    return {
+        "symbol": symbol,
+        "mode": "RALF",
+        "signal": "AWAIT_DATA",
+        "note": "Envie OHLCV via POST /api/hunt com mode=RALF para análise completa",
+        "version": "370.3"
+    }
