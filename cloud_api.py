@@ -416,7 +416,7 @@ def get_ralf_config(symbol, is_trending, is_compressed):
     }
 
 async def autonomous_hunter_loop():
-    print("🦅 PREDADOR SUPREMO & 🦖 SNIPER JUNIOR ATIVOS.")
+    print("🦅 PREDADOR SUPREMO, 🦖 SNIPER & 🌀 RALF SCALPER ATIVOS.")
     while True:
         try:
             await asyncio.sleep(1) # HFT Speed
@@ -442,6 +442,8 @@ async def autonomous_hunter_loop():
             for symbol in ["BTCUSDT", "ETHUSDT"]: await run_strategy(symbol, "SUPREME")
             # SNIPER (SOL)
             await run_strategy("SOLUSDT", "SNIPER")
+            # 🌀 RALF SCALPER (All Assets - High Frequency)
+            for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]: await run_strategy(symbol, "RALF")
         except Exception as e:
             print(f"⚠️ Loop: {e}")
             await asyncio.sleep(5)
@@ -526,14 +528,14 @@ async def run_strategy(symbol, mode):
     
     # [RALF OVERRIDE]
     if mode == "RALF":
-        # Balanced RSI for RALF Scalper
-        ralf_oversold = rsi < 35
-        ralf_overbought = rsi > 65
+        # Balanced RSI for RALF LIVE Scalper (más relaxado que backtest)
+        ralf_oversold = rsi < 40
+        ralf_overbought = rsi > 60
         
         ralf_long = intel.get("ema_cross_up") and intel.get("trend_up")
         ralf_short = not intel.get("ema_cross_up") and not intel.get("trend_up")
         
-        vol_check = intel.get("z_vol", 0) > 0.5
+        vol_check = intel.get("z_vol", 0) > 0.3
         
         if (ralf_oversold and ralf_long and vol_check):
             points += 60
