@@ -1,21 +1,35 @@
-# PREDATOR v25.0 SOVEREIGN ENGINE - Render Blueprint
-# Optimized for High-Concurrency & Power Backend
-
+# PREDADOR v370.3 DUAL-CORE - Render Blueprint
 services:
+  # -----------------------------------------------------------------
+  # 🦅 PRIMARY NODE (Frankfurt) - Trading Engine
+  # -----------------------------------------------------------------
   - type: web
     name: predador-api
     runtime: python
-    region: oregon
+    region: frankfurt
     plan: free
     buildCommand: pip install -r requirements.txt
-    # Usando Gunicorn com workers Uvicorn para potência real de backend
-    # -w 2 para manter uso de RAM dentro dos 512MB do plano Free
-    startCommand: gunicorn -w 2 -k uvicorn.workers.UvicornWorker cloud_api:app --bind 0.0.0.0:$PORT --timeout 120
+    startCommand: uvicorn cloud_api:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
-      - key: TZ
-        value: "America/Sao_Paulo"
-      - key: WEB_CONCURRENCY
-        value: "2"
+      - key: NODE_ROLE
+        value: "PRIMARY"
+
+  # -----------------------------------------------------------------
+  # 🧠 BRAIN NODE (Virginia) - Watchdog & Analytics
+  # -----------------------------------------------------------------
+  - type: web
+    name: predador-singularity-m32c
+    runtime: python
+    region: oregon 
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn cloud_api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: NODE_ROLE
+        value: "BRAIN"
