@@ -23,7 +23,7 @@ services:
   - type: web
     name: predador-singularity-m32c
     runtime: python
-    region: oregon 
+    region: frankfurt 
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn cloud_api:app --host 0.0.0.0 --port $PORT

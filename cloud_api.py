@@ -309,7 +309,17 @@ async def startup_event():
     # Log de Startup
     asyncio.create_task(engine_state.log_event_to_supabase("STARTUP", f"Sistema Predator v370.2 Iniciado | Node: {NODE_ROLE}"))
     
-    asyncio.create_task(exchange.load_markets())
+    async def init_exchange():
+        try:
+            await exchange.load_markets()
+            print("✅ [EXCHANGE] Conexão com Bybit estabelecida (Mercados Carregados).")
+        except Exception as e:
+            print(f"⚠️ [EXCHANGE ERROR] Falha Crítica na conexão com Bybit: {e}")
+            if "403" in str(e):
+                print("⛔ [GEO-BLOCK] Região Bloqueada Detectada (USA?). Este nó funcionará apenas como OBSERVADOR (Watchdog).")
+                print("💡 AÇÃO: Mova este serviço para Frankfurt ou Singapore para habilitar Trading/Failover.")
+
+    asyncio.create_task(init_exchange())
     
     # 💵 Initial Balance Sync
     await engine_state.sync_balance(exchange)

@@ -1,10 +1,20 @@
-# 🦅 PREDADOR v370.0 "SINGULARITY-INFINITY" 🌌
-> **A Evolução Suprema: Matriz Infinita, Proteção Caótica & Consciência de Capital**
+# 🦅 PREDADOR v370.3 "DUAL-CORE" 🌌
+> **A Evolução Suprema: Arquitetura Redundante, Matriz Infinita & Soberania de Capital**
 
-![Status](https://img.shields.io/badge/status-LIVE_HUNTING-brightgreen.svg) ![Version](https://img.shields.io/badge/version-v370.0_SINGULARITY-blue.svg) ![PnL](https://img.shields.io/badge/backtest_pnl-+179.60%25-green.svg)
+![Status](https://img.shields.io/badge/status-LIVE_HUNTING-brightgreen.svg) ![Version](https://img.shields.io/badge/version-v370.3_DUAL--CORE-blueviolet.svg) ![PnL](https://img.shields.io/badge/backtest_pnl-+179.60%25-green.svg) ![Architecture](https://img.shields.io/badge/architecture-FRANKFURT_%2B_VIRGINIA-orange.svg)
 
-## 🌌 A Singularidade: Matriz de Risco Infinito + Entropy Shield
-O **PREDATOR v370.0** representa o ápice da segurança e do lucro. Combinamos a força bruta da **"Singularity Matrix"** com a inteligência estratégica do **"Entropy Shield"**. O sistema agora detecta o caos do mercado (Entropia) e ajusta automaticamente sua exposição para proteger o capital.
+## 🌌 A Singularidade: Arquitetura Dual-Core Cloud
+O **PREDATOR v370.3** opera agora em uma arquitetura de nuvem distribuída de nível institucional, garantindo 100% de uptime e resiliência contra falhas regionais.
+
+### 🏗️ Arquitetura de Nós (Cloud Cluster)
+| Nó | Região | Função | Status |
+| :--- | :--- | :--- | :--- |
+| **🦅 PRIMARY** | **Frankfurt (EU)** | Motor de Execução HFT, Conexão Direta Exchange, Gestão de Ordens | **ONLINE** ✅ |
+| **🧠 BRAIN** | **Virginia (US)** | Watchdog, Analytics Pesado, Failover Automático, Monitoramento de Saúde | **ONLINE** ✅ |
+
+O sistema combina a força bruta da **"Singularity Matrix"** com a inteligência estratégica do **"Entropy Shield"**, agora protegido por uma infraestrutura redundante.
+
+---
 
 ### 🛡️ Matriz de Alavancagem "Escudo do Infinito"
 | Ativo | Alavancagem Base | Lógica | Escudo (Caos) | Resultado (Backtest) |
@@ -24,19 +34,20 @@ O **PREDATOR v370.0** representa o ápice da segurança e do lucro. Combinamos a
 
 ---
 
-## 🔋 Protocolo MINIMUM-FUEL (v370.0)
-O sistema agora possui **Consciência de Capital**.
-- **Gatilho de Ativação:** O robô só inicia operações se detectar pelo menos **20 USDT** livres na conta de futuros.
-- **Proteção contra Rejeição:** Evita erros de "Qty Too Small" na exchange, preservando a saúde da API Key.
+## 🔋 Protocolo MINIMUM-FUEL & DUAL-CHECK
+O sistema agora possui **Consciência de Capital** e **Verificação Cruzada**.
+- **Gatilho de Ativação:** O robô só inicia operações se detectar capital suficiente e ambos os nós estiverem em sincronia.
+- **Failover:** Se Frankfurt falhar, Virginia assume o monitoramento e notifica o operador (via n8n/Telegram) imediatamente.
 
 ---
 
 ## 🚀 Status do Sistema (AUTO 24/7)
-O sistema opera de forma totalmente autônoma e 24/7 na nuvem (Render + Vercel).
+O sistema opera de forma totalmente autônoma e 24/7 na nuvem (Render Cluster + Vercel Cron).
 
 ### ✅ Checklist de Operação
-- [x] **/health** → Status 200 (Active - v370.0)
-- [x] **/state** → Regime: **GHOST-HUNTING** (Operando c/ Escudo)
+- [x] **/health (Primary)** → Status 200 (Active - v370.3)
+- [x] **/health (Brain)** → Status 200 (Watchdog Active)
+- [x] **/state** → Regime: **GHOST-HUNTING** (Operando c/ Escudo na Nuvem)
 - [x] **Keep-Alive** → Redundância Interna (Render) + Externa (Vercel Cron)
 - [x] **Homeostase** → Proteção Biométrica de capital e lucro diário.
 
@@ -44,17 +55,17 @@ O sistema opera de forma totalmente autônoma e 24/7 na nuvem (Render + Vercel).
 
 ## 🛠️ Cockpit de Comando
 
-### 🔌 Iniciar Operação 24/7 (Keep-Alive)
-Já integrado na nuvem. Para rodar monitoramento local:
+### 🔌 Monitoramento ao Vivo
+Para verificar o status da nuvem localmente:
 ```bash
-python keep_alive.py
+python monitor_render.py
 ```
 
 ### 🚀 Validar Estratégia (Backtest)
 ```bash
 python trigger_backtest.py
 ```
-*Roda a simulação v370.0 para confirmar a robustez do Entropy Shield e Neural Tuning v3.*
+*Roda a simulação v370.3 para confirmar a robustez do sistema distribuído.*
 
 ---
 
@@ -67,12 +78,12 @@ Resultados validados em backtest (Janeiro 2026):
 
 ---
 
-## 🧬 Tecnologias
-- **FastAPI (Python):** Motor HFT de execução, proteção e resiliência (Support for HEAD/Health).
-- **Vercel Cron:** Despertador redundante para o Render.
-- **Supabase:** Telemetria "Black Box" e Sincronização de Status Otimizada.
-- **Infinity Matrix:** Algoritmo de alavancagem diferencial.
-- **Neural Tuning v3:** Sistema de pontuação ponderada para decisões de alta precisão.
+## 🧬 Stack Tecnológica DUAL-CORE
+- **FastAPI (Python):** Motor HFT distribuído em múltiplos nós geográficos.
+- **Render Cloud:** Infraestrutura de execução (Frankfurt & Virginia).
+- **Vercel Cron:** Heartbeat externo independente.
+- **Supabase:** Camada de Dados "Sovereign" com RLS estrito.
+- **Infinity Matrix:** Algoritmo de alavancagem adaptativa.
 
 ---
-*Desenvolvido por Douglas e Google Deepmind Agent - "Soberania Quântica 2026"*
+*Desenvolvido por Douglas e Google Deepmind Agent - "Soberania Quântica Dual-Core 2026"*
