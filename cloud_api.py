@@ -35,8 +35,8 @@ INTERNAL_SECRET_TOKEN = os.environ.get("INTERNAL_SECRET_TOKEN", "predador_secret
 
 # 🌐 DUAL-CORE NODE DETECTION
 NODE_ROLE = os.environ.get("NODE_ROLE", "PRIMARY")  # PRIMARY = Frankfurt, BRAIN = Virginia
-PRIMARY_URL = os.environ.get("PRIMARY_URL", "https://predador-api.onrender.com")
-BRAIN_URL = os.environ.get("BRAIN_URL", "https://predador-singularity-m32c.onrender.com")
+PRIMARY_URL = os.environ.get("PRIMARY_URL", "https://fun-calley-modelo-inteligente-85d8461c.koyeb.app")
+BRAIN_URL = os.environ.get("BRAIN_URL", "https://fun-calley-modelo-inteligente-85d8461c.koyeb.app")
 
 # 📡 SUPABASE BLACK-BOX (Telemetry)
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://xayaogxbjudpmwylaiuf.supabase.co")

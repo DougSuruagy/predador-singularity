@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def monitor_stats():
-    url = "https://predador-api.onrender.com"
+    url = "https://fun-calley-modelo-inteligente-85d8461c.koyeb.app"
     token = os.environ.get("INTERNAL_SECRET_TOKEN", "predador_secret_2026")
     headers = {"X-Token": token}
     

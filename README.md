@@ -10,9 +10,9 @@ O **PREDATOR v370.3** opera agora em uma arquitetura de nuvem distribuída de n�
 | Nó | Região | Função | Status |
 | :--- | :--- | :--- | :--- |
 | **🦅 PRIMARY** | **Frankfurt (EU)** | Motor de Execução HFT, Conexão Direta Exchange, Gestão de Ordens | **ONLINE** ✅ |
-| **🧠 BRAIN** | **Virginia (US)** | Watchdog, Analytics Pesado, Failover Automático, Monitoramento de Saúde | **ONLINE** ✅ |
+| **🧠 BRAIN** | **Frankfurt/Backup** | Watchdog, Analytics Pesado, Failover Automático | **ONLINE** (Geo-Adaptive) 🛡️ |
 
-O sistema combina a força bruta da **"Singularity Matrix"** com a inteligência estratégica do **"Entropy Shield"**, agora protegido por uma infraestrutura redundante.
+O sistema combina a força bruta da **"Singularity Matrix"** com a inteligência estratégica do **"Entropy Shield"**, agora protegido por uma infraestrutura redundante com detecção automática de bloqueio geográfico (Geo-Block Evasion).
 
 ---
 
@@ -38,6 +38,7 @@ O sistema combina a força bruta da **"Singularity Matrix"** com a inteligência
 O sistema agora possui **Consciência de Capital** e **Verificação Cruzada**.
 - **Gatilho de Ativação:** O robô só inicia operações se detectar capital suficiente e ambos os nós estiverem em sincronia.
 - **Failover:** Se Frankfurt falhar, Virginia assume o monitoramento e notifica o operador (via n8n/Telegram) imediatamente.
+- **Geo-Block Defense:** O sistema detecta automaticamente restrições regionais (ex: 403 Forbidden) e adapta o nó para modo "Watchdog Only" se necessário.
 
 ---
 
@@ -46,7 +47,7 @@ O sistema opera de forma totalmente autônoma e 24/7 na nuvem (Render Cluster + 
 
 ### ✅ Checklist de Operação
 - [x] **/health (Primary)** → Status 200 (Active - v370.3)
-- [x] **/health (Brain)** → Status 200 (Watchdog Active)
+- [x] **/health (Brain)** → Status 200 (Watchdog Active + Geo-Check Passed)
 - [x] **/state** → Regime: **GHOST-HUNTING** (Operando c/ Escudo na Nuvem)
 - [x] **Keep-Alive** → Redundância Interna (Render) + Externa (Vercel Cron)
 - [x] **Homeostase** → Proteção Biométrica de capital e lucro diário.
