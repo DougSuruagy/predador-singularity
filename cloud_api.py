@@ -526,11 +526,20 @@ async def run_strategy(symbol, mode):
     
     # [RALF OVERRIDE]
     if mode == "RALF":
-        # Lógica Ralf: Preço longe da MA200 e confirmação de trend EMAs
+        # Relaxed RSI for RALF Scalper
+        ralf_oversold = rsi < 45
+        ralf_overbought = rsi > 55
+        
         ralf_long = intel.get("ema_cross_up") and intel.get("trend_up")
         ralf_short = not intel.get("ema_cross_up") and not intel.get("trend_up")
-        if (oversold and ralf_long) or (overbought and ralf_short):
-            points += 50 # Bônus de convergência Ralf
+        
+        if (ralf_oversold and ralf_long):
+            points += 60
+            bias = "GOD_LONG"
+            decision = "EXECUTE"
+        elif (ralf_overbought and ralf_short):
+            points += 60
+            bias = "GOD_SHORT"
             decision = "EXECUTE"
         else:
             decision = "REJECT"
@@ -705,12 +714,27 @@ async def run_backtest(payload: WebhookPayload):
         entropy = intel.get("entropy", 0.5)
 
         # Surgical Backtest Thresholds: Sovereign v370.0
-        active_threshold = 85
+        active_threshold = 50 if mode == "RALF" else 85
 
         # Sync Trend & Volume Filters
         t_up = intel.get("trend_up", True)
         aligned_bt = (oversold and t_up) or (overbought and not t_up)
-        vol_confirm_bt = intel.get("z_vol", 0) > 1.0 or intel.get("bb_width", 0) > 0.25
+        
+        if mode == "RALF":
+            r_long = intel.get("ema_cross_up") and t_up
+            r_short = not intel.get("ema_cross_up") and not t_up
+            r_os = rsi < 45
+            r_ob = rsi > 55
+            
+            if (r_os and r_long) or (r_ob and r_short):
+                points = 100
+                aligned_bt = True
+                vol_confirm_bt = True # RALF ignores volume shock
+                bias = "GOD_LONG" if r_long else "GOD_SHORT"
+            else:
+                points = 0
+        else:
+            vol_confirm_bt = intel.get("z_vol", 0) > 1.0 or intel.get("bb_width", 0) > 0.25
 
         if points >= active_threshold and entropy <= 0.85 and vol_confirm_bt and aligned_bt:
             is_sol_backtest = "SOL" in symbol.upper()
