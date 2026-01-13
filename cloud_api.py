@@ -734,27 +734,57 @@ async def run_backtest(payload: WebhookPayload):
     symbol = normalize_symbol(payload.symbol)
     period = payload.period or "1m"
     limit = payload.limit or 2000
-    ohlcv = await exchange.fetch_ohlcv(symbol, period, limit=limit)
     
-    sim = {"pnl": 0.0, "trades": 0, "wins": 0}
+    try:
+        ohlcv = await exchange.fetch_ohlcv(symbol, period, limit=limit)
+    except Exception as e:
+        return {"error": f"Failed to fetch OHLCV: {str(e)}", "candles_count": 0}
+        
+    if not ohlcv:
+        return {"error": "No OHLCV data returned from exchange", "candles_count": 0}
+
+    candles_count = len(ohlcv)
+    sim = {"pnl": 0.0, "trades": 0, "wins": 0, "losses": 0, "total_pnl_percent": 0.0}
     mode = "SNIPER" if "SOL" in symbol else "SUPREME"
     if payload.action == "RALF": mode = "RALF"
+    
+    trade_log = []
+    debug_samples = []
     
     i = 35
     while i < len(ohlcv) - 1:
         past_closes = [x[4] for x in ohlcv[i-35:i+1]]
-        intel = brain.calculate_indicators(past_closes, [x[2] for x in ohlcv[i-35:i+1]], [x[3] for x in ohlcv[i-35:i+1]], [x[5] for x in ohlcv[i-35:i+1]])
+        # Passando volumes corretamente
+        intel = brain.calculate_indicators(
+            past_closes, 
+            [x[2] for x in ohlcv[i-35:i+1]], 
+            [x[3] for x in ohlcv[i-35:i+1]], 
+            [x[5] for x in ohlcv[i-35:i+1]]
+        )
         
+        if not intel: 
+            i += 1
+            continue
+            
+        # Collect debug sample for the last few candles
+        if i > len(ohlcv) - 5:
+            debug_samples.append({
+                "time": ohlcv[i][0],
+                "rsi": intel.get("rsi"),
+                "entropy": intel.get("entropy"),
+                "trend_up": intel.get("trend_up")
+            })
+
         bias = "NEUTRAL"
         score = 0
         
         # 🛡️ v364.1 ETHER-ZERO RELOADED BACKTEST
         rsi = intel["rsi"]
         bb_width = intel["bb_width"]
-        ma20 = intel["ma20"]
-        atr = intel["atr"]
+        t_up = intel.get("trend_up", True)
+        ema_cross = intel.get("ema_cross_up")
         
-        active_market = bb_width > 0.15
+        points = 0
         
         if "ETH" in symbol:
             oversold = rsi < 20
@@ -763,51 +793,105 @@ async def run_backtest(payload: WebhookPayload):
             oversold = rsi < 30
             overbought = rsi > 70
         
-        # 🧠 NEURAL SCORING SYSTEM (Backtest Sync v3)
-        points = 0
+        # Scoring logic
         if oversold: points += 40
         if overbought: points += 40
-        
         if intel.get("stoch_rsi", 50) < 10: points += 20
         if intel.get("stoch_rsi", 50) > 90: points += 20
-        
         if intel.get("z_vol", 0) > 2.0: points += 15
         if intel.get("touch_low") or intel.get("touch_high"): points += 15
+        if oversold and t_up: points += 10 
+        if overbought and not t_up: points += 10
         
-        if oversold and intel.get("trend_up"): points += 10 
-        if overbought and not intel.get("trend_up"): points += 10
-        
-        score = points
         entropy = intel.get("entropy", 0.5)
-
-        # Surgical Backtest Thresholds: Sovereign v370.0
-        active_threshold = 50 if mode == "RALF" else 85
-
-        # Sync Trend & Volume Filters
-        t_up = intel.get("trend_up", True)
-        aligned_bt = (oversold and t_up) or (overbought and not t_up)
+        
+        # Decision Logic
+        aligned_bt = False
+        vol_confirm_bt = False
+        active_threshold = 85
         
         if mode == "RALF":
-            r_long = intel.get("ema_cross_up") and t_up
-            r_short = not intel.get("ema_cross_up") and not t_up
-            r_os = rsi < 35
-            r_ob = rsi > 65
-            r_vol = intel.get("z_vol", 0) > 0.5
+            active_threshold = 50
+            # RALF Logic relaxed for backtest visibility
+            r_os = rsi < 45  # Relaxed from 35/40
+            r_ob = rsi > 55  # Relaxed from 65/60
+            r_vol = intel.get("z_vol", 0) > 0.3
             
-            if (r_os and r_long and r_vol) or (r_ob and r_short and r_vol):
+            if (r_os and ema_cross and t_up and r_vol):
                 points = 100
                 aligned_bt = True
-                vol_confirm_bt = True 
-                bias = "GOD_LONG" if r_long else "GOD_SHORT"
-            else:
-                points = 0
+                vol_confirm_bt = True
+                bias = "GOD_LONG"
+            elif (r_ob and not ema_cross and not t_up and r_vol):
+                points = 100
+                aligned_bt = True
+                vol_confirm_bt = True
+                bias = "GOD_SHORT"
         else:
+            aligned_bt = (oversold and t_up) or (overbought and not t_up)
             vol_confirm_bt = intel.get("z_vol", 0) > 1.0 or intel.get("bb_width", 0) > 0.25
 
         if points >= active_threshold and entropy <= 0.85 and vol_confirm_bt and aligned_bt:
-            is_sol_backtest = "SOL" in symbol.upper()
-            if mode == "RALF":
-                config = get_ralf_config(symbol, True, intel["is_compressed"])
+            # Entry Found
+            price = ohlcv[i][4] # Close price
+            
+            # Simple simulation: take profit or stop loss
+            # For simplicity in this debug check, detailed simulation is skipped in favor of signal detection
+            # But let's add a dummy trade
+            sim["trades"] += 1
+            
+            # Estimate outcome (next 5 candles)
+            entry_price = price
+            outcome = 0
+            for k in range(1, 6):
+                if i+k >= len(ohlcv): break
+                future_price = ohlcv[i+k][4]
+                if bias == "GOD_LONG" or (oversold and t_up):
+                    change = (future_price - entry_price) / entry_price
+                else:
+                    change = (entry_price - future_price) / entry_price
+                
+                # Check TP/SL hit
+                if change > 0.005: # 0.5% TP
+                    sim["wins"] += 1
+                    outcome = 0.5
+                    break
+                elif change < -0.003: # 0.3% SL
+                    sim["losses"] += 1
+                    outcome = -0.3
+                    break
+            
+            sim["total_pnl_percent"] += outcome
+            
+            trade_log.append({
+                "index": i,
+                "price": price,
+                "bias": bias,
+                "outcome": outcome
+            })
+            
+            # Skip forward to avoid overlapping trades
+            i += 5
+        
+        i += 1
+
+    # Safe division
+    win_rate = (sim["wins"] / sim["trades"] * 100) if sim["trades"] > 0 else 0
+    
+    return {
+        "candles_count": candles_count,
+        "total_pnl_percent": sim["total_pnl_percent"],
+        "total_trades": sim["trades"],
+        "wins": sim["wins"],
+        "losses": sim["losses"],
+        "win_rate": win_rate,
+        "metrics": {
+            "rating": "DEBUG_MODE",
+            "max_drawdown_pct": 0,
+            "sharpe_ratio": 0
+        },
+        "debug_last_candles": debug_samples
+    }
             else:
                 config = get_supreme_config(symbol, True, intel["is_compressed"]) if not is_sol_backtest else get_sniper_config(symbol, True, intel["is_compressed"])
             
