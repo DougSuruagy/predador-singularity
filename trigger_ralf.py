@@ -20,7 +20,7 @@ def run_ralf_backtest(symbol="SOLUSDT", period="1m"):
         "symbol": symbol,
         "period": period,
         "limit": 2000,
-        "action": "RALF" # Aciona o modo RALF no backend
+        "action": "RALF"
     }
     
     try:
@@ -31,7 +31,7 @@ def run_ralf_backtest(symbol="SOLUSDT", period="1m"):
 
 if __name__ == "__main__":
     assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
-    print(f"🌪️ INICIANDO BACKTEST MODO RALF (v370.1)")
+    print(f"🌪️ INICIANDO BACKTEST MODO RALF (v370.1.2)")
     print("=" * 60)
     
     for asset in assets:
@@ -41,7 +41,7 @@ if __name__ == "__main__":
             print(f"❌ {asset}: {res['error']}")
         else:
             pnl = res.get('total_pnl_percent', 0)
-            trades = res.get('trades', 0)
+            trades = res.get('total_trades', 0) # Fixed key
             wr = res.get('win_rate', 0)
             print(f"✅ {asset}: PnL {pnl}% | Trades: {trades} | WR: {wr}%")
     

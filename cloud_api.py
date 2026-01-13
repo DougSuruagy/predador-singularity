@@ -405,13 +405,13 @@ def get_sniper_config(symbol, is_trending, is_compressed):
     }
 
 def get_ralf_config(symbol, is_trending, is_compressed):
-    """ [RALF] SCALPER MODE - Ultra-High Frequency """
+    """ [RALF] SCALPER MODE - Optimized Risk """
     return {
         "threshold": 0.05, 
         "min_score": 50,  
-        "sl_mult": 1.0,   
-        "tp_mult": 2.5,   
-        "leverage": 100,  
+        "sl_mult": 1.5,   
+        "tp_mult": 3.4,   
+        "leverage": 25,  
         "shadow_trail": True
     }
 
@@ -526,18 +526,20 @@ async def run_strategy(symbol, mode):
     
     # [RALF OVERRIDE]
     if mode == "RALF":
-        # Relaxed RSI for RALF Scalper
-        ralf_oversold = rsi < 45
-        ralf_overbought = rsi > 55
+        # Balanced RSI for RALF Scalper
+        ralf_oversold = rsi < 35
+        ralf_overbought = rsi > 65
         
         ralf_long = intel.get("ema_cross_up") and intel.get("trend_up")
         ralf_short = not intel.get("ema_cross_up") and not intel.get("trend_up")
         
-        if (ralf_oversold and ralf_long):
+        vol_check = intel.get("z_vol", 0) > 0.5
+        
+        if (ralf_oversold and ralf_long and vol_check):
             points += 60
             bias = "GOD_LONG"
             decision = "EXECUTE"
-        elif (ralf_overbought and ralf_short):
+        elif (ralf_overbought and ralf_short and vol_check):
             points += 60
             bias = "GOD_SHORT"
             decision = "EXECUTE"
@@ -723,13 +725,14 @@ async def run_backtest(payload: WebhookPayload):
         if mode == "RALF":
             r_long = intel.get("ema_cross_up") and t_up
             r_short = not intel.get("ema_cross_up") and not t_up
-            r_os = rsi < 45
-            r_ob = rsi > 55
+            r_os = rsi < 35
+            r_ob = rsi > 65
+            r_vol = intel.get("z_vol", 0) > 0.5
             
-            if (r_os and r_long) or (r_ob and r_short):
+            if (r_os and r_long and r_vol) or (r_ob and r_short and r_vol):
                 points = 100
                 aligned_bt = True
-                vol_confirm_bt = True # RALF ignores volume shock
+                vol_confirm_bt = True 
                 bias = "GOD_LONG" if r_long else "GOD_SHORT"
             else:
                 points = 0
