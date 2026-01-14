@@ -1,19 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+venv_linux/
+*.so
+.python-version
+
+# Environment
+.env
+.env.local
+
+# Node.js
 node_modules/
 dist/
-__pycache__/
-*.pyc
-.env
-.idea/
-.vscode/
-*.ex5
-*.json
-# Predator Sovereign Configs
+build/
+.next/
+.vercel/
+
+# Logs & Temp
+*.log
+progress.txt
+backtest_results.json
+archive/
+.claude/
+.agent/
+architecture.canvas
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Configs
 !package.json
 !package-lock.json
 !vercel.json
-!render.yaml
 !prd.json
-!.claude/
-!*.canvas
-!*.base
-!*.md
+!requirements.txt
+!README.md

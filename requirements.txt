@@ -12,3 +12,5 @@ ccxt>=4.3.0
 python-dotenv
 requests
 psutil
+torch>=2.0.0
+numpy>=1.24.0
