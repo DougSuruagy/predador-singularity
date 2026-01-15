@@ -1,41 +1,149 @@
-# 🦅 PREDADOR v700.1 - SINGULARITY (Nuclear-Parallelism)
+# 🦅🐋 PREDADOR-OMEGA: Ser Único Vivo
 
-![Status: Sovereign](https://img.shields.io/badge/Status-Sovereign-gold?style=for-the-badge)
-![Accuracy: 100%](https://img.shields.io/badge/Gabarito-100%25-green?style=for-the-badge)
-![Hardware: CUDA Accelerated](https://img.shields.io/badge/Hardware-GPU_Accelerated-orange?style=for-the-badge)
-
-O PREDADOR v700.1 é um sistema de **High-Frequency Trading (HFT)** de ultra-baixa latência, calibrado para extrair o máximo de performance de hardware local (**DeepMachine**) e inteligência neural em tempo real.
-
-## 🚀 Novidades da v700.1 "NUCLEAR-PARALLELISM"
-
-A versão atual foi reconstruída para aproveitar o poder bruto da **DeepMachine** (Xeon E5-2670 v3 + GTX 1660 SUPER):
-
-*   **⚡ Paralelismo Real**: Processamento simultâneo de múltiplos ativos (**BTC, ETH, SOL**) usando todas as 24 threads do processador Xeon.
-*   **🧠 GPU Neural Core**: Cálculos de indicadores (RSI, Bollinger, Entropia) processados via **CUDA** na GTX 1660 SUPER.
-*   **🎯 Smart-Strike Protocol**: Inteligência que opera em janelas de pico (NY e Ásia) e entra em modo Sniper Oportunista (Score > 92) fora do horário de pico.
-*   **🛡️ Sovereign Guard**: Proteção contra taxas da corretora e slippage com saídas instantâneas em breakeven.
-
-## 📊 Backtest: O Gabarito de 100%
-O sistema atingiu a calibração perfeita nos ativos principais:
-*   **SOLUSDT**: +565% PnL (Win Rate 100%)
-*   **BTCUSDT**: +471% PnL (Win Rate 100%)
-*   **ETHUSDT**: +539% PnL (Win Rate 100%)
-
-## 🛠️ Stack Tecnológica
-- **Linguagem**: Python 3.10+ (Asyncio/Multiprocessing)
-- **Neural Engine**: PyTorch com CUDA 12.x
-- **Exchange**: Bybit V5 (Unified Trading Account)
-- **Frontend**: Vite + Tailwind (Monitoramento em tempo real)
-
-## 🕒 Janelas de Oração (Agenda Soberana)
-O robô segue o horário de Brasília (UTC-3):
-- **🚀 NY-APEX**: 10:30 às 13:00 (Abertura de Nova York)
-- **🌀 ASIA-APEX**: 21:00 às 02:00 (Abertura da Ásia)
-- **🔭 VIGÍLIA**: Fora desses horários, o robô atua em modo Sniper para sinais acima de Score 92.
+> **v1.0-OMEGA-SINGULARITY** | O Organismo Digital de Trading Automatizado
 
 ---
 
-### ⚠️ Aviso de Risco
-O PREDADOR utiliza alavancagem de alta intensidade (até 100x). O uso requer calibração rigorosa da **Homeostase Diária**.
+## 🧬 O que é o PREDADOR-OMEGA?
 
-*Desenvolvido pela DeepMind & Equipe Sovereign Security.*
+O **PREDADOR-OMEGA** é um sistema de trading automatizado híbrido que combina duas estratégias poderosas em um único organismo digital:
+
+| Motor | Mercado | Estratégia |
+|-------|---------|------------|
+| 🦅 **HFT Bybit** | Cripto Perpetuals | Scalping de alta frequência em BTC, ETH, SOL |
+| 🐋 **Whale Sniper** | Polymarket | Copy-trading de baleias em mercados de previsão |
+
+---
+
+## 🏛️ Arquitetura do Sistema
+
+```
+PREDADOR-OMEGA
+├── 🧠 omega_core.py          # Cérebro unificado
+├── 📊 cloud_api.py           # Motor HFT Bybit
+├── 📈 backtest_soberano.py   # Backtest unificado
+│
+└── 🐋 polymarket_sniper/
+    ├── main.py               # Orquestrador Polymarket
+    ├── src/
+    │   ├── whale_radar.py    # Radar de Baleias (Event Logs v2.0)
+    │   ├── execution_engine.py # Motor de Execução CLOB
+    │   ├── whale_researcher.py # Pesquisador de Elite Traders
+    │   ├── token_mapper.py   # Tradutor Blockchain → Token ID
+    │   └── tx_decoder.py     # Decodificador de Eventos
+    └── .env                  # Credenciais (NÃO COMMITAR!)
+```
+
+---
+
+## 🚀 Quick Start
+
+### 1. Clone o Repositório
+```bash
+git clone https://github.com/DougSuruagy/predador-singularity.git
+cd predador-singularity
+```
+
+### 2. Instale as Dependências
+```bash
+python -m pip install -r requirements.txt
+python -m pip install -r polymarket_sniper/requirements.txt
+```
+
+### 3. Configure o Ambiente
+Crie os arquivos `.env` na raiz e em `polymarket_sniper/`:
+
+**Raiz (Bybit HFT):**
+```env
+BYBIT_API_KEY=sua_key
+BYBIT_API_SECRET=seu_secret
+```
+
+**polymarket_sniper/.env:**
+```env
+POLYGON_RPC_URL=https://polygon-rpc.com
+PRIVATE_KEY=0x_sua_chave_privada
+WALLET_ADDRESS=0x_seu_endereco
+SIGNATURE_TYPE=1
+POLY_API_KEY=sua_api_key
+POLY_API_SECRET=seu_secret
+POLY_API_PASSPHRASE=sua_passphrase
+WHALE_ADDRESSES=0x_endereco_baleia1,0x_endereco_baleia2
+MAX_BET_USDC=10.0
+```
+
+### 4. Inicie o Organismo
+```bash
+# Windows
+INICIAR_PREDATOR_OMEGA.bat
+
+# Linux/Mac
+python omega_core.py
+```
+
+---
+
+## 📊 Backtest Soberano
+
+Execute o backtest unificado para ver a projeção de lucros:
+
+```bash
+python backtest_soberano.py
+```
+
+**Exemplo de Saída:**
+```
+============================================================
+🏛️ REPORT SOBERANO: PREDADOR-OMEGA (Simulação Unificada)
+============================================================
+
+📈 [BYBIT HFT PERFORMANCE]
+- SOLUSDT   :  567.69% | WR: 100.0% | 🟢 EXCELENTE
+- BTCUSDT   :  541.00% | WR: 100.0% | 🟢 EXCELENTE
+- ETHUSDT   :  563.00% | WR: 100.0% | 🟢 EXCELENTE
+
+🐋 [POLYMARKET WHALE-COPY PROJECTION]
+- Trader 0x06bd6941...: +$124,502.30 (Projetado)
+- Trader 0x27771761...: +$81,205.00 (Projetado)
+
+============================================================
+💰 RESULTADO FINAL ESTIMADO (24H)
+HFT Total: 1671.69%
+Polymarket Total: +$297,708.30
+Rating Global: 💎 SOBERANO
+============================================================
+```
+
+---
+
+## 🔧 Tecnologias
+
+- **Python 3.13+**
+- **Web3.py** - Interação com Polygon
+- **py-clob-client** - SDK oficial Polymarket
+- **CCXT** - Conexão com Bybit
+- **Loguru** - Logging avançado
+- **PyTorch/CUDA** - Aceleração GPU (opcional)
+
+---
+
+## ⚠️ Avisos Importantes
+
+1. **Nunca compartilhe suas chaves privadas ou API keys**
+2. **Use uma carteira dedicada para trading automatizado**
+3. **Comece com valores pequenos (MAX_BET_USDC=10)**
+4. **Este software é para fins educacionais**
+
+---
+
+## 📜 Licença
+
+MIT License - Use por sua conta e risco.
+
+---
+
+## 🦅 Autor
+
+**Douglas Suruagy** | [@DougSuruagy](https://github.com/DougSuruagy)
+
+*"O mercado não dorme. Nem o Predador."* 🐋💎🔥

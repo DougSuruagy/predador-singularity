@@ -1,0 +1,5 @@
+web3
+py-clob-client
+requests
+python-dotenv
+loguru
