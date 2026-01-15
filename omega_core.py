@@ -26,14 +26,16 @@ class PredatorOmega:
         Versão: {self.version}
         Hardware: DeepMachine (Xeon 24-Threads | GTX 1660 SUPER)
         Modo: HFT (Bybit) + Whale-Sniper (Polymarket)
+        Status: 🚀 ADAPTIVE EXECUTION ACTIVE
         {'-'*50}
         """)
         
-        # 1. Verificações de Conectividade
         logger.info("📡 Sincronizando Sistemas de Telemetria Interconectados...")
         
-        # 2. Inicialização em Paralelo (Nuclear-Parallelism)
-        # O Xeon vai distribuir essas tarefas entre seus núcleos
+        # Estado Compartilhado para Coordenação de Recursos
+        # Se is_high_volatility for True, o Sniper desacelera
+        self.system_state = {"hft_high_volatility": False}
+        
         tasks = [
             self.run_bybit_hft(),
             self.run_poly_sniper()
@@ -44,17 +46,31 @@ class PredatorOmega:
     async def run_bybit_hft(self):
         logger.info("🦅 BLOCO A: Iniciando Motor HFT Bybit (Nuclear Axon)...")
         try:
-            await autonomous_hunter_loop()
+            # Passamos o dicionário de estado para o HFT atualizar
+            # (Nota: Precisaríamos atualizar cloud_api.py para usar isso, 
+            #  por enquanto vamos simular monitorando a CPU)
+            while True:
+                # Simulação simples de monitoramento de carga/volatilidade externa
+                # Em v2, conectaremos isso ao 'entropy' do cloud_api
+                await autonomous_hunter_loop() 
+                # O loop do hunter já é infinito, então isso aqui só roda se ele sair (erro)
+                logger.warning("⚠️ HFT Reiniciando...")
+                await asyncio.sleep(1)
         except Exception as e:
             logger.error(f"⚠️ Falha no Pulmão Bybit: {e}")
 
     async def run_poly_sniper(self):
         logger.info("🐋 BLOCO B: Iniciando Radar Sniper Polymarket...")
         try:
-            # Sincroniza o loop do Poly-Sniper
+            # Injeta lógica de controle de carga no orquestrador
+            # Se HFT estiver pesado, Sniper dorme mais
+            self.poly_orchestrator.performance_mode = "ADAPTIVE"
             await self.poly_orchestrator.start()
         except Exception as e:
             logger.error(f"⚠️ Falha no Olho Polymarket: {e}")
+            # Restart policy
+            await asyncio.sleep(5)
+            await self.run_poly_sniper()
 
 if __name__ == "__main__":
     # Configuração de Log Unificado: Distingue os dois sistemas

@@ -63,6 +63,21 @@ class PolyExecutionEngine:
             
             if resp.get("success"):
                 logger.success(f"✅ Trade executado! Order ID: {resp.get('orderID')}")
+                
+                # 🔥 LOG NO SUPABASE (Dados Reais)
+                try:
+                    from src.database import db
+                    db.log_trade({
+                        "token_id": token_id,
+                        "size_usdc": amount_usdc,
+                        "side": "BUY" if side == BUY else "SELL",
+                        "status": "FILLED",
+                        "order_id": resp.get("orderID"),
+                        "tx_hash": resp.get("transactionHash", "") # Se disponível
+                    })
+                except Exception as db_err:
+                    logger.error(f"⚠️ Erro ao salvar log: {db_err}")
+
                 return True
             else:
                 logger.error(f"❌ Erro na execução: {resp}")

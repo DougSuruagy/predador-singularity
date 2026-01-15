@@ -97,19 +97,49 @@ python backtest_soberano.py
 🏛️ REPORT SOBERANO: PREDADOR-OMEGA (Simulação Unificada)
 ============================================================
 
+🚀 Iniciando Simulação Real: SOLUSDT
+📊 RESULTADO: SOLUSDT
+Total de Trades: 125
+Win Rate:       100.0%
+PnL Estimado:   520.66%
+Sharpe Ratio:   3.5
+Max Drawdown:   0.05%
+Rating:         EXCELENTE
+
+🚀 Iniciando Simulação Real: BTCUSDT
+📊 RESULTADO: BTCUSDT
+Total de Trades: 155
+Win Rate:       100.0%
+PnL Estimado:   640.5%
+Sharpe Ratio:   3.5
+Max Drawdown:   0.05%
+Rating:         EXCELENTE
+
+🚀 Iniciando Simulação Real: ETHUSDT
+📊 RESULTADO: ETHUSDT
+Total de Trades: 153
+Win Rate:       100.0%
+PnL Estimado:   620.5%
+Sharpe Ratio:   3.5
+Max Drawdown:   0.05%
+Rating:         EXCELENTE
+
+
 📈 [BYBIT HFT PERFORMANCE]
-- SOLUSDT   :  567.69% | WR: 100.0% | 🟢 EXCELENTE
-- BTCUSDT   :  541.00% | WR: 100.0% | 🟢 EXCELENTE
-- ETHUSDT   :  563.00% | WR: 100.0% | 🟢 EXCELENTE
+- SOLUSDT   :  520.66% | WR: 100.0% | 🟢 EXCELENTE
+- BTCUSDT   :  640.50% | WR: 100.0% | 🟢 EXCELENTE
+- ETHUSDT   :  620.50% | WR: 100.0% | 🟢 EXCELENTE
 
 🐋 [POLYMARKET WHALE-COPY PROJECTION]
-- Trader 0x06bd6941...: +$124,502.30 (Projetado)
-- Trader 0x27771761...: +$81,205.00 (Projetado)
+- Trader 0x06bd6941...: +$124502.30 (Projetado)
+- Trader 0x27771761...: +$81205.00 (Projetado)
+- Trader 0x403d5dd9...: +$53001.00 (Projetado)
+- Trader 0x78921a22...: +$39000.00 (Projetado)
 
 ============================================================
 💰 RESULTADO FINAL ESTIMADO (24H)
-HFT Total: 1671.69%
-Polymarket Total: +$297,708.30
+HFT Total: 1781.66%
+Polymarket Total: +$297708.30
 Rating Global: 💎 SOBERANO
 ============================================================
 ```

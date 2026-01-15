@@ -30,6 +30,17 @@ class SovereignBacktest:
                     result = await run_backtest(payload)
                     if result and "error" not in result:
                         hft_results[asset] = result
+                        
+                        # EXPLICIT OUTPUT FOR REAL RESULTS
+                        print(f"🚀 Iniciando Simulação Real: {asset}")
+                        print(f"📊 RESULTADO: {asset}")
+                        print(f"Total de Trades: {result.get('total_trades', 0)}")
+                        print(f"Win Rate:       {result.get('win_rate', 0)}%")
+                        print(f"PnL Estimado:   {result.get('total_pnl_percent', 0)}%")
+                        print(f"Sharpe Ratio:   {result.get('metrics', {}).get('sharpe_ratio', 0)}")
+                        print(f"Max Drawdown:   {result.get('metrics', {}).get('max_drawdown', 0)}%")
+                        print(f"Rating:         {result.get('metrics', {}).get('rating', 'N/A')}")
+                        print("") # Newline separator
                 except Exception as e:
                     logger.error(f"⚠️ Erro no processamento de {asset}: {e}")
         except Exception as e:

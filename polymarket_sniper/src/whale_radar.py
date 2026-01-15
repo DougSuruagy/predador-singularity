@@ -35,60 +35,66 @@ class WhaleRadar:
     def is_polymarket_tx(self, tx):
         """Verifica se a transação envolve contratos da Polymarket"""
         target = tx['to'].lower() if tx['to'] else ""
-        return target in [addr.lower() for addr in self.POLYMARKET_CONTRACTS.keys()]
-
     async def watch_loop(self, callback=None):
-        logger.info("🔭 Iniciando Vigilância de Baleias (Modo Event Logs)...")
+        logger.info("🔭 Iniciando Vigilância de Baleias (Modo Event Logs / Non-Blocking)...")
         
         if not self.target_whales:
             logger.warning("⚠️ Nenhuma baleia configurada no .env!")
         else:
             logger.success(f"🐋 Monitorando {len(self.target_whales)} baleias...")
         
-        # Contratos Polymarket para filtrar
         polymarket_addrs = list(self.POLYMARKET_CONTRACTS.keys())
         
+        # Leitura inicial síncrona é ok
         last_block = self.w3.eth.block_number
         logger.info(f"📦 Bloco inicial: {last_block}")
         
         while True:
             try:
-                current_block = self.w3.eth.block_number
+                # 🚀 PERFORMANCE: Executa chamadas RPC em thread separada para não travar o HFT
+                current_block = await asyncio.to_thread(lambda: self.w3.eth.block_number)
                 
                 if current_block > last_block:
-                    # Usa eth_getLogs para buscar eventos dos contratos Polymarket
                     for contract_addr in polymarket_addrs:
                         try:
-                            logs = self.w3.eth.get_logs({
-                                'fromBlock': last_block + 1,
-                                'toBlock': current_block,
-                                'address': contract_addr
-                            })
+                            # Busca Logs Async
+                            logs = await asyncio.to_thread(
+                                self.w3.eth.get_logs,
+                                {
+                                    'fromBlock': last_block + 1,
+                                    'toBlock': current_block,
+                                    'address': contract_addr
+                                }
+                            )
                             
                             for log in logs:
                                 tx_hash = log['transactionHash'].hex()
-                                # Busca a transação para ver quem enviou
-                                tx = self.w3.eth.get_transaction(log['transactionHash'])
+                                
+                                # Busca TX Async
+                                tx = await asyncio.to_thread(
+                                    self.w3.eth.get_transaction,
+                                    log['transactionHash']
+                                )
                                 sender = tx['from'].lower()
                                 
                                 if sender in self.target_whales:
                                     contract_name = self.POLYMARKET_CONTRACTS.get(contract_addr, "Desconhecido")
-                                    logger.warning(f"🚨 📉 TRADE POLYMARKET DETECTADO!")
-                                    logger.warning(f"� Baleia: {sender}")
-                                    logger.info(f"� Contrato: {contract_name}")
-                                    logger.info(f"🔗 TX: https://polygonscan.com/tx/{tx_hash}")
+                                    logger.warning(f"🚨 📉 TRADE POLYMARKET DETECTADO! (Block {current_block})")
+                                    logger.warning(f"🐋 Baleia: {sender}")
                                     
                                     if callback:
+                                        # 🔥 Dispara sem esperar, mantendo o radar girando
                                         asyncio.create_task(callback(tx_hash, sender))
                         except Exception as log_err:
-                            pass # Ignora erros de log individual
+                            pass
                     
                     last_block = current_block
                 
-                await asyncio.sleep(3)
+                # Intervalo agressivo de curto prazo (2s)
+                await asyncio.sleep(2)
                 
             except Exception as e:
-                # Ignora erros de PoA silenciosamente, continua tentando
+                # Se der erro no RPC, espera um pouco mais
                 await asyncio.sleep(5)
 
 if __name__ == "__main__":

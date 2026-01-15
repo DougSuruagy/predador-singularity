@@ -975,8 +975,8 @@ async def run_strategy(symbol, mode, ohlcv=None, intel=None):
             
             # Se fora de horário, permite APENAS 1 trade se o score for ultra-alto
             if not is_prime:
-                if score >= 92 and engine_state.off_window_trades < 1:
-                    print(f"🎯 [OPPORTUNISTIC-STRIKE] Sinal Ultra-Forte detectado ({score:.1f}). Abrindo exceção única...")
+                if score >= 85 and engine_state.off_window_trades < 3: # Mais agressivo: 92->85 e limite de trades 1->3
+                    print(f"🎯 [OPPORTUNISTIC-STRIKE] Sinal Forte detectado ({score:.1f}). Abrindo exceção agressiva...")
                     is_opportunistic = True
                 else:
                     print(f"🔭 [OBSERVATION-LOG] Entrada ignorada (Fora de Janela) em {symbol} | Score: {score:.1f}")
@@ -1001,17 +1001,22 @@ async def run_strategy(symbol, mode, ohlcv=None, intel=None):
                 print(f"💡 DICA: Com saldo real, o Predador teria aberto esta posição agora.")
                 return
 
+            if engine_state.current_balance < engine_state.MIN_CAPITAL:
+                print(f"🔭 [OBSERVATION-LOG] Entrada detectada em {symbol} ({bias}) | Score: {score:.1f} | MODO: {mode}")
+                print(f"💡 DICA: Com saldo real, o Predador teria aberto esta posição agora.")
+                return
+
             try:
-                # 💵 DYNAMIC POSITION SIZING (v110.0)
-                # Aloca ~5% do capital real livre por trade ajustado pela alavancagem
+                # 💵 DYNAMIC POSITION SIZING (v110.1-ULTRA-AGRESSIVO)
+                # Aloca ~45% do capital real livre por trade para MAXIMIZAR o curto prazo
                 free_usd = engine_state.current_balance
                 
-                # Qty = (Capital * Alavancagem) / Preço
-                notional_value = free_usd * 0.05 * effective_leverage
+                # Qty = (Capital * 0.45 * Alavancagem) / Preço
+                notional_value = free_usd * 0.45 * effective_leverage
                 
                 # 🛡️ MICRO-BANK GUARD: Garante que o valor da posição seja aceito pela Bybit (Mínimo ~$5-6)
                 if notional_value < 6.0:
-                    notional_value = 6.0 # Força o mínimo operacional para banca de $20
+                    notional_value = 6.0 # Força o mínimo operacional
                 
                 qty = notional_value / price
                 qty = float(exchange.amount_to_precision(symbol, qty))
@@ -1030,6 +1035,11 @@ async def run_strategy(symbol, mode, ohlcv=None, intel=None):
                         engine_state.leverage_cache[symbol] = final_leverage_int
                     except: pass
                 
+                # 🛡️ DOUBLE-CHECK FINAL ANTES DO TIRO
+                if symbol in engine_state.active_positions: 
+                    print(f"⚠️ [RACE-CONDITION] Ordem abortada, já posicionado em {symbol}")
+                    return
+
                 order = await exchange.create_order(symbol, 'market', side, qty, params=params)
                 print(f"✅ KING ORDER EXECUTED! ID: {order['id']} | Qty: {qty} | Lev: {final_leverage_int}x")
                 
@@ -1052,7 +1062,7 @@ async def run_strategy(symbol, mode, ohlcv=None, intel=None):
                     "metadata": {
                         "qty": float(qty),
                         "leverage": int(final_leverage_int),
-                        "version": "430.1",
+                        "version": "430.2-ULTRA",
                         "entropy": float(entropy)
                     }
                 }
@@ -1073,8 +1083,8 @@ async def run_strategy(symbol, mode, ohlcv=None, intel=None):
             # 🔓 Libera o semáforo após a tentativa de execução
             engine_state.executing_lock.discard(symbol)
         
-        # Reduzido para 1s para permitir caça rápida (Performance Crítica)
-        await asyncio.sleep(1) 
+        # Reduzido para 0.05s para HFT Real (Turbo Mode Extreme)
+        await asyncio.sleep(0.05)
 
 # ============================================================
 # 🔙 BACKTEST (DUAL DYNAMIC)
